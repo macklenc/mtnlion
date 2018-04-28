@@ -218,7 +218,7 @@ def rmse(estimated, true):
     return np.sqrt(((estimated - true) ** 2).mean(axis=1))
 
 
-def plot_j(time, data, jneg, jpos):
+def plot_j(time, data, params, jneg, jpos):
     """
 
     :param time:
@@ -229,8 +229,21 @@ def plot_j(time, data, jneg, jpos):
     :type params: Dict[str, Dict[str, float]]
     """
 
+    # Lneg = 100;
+    # Lsep = 52;
+    # Lpos = 183
+    neg = data.mesh.mesh[data.mesh.neg]*params['neg']['L']
+    sep = ((data.mesh.mesh[data.mesh.sep]-1)*params['sep']['L']+params['neg']['L'])
+    pos = ((data.mesh.mesh[data.mesh.pos]-2)*params['pos']['L']+params['sep']['L']+params['neg']['L'])
+
+    jsep = np.empty([1, len(sep)])[0]
+    jsep[:] = np.nan
+
+    x = np.concatenate((neg,sep,pos))*1e6
     for t in range(0, len(time)):
-        plt.plot(data.mesh.neg, jneg[t, :], data.mesh.pos, jpos[t, :])
+        j = np.concatenate((jneg[t, :], jsep, jpos[t, :]))
+        # plt.plot(neg, jneg[t, :], pos, jpos[t, :])
+        plt.plot(x, j)
 
     plt.grid()
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
@@ -262,9 +275,15 @@ def main():
     comsol_data = fetch_comsol_solutions('../tests/reference/guwang.npz', time)
 
     jneg, jpos = calculate_j(time, comsol_data, params)
-    plot_j(time, comsol_data, jneg, jpos)
-    print('Neg rms: {}'.format(rmse(jneg, comsol_data.get_solution_at(slice(0, len(time)), comsol_data.mesh.neg).j)))
-    print('Pos rms: {}'.format(rmse(jpos, comsol_data.get_solution_at(slice(0, len(time)), comsol_data.mesh.pos).j)))
+    plot_j(time, comsol_data, params, jneg, jpos)
+
+    rmsn = np.sum(np.abs(comsol_data.get_solution_at(slice(0, len(time)), comsol_data.mesh.neg).j-jneg), axis=1)/len(comsol_data.mesh.neg)
+    maxn = np.max(np.abs(comsol_data.get_solution_at(slice(0, len(time)), comsol_data.mesh.neg).j), axis=1)
+    rmsp = rmse(jpos, comsol_data.get_solution_at(slice(0, len(time)), comsol_data.mesh.pos).j)
+    maxp = np.max(comsol_data.get_solution_at(slice(0, len(time)), comsol_data.mesh.pos).j, axis=1)
+
+    print('Neg rms: {}'.format(rmsn/maxn))
+    print('Pos rms: {}'.format(rmsp/maxp))
 
     return
 
