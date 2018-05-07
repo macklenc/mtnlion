@@ -1,117 +1,27 @@
 """
 COMSOL Data Handling
 """
-import numpy as np
-import sys
-import os
-import argparse
 import logging
+import os
+import sys
 from typing import List, Dict, Union
 
-import ldp
-# import engine
+import click
+import numpy as np
+
+import engine
 
 
-class SimMesh(object):
-    """1D mesh for reference cell. Cell regions overlap, i.e. both neg and sep contain 2."""
-
-    def __init__(self, mesh: np.ndarray) -> None:
-        """
-        Store the mesh along with each individual region.
-
-        :param mesh: Points at which to evaluate the data
-        """
-
-        logging.debug('Creating simulation mesh...')
-        self.neg, self.pos, self.sep = None, None, None
-        self.mesh = mesh
-        self.region(mesh)
-
-    def region(self, mesh: np.ndarray) -> None:
-        """
-        Find the reference regions in the mesh
-
-        :param mesh: Mesh to dissect
-        """
-
-        # Find each subspace
-        logging.debug('Dividing mesh into subspaces')
-        xneg = np.nonzero(mesh <= 1)[0]
-        xpos = np.nonzero(mesh >= 2)[0]
-        xsep = np.nonzero((mesh >= 1) & (mesh <= 2))[0]
-
-        # Remove COMSOL repeated values if necessary
-        if mesh[xneg[-1]] == mesh[xneg[-2]]:
-            logging.debug('Found repeated value in negative electrode: {}, correcting.'.format(xneg[-1]))
-            xsep = np.concatenate((1, xneg[-1], xsep))
-            xneg = np.delete(xneg, -1)
-
-        # Remove COMSOL repeated values if necessary
-        if mesh[xsep[-1]] == mesh[xsep[-2]]:
-            logging.debug('Found repeated value in separator: {}, correcting.'.format(xneg[-1]))
-            xpos = np.concatenate((1, xsep[-1], xpos))
-            xsep = np.delete(xsep, -1)
-
-        self.neg, self.pos, self.sep = xneg, xsep, xpos
-
-
-class SolutionData(object):
-    """PDE Solution results for cell state"""
-
-    def __init__(self, mesh: Union[SimMesh, float], ce: np.ndarray, cse: np.ndarray, phie: np.ndarray,
-                 phis: np.ndarray, j: np.ndarray, dt: float) -> None:
-        """
-        Store the solutions to each cell parameter
-
-        :param mesh: Solution mesh
-        :param ce: Lithium in the electrolyte
-        :param cse: Lithium between the solid and electrolyte
-        :param phie: Electric potential in the electrolyte
-        :param phis: Electric potential in the solid
-        :param j: Rate of positive charge flowing out of a particle
-        """
-
-        logging.debug('Initializing solution data...')
-        self.ce = ce
-        self.cse = cse
-        self.phie = phie
-        self.phis = phis
-        self.j = j
-        self.mesh = mesh
-        self.dt = dt
-
-    def get_solution_at_time(self, time: float) -> Union[None, 'SolutionData']:
-        """
-        Retrieve the solution data near a given time
-
-        :param time: time in solution to retrieve data
-        :return: stationary solution
-        """
-
-        logging.debug('Retrieving solution near time: {}'.format(time))
-        index = int(np.round(time/self.dt))
-        logging.debug('Using time: {}'.format(index*self.dt))
-        return SolutionData(self.mesh, self.ce[index, :], self.cse[index, :], self.phie[index, :],
-                            self.phis[index, :], self.j[index, :], 0)
-
-    def get_solution_in_space(self, position: float) -> 'SolutionData':
-        """
-        Retrieve the solution data near a given point in space
-
-        :param position: location in solution to retrieve data
-        :return: time varying solution at a given position
-        """
-
-        logging.debug('Retrieving solution near position: {}'.format(position))
-        space = (np.abs(self.mesh.mesh - position)).argmin()
-        logging.debug('Using position: {}'.format(space))
-        return SolutionData(space, self.ce[:, space], self.cse[:, space], self.phie[:, space],
-                            self.phis[:, space], self.j[:, space], self.dt)
+class Metadata:
+    def __init__(self, data, bounds=None):
+        self.data = data
+        self.bounds = bounds
 
 
 class ComsolData:
     """Collect and save COMSOL solutions"""
-    def __init__(self, datafile: str = None, csv_file_list: List[str] = None, dt: float = 0.1) -> None:
+
+    def __init__(self, datafile: str = None, csv_file_list: List[str] = None, boundaries=None, dt: float = 0.1) -> None:
         """
         Collect data and save if both options are provided. Data is saved as a dictionary with key values being the
          basename of the file.
@@ -121,17 +31,21 @@ class ComsolData:
         :param dt: time between temporal samples
         """
 
+        boundaries = [1, 2]
+
         logging.debug('Initializing ComsolData')
         self.datafile = datafile
+        self.boundaries = boundaries
         self.data = None
+        error = False
 
         if csv_file_list:
             logging.debug('Loading CSV files.')
             raw_params = self.collect_csv_data(csv_file_list)
-            data = self.format_data(raw_params, dt)
+            data = self.format_data(raw_params, boundaries, dt)
         elif datafile:
             logging.debug('Loading NPZ data file.')
-            data = ldp.load(datafile)
+            data = np.load(datafile)
         else:
             logging.error('Cannot do anything without CSV files or NPZ data file. Aborting.')
             return
@@ -140,8 +54,9 @@ class ComsolData:
             logging.info('Saving COMSOL data to NPZ: {}'.format(datafile))
             np.savez(datafile, **data)
 
-        mesh = SimMesh(data['mesh'])
-        self.data = SolutionData(mesh, data['ce'], data['cse'], data['phie'], data['phis'], data['j'], dt)
+        self.data = engine.SolutionData(engine.SimMesh(data['mesh']), data['ce'], data['cse'], data['phie'],
+                                        data['phis'], data['j'], dt)
+
 
     @staticmethod
     def collect_csv_data(csv_file_list: List[str]) -> Dict[str, np.ndarray]:
@@ -167,14 +82,34 @@ class ComsolData:
             try:
                 params[varName] = np.loadtxt(file_name, comments='%', delimiter=',', dtype=np.float64)
             except Exception as ex:
-                logging.warning('Failed to read {}, ignoring.  See DEBUG log.'.format(file_name))
+                logging.error('Failed to read {}, ignoring.  See DEBUG log.'.format(file_name))
                 logging.debug(ex)
 
         logging.info('Finished collecting CSV data.')
         return params
 
     @staticmethod
-    def format_data(raw_params: Dict[str, np.ndarray], dt: float) -> Union[Dict[str, np.ndarray], Dict[str, float]]:
+    def fix_boundaries(x_data, y_data, boundaries):
+        b_indices = np.searchsorted(x_data, boundaries)
+
+        if not b_indices.any():
+            return y_data
+
+        modifier = 0
+        for x in b_indices:
+            if x_data[x] == x_data[x + 1]:  # swap
+                y_tmp = y_data[x + modifier]
+                y_data[x + modifier] = y_data[x + modifier + 1]
+                y_data[x + modifier + 1] = y_tmp
+            else:  # add boundary
+                y_data = np.insert(y_data, x + modifier, y_data[x + modifier])
+                modifier += 1
+
+        return y_data
+
+    @staticmethod
+    def format_data(raw_params: Dict[str, np.ndarray], boundaries, dt: float) -> Union[
+        Dict[str, np.ndarray], Dict[str, float]]:
         """
         Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
         first dimension is time and the second is the solution in space. Each solution has it's own entry in a
@@ -189,8 +124,19 @@ class ComsolData:
         formatted_data = dict()
         formatted_data['dt'] = dt
 
+        if 'mesh' not in raw_params:
+            logging.critical('File named "mesh.csv" required.')
+            raise Exception('File named "mesh.csv" required.')
+
+        formatted_data['mesh'] = raw_params['mesh']
+
+
         # for each variable
+        counter = 0
         for key, data in raw_params.items():
+            if key == 'mesh':
+                continue
+
             logging.debug('Reformatting {}.'.format(key))
 
             try:
@@ -198,7 +144,7 @@ class ComsolData:
             except Exception as ex:
                 logging.warning('{} must have two columns, skipping. See DEBUG log.'.format(key))
                 logging.debug(ex)
-                break
+                continue
 
             try:
                 # Separate time segments (frames)
@@ -207,48 +153,67 @@ class ComsolData:
                 start = np.insert(time_frame + 1, 0, 0)
                 # Frame stop indices
                 stop = np.append(time_frame, len(x_data) - 1) + 1
-                # collect unique x_data
-                if 'mesh' not in formatted_data:
-                    formatted_data['mesh'] = np.unique(x_data[start[0]:stop[0]])
-                # collect y_data removing comsol repeated number nonsense
+                # collect y_data determining if there are discontinuous boundaries
+
+
                 y_data_new = np.empty([len(start), len(formatted_data['mesh'])])
-
-                # Remove y data for repeated mesh values
+                b = 0
                 for i in range(len(start)):
-                    x, ind = np.unique(x_data[start[i]:stop[i]], return_index=True)
-                    y_data_new[i, :] = y_data[ind]
+                    b = i
+                    y_section = y_data[start[i]:stop[i]]
+                    x_section = x_data[start[i]:stop[i]]
+                    a = ComsolData.fix_boundaries(x_section, y_section, boundaries)
+                    y_data_new[i, :] = a
 
+                # formatted_data[key] = Metadata(y_data_new, boundaries)
                 formatted_data[key] = y_data_new
             except Exception as ex:
-                logging.warning('Error occurred while formatting {}, skipping. See DEBUG log.'.format(key))
+                logging.error('Error occurred while formatting {}, skipping. See DEBUG log.'.format(key))
                 logging.debug(ex)
+
+            counter += 1
+
+        if counter == 0:
+            raise Exception('No data saved')
 
         return formatted_data
 
 
-def main():
+@click.command()
+@click.option('--dt', '-t', default=0.1, type=float, help='time between samples (delta t), default=0.1')
+@click.option('--critical', 'loglevel', flag_value=logging.CRITICAL, help='Set log-level to CRITICAL')
+@click.option('--error', 'loglevel', flag_value=logging.ERROR, help='Set log-level to ERROR')
+@click.option('--warn', 'loglevel', flag_value=logging.WARNING, help='Set log-level to WARNING')
+@click.option('--info', 'loglevel', flag_value=logging.INFO, help='Set log-level to INFO', default=True)
+@click.option('--debug', 'loglevel', flag_value=logging.DEBUG, help='Set log-level to DEBUG')
+@click.argument('output', type=click.Path(writable=True, resolve_path=True))
+@click.argument('input', nargs=-1, type=click.Path(exists=True, readable=True, resolve_path=True))
+def main(input, output, dt, loglevel):
     """
+    Convert COMSOL CSV files to Mtnlion npz.
+
     Create a numpy zip (npz) with variables corresponding to the csv file names.
     Each variable contains the data from the file as a list. Additionally, each
     variable is a key in the main dictionary.
     """
 
-    logging.basicConfig(level=logging.DEBUG)
-    parser = argparse.ArgumentParser(description='Convert COMSOL CSV files to Mtnlion npz.')
-    parser.add_argument('output', metavar='output', type=str, nargs=1, help='output npz file')
-    parser.add_argument('inputs', metavar='inputs', nargs='+', help='input CSV files')
-    parser.add_argument('-t', '--dt', type=float, nargs=1, help='time between samples (delta t), default=0.1',
-                        default=0.1)
+    logging.basicConfig(level=loglevel)
 
-    args = parser.parse_args()
+    if not input:
+        logging.error('No CSVs were specified. Aborting.')
+        sys.exit(1)
 
-    logging.debug('Output file: {}'.format(args.output[0]))
-    logging.debug('Input file(s): {}'.format(args.inputs))
-    logging.debug('dt: {}'.format(args.dt))
+    logging.debug('Output file: {}'.format(output))
+    logging.debug('Input file(s): {}'.format(input))
+    logging.debug('dt: {}'.format(dt))
 
-    ComsolData(args.output[0], args.inputs, args.dt)
+    try:
+        ComsolData(output, input, dt)
+    except Exception as ex:
+        logging.error('Unhandled exception occurred: {}'.format(ex))
+        sys.exit(2)
     logging.info('Conversion completed successfully')
-    return
+    return 0
 
 
 if __name__ == '__main__':
