@@ -56,7 +56,7 @@ def calculate_j(time, data, params):
     negdata = data.get_solution_in_neg()
     posdata = data.get_solution_in_pos()
 
-    for t in range(0, len(time)):
+    for t in time:
         negflux = reaction_flux(negdata.get_solution_near_time(t), params.neg, params.const)
         jneg = np.append(jneg, np.expand_dims(negflux, axis=0), axis=0)
 
@@ -114,15 +114,15 @@ def main():
     plot_j(time, d_comsol.data, params, jneg, jpos)
     print('Time: {}'.format(timeit.default_timer()-st))
 
-    jneg_orig = d_comsol.data.get_solution_in_neg().get_solution_at_time_index(time).j
-    jpos_orig = d_comsol.data.get_solution_in_pos().get_solution_at_time_index(time).j
-    rmsn = np.sum(np.abs(jneg_orig - jneg), axis=1) / len(d_comsol.data.mesh.neg)
-    maxn = np.max(np.abs(jneg_orig), axis=1)
-    rmsp = rmse(jpos, jpos_orig)
-    maxp = np.max(jpos_orig, axis=1)
+    # jneg_orig = d_comsol.data.get_solution_in_neg().get_solution_at_time_index(list(map(lambda x: x*10, time))).j
+    # jpos_orig = d_comsol.data.get_solution_in_pos().get_solution_at_time_index(list(map(lambda x: x*10, time))).j
+    # rmsn = np.sum(np.abs(jneg_orig - jneg), axis=1) / len(d_comsol.data.mesh.neg)
+    # maxn = np.max(np.abs(jneg_orig), axis=1)
+    # rmsp = rmse(jpos, jpos_orig)
+    # maxp = np.max(jpos_orig, axis=1)
 
-    print('Neg rms: {}'.format(np.log10(rmsn / maxn)))
-    print('Pos rms: {}'.format(np.log10(rmsp / maxp)))
+    # print('Neg rms: {}'.format(np.log10(rmsn / maxn)))
+    # print('Pos rms: {}'.format(np.log10(rmsp / maxp)))
 
     return
 
