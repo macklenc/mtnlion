@@ -1,35 +1,26 @@
 import fenics as fem
-import numpy as np
 import matplotlib.pyplot as plt
-import ldp
-import munch
-import sympy as sym
+import numpy as np
+
+import comsol
 import engine
+
 
 def gather_data():
     # Load required cell data
-    comsol = ldp.load('../tests/reference/guwang.npz')
-    sheet = ldp.read_excel(
-        '../tests/reference/GuAndWang_parameter_list.xlsx', 0)
+    resources = '../reference/'
+    params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
+    c_data = comsol.ComsolData(resources + 'guwang_new.npz')
 
-    (ncol, pcol) = (2, 3)
-    params = dict()
-    params['const'] = ldp.load_params(sheet, range(7, 15), ncol, pcol)
-    params['neg'] = ldp.load_params(sheet, range(18, 43), ncol, pcol)
-    params['sep'] = ldp.load_params(sheet, range(47, 52), ncol, pcol)
-    params['pos'] = ldp.load_params(sheet, range(55, 75), ncol, pcol)
-
-    structured_params = munch.DefaultMunch.fromDict(params)
-
-    return comsol, structured_params
+    return c_data, params
 
 
 def generate_domain(comsol):
     boundaries = range(4)
 
     # Create 1D mesh
-    mesh = fem.IntervalMesh(len(comsol['mesh'])-1, 0, 3)
-    mesh.coordinates()[:] = np.array([comsol['mesh']]).transpose()
+    mesh = fem.IntervalMesh(len(np.unique(comsol.data.mesh.mesh)) - 1, 0, 3)
+    mesh.coordinates()[:] = np.array([np.unique(comsol.data.mesh.mesh)]).transpose()
 
     # Setup subdomain markers
     neg_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
@@ -130,8 +121,10 @@ def phis():
 
     f = fem.Function(V)
     # f.vector()[:] = comsol_data['j'][fem.dof_to_vertex_map(V),1].astype('double')*fem.Constant(F)
-    data = engine.fetch_comsol_solutions('../tests/reference/guwang.npz', [5])
-    f.vector()[:] = data.j[0, fem.dof_to_vertex_map(V)].astype('double')*fem.Constant(F)
+    # data = engine.fetch_comsol_solutions('../tests/reference/guwang.npz', [5])
+
+    data = comsol_data.data.get_solution_near_time(5)
+    f.vector()[:] = data.j[fem.dof_to_vertex_map(V)].astype('double') * fem.Constant(F)
 
     Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
 
