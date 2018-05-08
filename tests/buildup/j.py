@@ -50,18 +50,11 @@ def reaction_flux(sim_data, params, const):
 
 
 def calculate_j(time, data, params):
-    jneg = np.empty((0, len(data.mesh.neg)))
-    jpos = np.empty((0, len(data.mesh.pos)))
-
     negdata = data.get_solution_in_neg()
     posdata = data.get_solution_in_pos()
 
-    for t in time:
-        negflux = reaction_flux(negdata.get_solution_near_time(t), params.neg, params.const)
-        jneg = np.append(jneg, np.expand_dims(negflux, axis=0), axis=0)
-
-        posflux = reaction_flux(posdata.get_solution_near_time(t), params.pos, params.const)
-        jpos = np.append(jpos, np.expand_dims(posflux, axis=0), axis=0)
+    jneg = reaction_flux(negdata.get_solution_near_time(time), params.neg, params.const)
+    jpos = reaction_flux(posdata.get_solution_near_time(time), params.pos, params.const)
 
     return jneg, jpos
 
@@ -104,7 +97,7 @@ def plot_j(time, data, params, jneg, jpos):
 
 def main():
     import timeit
-    time = [5, 10, 15, 20]
+    time = [5, 10, 15, 20, 25]
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
     d_comsol = comsol.ComsolData(resources + 'guwang_new.npz')

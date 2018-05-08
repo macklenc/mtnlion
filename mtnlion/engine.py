@@ -2,7 +2,7 @@
 Equation solver
 """
 import logging
-from typing import Union
+from typing import Union, List
 
 import munch
 import numpy as np
@@ -39,8 +39,6 @@ class SimMesh(object):
     def _region(self) -> None:
         """
         Find the reference regions in the mesh
-
-        :param mesh: Mesh to dissect
         """
 
         # Find each subspace
@@ -75,7 +73,7 @@ class SolutionData(object):
         self.mesh = mesh
         self.dt = dt
 
-    def get_solution_near_time(self, time: float) -> Union[None, 'SolutionData']:
+    def get_solution_near_time(self, time: List[float]) -> Union[None, 'SolutionData']:
         """
         Retrieve the solution data near a given time
 
@@ -84,8 +82,8 @@ class SolutionData(object):
         """
 
         logging.debug('Retrieving solution near time: {}'.format(time))
-        index = int(np.round(time / self.dt))
-        logging.debug('Using time: {}'.format(index * self.dt))
+        index = list(map(lambda x: int(x / self.dt), time))
+        logging.debug('Using time: {}'.format(list(map(lambda x: int(x * self.dt), index))))
 
         return SolutionData(self.mesh, self.ce[index], self.cse[index],
                             self.phie[index], self.phis[index], self.j[index], 0)
