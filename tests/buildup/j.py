@@ -53,13 +53,15 @@ def calculate_j(time, data, params):
     jneg = np.empty((0, len(data.mesh.neg)))
     jpos = np.empty((0, len(data.mesh.pos)))
 
+    negdata = data.get_solution_in_neg()
+    posdata = data.get_solution_in_pos()
+
     for t in range(0, len(time)):
-        jneg = np.append(jneg,
-                         reaction_flux(data.get_solution_near_time(t).get_solution_in_neg(), params.neg, params.const),
-                         axis=0)
-        jpos = np.append(jpos,
-                         reaction_flux(data.get_solution_near_time(t).get_solution_in_pos(), params.pos, params.const),
-                         axis=0)
+        negflux = reaction_flux(negdata.get_solution_near_time(t), params.neg, params.const)
+        jneg = np.append(jneg, np.expand_dims(negflux, axis=0), axis=0)
+
+        posflux = reaction_flux(posdata.get_solution_near_time(t), params.pos, params.const)
+        jpos = np.append(jpos, np.expand_dims(posflux, axis=0), axis=0)
 
     return jneg, jpos
 
@@ -91,7 +93,7 @@ def plot_j(time, data, params, jneg, jpos):
 
     x = np.concatenate((neg, sep, pos)) * 1e6
     for t in range(0, len(time)):
-        j = np.concatenate((jneg[t, :], jsep, jpos[t, :]))
+        j = np.concatenate((jneg[t], jsep, jpos[t]))
         # plt.plot(neg, jneg[t, :], pos, jpos[t, :])
         plt.plot(x, j)
 
@@ -101,13 +103,16 @@ def plot_j(time, data, params, jneg, jpos):
 
 
 def main():
-    time = [5]
+    import timeit
+    time = [5, 10, 15, 20]
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
     d_comsol = comsol.ComsolData(resources + 'guwang_new.npz')
 
+    st = timeit.default_timer()
     jneg, jpos = calculate_j(time, d_comsol.data, params)
     plot_j(time, d_comsol.data, params, jneg, jpos)
+    print('Time: {}'.format(timeit.default_timer()-st))
 
     jneg_orig = d_comsol.data.get_solution_in_neg().get_solution_at_time_index(time).j
     jpos_orig = d_comsol.data.get_solution_in_pos().get_solution_at_time_index(time).j
@@ -116,8 +121,8 @@ def main():
     rmsp = rmse(jpos, jpos_orig)
     maxp = np.max(jpos_orig, axis=1)
 
-    print('Neg rms: {}'.format(rmsn / maxn))
-    print('Pos rms: {}'.format(rmsp / maxp))
+    print('Neg rms: {}'.format(np.log10(rmsn / maxn)))
+    print('Pos rms: {}'.format(np.log10(rmsp / maxp)))
 
     return
 

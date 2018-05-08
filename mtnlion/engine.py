@@ -21,11 +21,22 @@ class SimMesh(object):
         """
 
         logging.debug('Creating simulation mesh...')
-        self.neg, self.pos, self.sep = None, None, None
+        self.neg = self.pos = self.sep = None
         self.mesh = mesh
-        self.region(mesh)
+        self._region()
 
-    def region(self, mesh: np.ndarray) -> None:
+    def _unique(self, comparison):
+        ind = np.nonzero(comparison)[0]
+
+        if ind[0] > 0:
+            ind = np.insert(ind, 0, ind[0]-1)
+
+        if ind[-1] < len(self.mesh) - 1:
+            ind = np.append(ind, ind[-1]+1)
+
+        return ind
+
+    def _region(self) -> None:
         """
         Find the reference regions in the mesh
 
@@ -34,23 +45,9 @@ class SimMesh(object):
 
         # Find each subspace
         logging.debug('Dividing mesh into subspaces')
-        xneg = np.nonzero(mesh <= 1)[0][:-1]  # unique is to remove duplicate boundaries (BETTER SOLUTION REQ'D)
-        xpos = np.nonzero(mesh >= 2)[0][1:]
-        xsep = np.nonzero((mesh >= 1) & (mesh <= 2))[0][1:-1]
-
-        # Remove COMSOL repeated values if necessary
-        # if mesh[xneg[-1]] == mesh[xneg[-2]]:
-        #     logging.debug('Found repeated value in negative electrode: {}, correcting.'.format(xneg[-1]))
-        #     xsep = np.concatenate((1, xneg[-1], xsep))
-        #     xneg = np.delete(xneg, -1)
-        #
-        # # Remove COMSOL repeated values if necessary
-        # if mesh[xsep[-1]] == mesh[xsep[-2]]:
-        #     logging.debug('Found repeated value in separator: {}, correcting.'.format(xneg[-1]))
-        #     xpos = np.concatenate((1, xsep[-1], xpos))
-        #     xsep = np.delete(xsep, -1)
-
-        self.neg, self.pos, self.sep = xneg, xpos, xsep
+        self.neg = self._unique(self.mesh < 1)
+        self.pos = self._unique(self.mesh > 2)
+        self.sep = self._unique((self.mesh > 1) & (self.mesh < 2))
 
 
 class SolutionData(object):
@@ -90,9 +87,8 @@ class SolutionData(object):
         index = int(np.round(time / self.dt))
         logging.debug('Using time: {}'.format(index * self.dt))
 
-        return SolutionData(self.mesh, self.ce[np.newaxis, index, :], self.cse[np.newaxis, index, :],
-                            self.phie[np.newaxis, index, :],
-                            self.phis[np.newaxis, index, :], self.j[np.newaxis, index, :], 0)
+        return SolutionData(self.mesh, self.ce[index], self.cse[index],
+                            self.phie[index], self.phis[index], self.j[index], 0)
 
     def get_solution_at_time_index(self, index):
         logging.debug('Retrieving solution at time index: {}'.format(index))
@@ -117,15 +113,15 @@ class SolutionData(object):
 
     def get_solution_in_neg(self):
         logging.debug('Retrieving solution in negative electrode.')
-        return SolutionData(self.mesh, self.ce[:, self.mesh.neg], self.cse[:, self.mesh.neg],
-                            self.phie[:, self.mesh.neg],
-                            self.phis[:, self.mesh.neg], self.j[:, self.mesh.neg], self.dt)
+        return SolutionData(self.mesh, self.ce[..., self.mesh.neg], self.cse[..., self.mesh.neg],
+                            self.phie[..., self.mesh.neg], self.phis[..., self.mesh.neg],
+                            self.j[..., self.mesh.neg], self.dt)
 
     def get_solution_in_pos(self):
         logging.debug('Retrieving solution in negative electrode.')
-        return SolutionData(self.mesh, self.ce[:, self.mesh.pos], self.cse[:, self.mesh.pos],
-                            self.phie[:, self.mesh.pos],
-                            self.phis[:, self.mesh.pos], self.j[:, self.mesh.pos], self.dt)
+        return SolutionData(self.mesh, self.ce[..., self.mesh.pos], self.cse[..., self.mesh.pos],
+                            self.phie[..., self.mesh.pos], self.phis[..., self.mesh.pos],
+                            self.j[..., self.mesh.pos], self.dt)
 
 
 
