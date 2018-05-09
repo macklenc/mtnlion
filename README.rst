@@ -46,6 +46,7 @@ If using Ubuntu, install ``python3-dolfin`` to get the python3 modules. I recomm
 With ``virtualenvwrapper`` installed, add the following lines the the end of your shell rc file, i.e. ``.bashrc``:
 
 .. code-block:: bash
+    
     export WORKON_HOME=$HOME/.virtualenvs
     export PROJECT_HOME=$HOME/devel
     export VIRTUALENVWRAPPER_PYTHON='/usr/bin/python3'
@@ -57,17 +58,20 @@ in the virtual environment rather than Ubuntu's default python2. The final line 
 wrapper commands to your environment. Next, clone mtnlion:
 
 .. code-block:: bash
+    
     git clone https://github.com/macklenc/mtnlion.git ~/devel
 
 and setup your virtual environment:
 
 .. code-block:: bash
+    
     mkvirtualenv -p python3 --system-site-packages
 
 What this does is create a new unadulterated copy of python3 in ``~/.virtualenvs`` and allows it to inherit the system
 python packages, which is required to get access to ``python3-dolfin`` modules. Next run
 
 .. code-block:: bash
+    
     echo "~/devel/mtnlion" > ~/.virtualenvs/mtnlion/.project
 
 to allow ``virtualenvwrapper`` to cd into mtnlion. Finally, use the ``virtualenvwrapper`` command ``workon mtnlion`` to
@@ -76,14 +80,15 @@ enter the virtual environment. You can confirm this worked by running ``which py
 dependencies from the ``requirements_dev.txt`` and ``requirements.txt`` using:
 
 .. code-block:: bash
+    
     pip install -r requirements_dev.txt
     pip install -r requirements.txt
 
 ... then the environment should be good to go! I highly recommend using pycharm for your IDE, and there's an included
 project file for that. Should you decide to use pycharm, after opening the project use ``ctl+alt+s`` to open the
-settings and go to  ``Project: mtnlion -> Project Interpreter``, click on the gear and select ``add``. Select existing
-interpreter, and the virtual environment in ``~/.virtualenvs`` should be auto-discovered. Choose that and exit all
-menu's selecting "OK".
+settings and go to  ``Project: mtnlion -> Project Interpreter``, click on the gear and select ``add``. Select 
+``existing interpreter``, and the virtual environment in ``~/.virtualenvs`` should be auto-discovered. Choose that and
+exit all menu's selecting "OK".
 
 Credits
 -------
