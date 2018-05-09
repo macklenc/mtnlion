@@ -34,11 +34,14 @@ Features
 
 Usage
 -----
-First, install `FEniCS <https://fenicsproject.org/download/>`_.
+First, install `FEniCS <https://fenicsproject.org/download/>`_. If you want access to COMSOL reference data, or to run unit tests, make 
+sure to install `git-lfs <https://git-lfs.github.com/>`_ before cloning mtnlion. The COMSOL reference data is about 50MB.
 
 Development Environment
 ^^^^^^^^^^^^^^^^^^^^^^^
-If using Ubuntu, install ``python3-dolfin`` to get the python3 modules. I recommend using ```virtualenvwrapper``` to setup an isolated virtual environment to work on:
+For the time being, Ubuntu is the easiest distribution to setup for development. The instructions here *may* be able to be adapted for 
+other distributions. To start off with, install ``python3-dolfin`` to get the python3 modules. I recommend using ``virtualenvwrapper`` 
+to setup an isolated virtual environment to work on:
 
 .. code-block:: bash
     sudo pip3 install virtualenvwrapper
