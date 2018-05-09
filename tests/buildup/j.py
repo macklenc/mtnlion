@@ -59,10 +59,6 @@ def calculate_j(time, data, params):
     return jneg, jpos
 
 
-def rmse(estimated, true):
-    return np.sqrt(((estimated - true) ** 2).mean(axis=1))
-
-
 def plot_j(time, data, params, jneg, jpos):
     """
 

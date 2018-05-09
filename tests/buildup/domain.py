@@ -2,12 +2,12 @@ import fenics as fem
 import numpy as np
 
 
-def generate_domain(comsol):
+def generate_domain(raw_mesh):
     boundaries = range(4)
 
     # Create 1D mesh
-    mesh = fem.IntervalMesh(len(np.unique(comsol.data.mesh.mesh)) - 1, 0, 3)
-    mesh.coordinates()[:] = np.array([np.unique(comsol.data.mesh.mesh)]).transpose()
+    mesh = fem.IntervalMesh(len(raw_mesh) - 1, 0, 3)
+    mesh.coordinates()[:] = np.array([raw_mesh]).transpose()
 
     # Setup subdomain markers
     neg_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',

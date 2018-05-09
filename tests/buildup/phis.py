@@ -56,33 +56,35 @@ def mkparam(markers, k_1 = 0, k_2 = 0, k_3 = 0, k_4 = 0):
 
 
 def phis():
+    # Times at which to run solver
     time = [0, 5, 10, 15, 20]
+
     # Collect required data
     comsol_data, params = gather_data()
-    data = comsol_data.data.get_solution_near_time(time)
-    u_array = np.empty((len(time), len(data.mesh.mesh) - 2))
-    mesh, dx, ds, bm, dm = domain.generate_domain(comsol_data)
+    sim_data = comsol_data.get_fenics_friendly()
+    data = sim_data.get_solution_near_time(time)
+
+    # initialize matrix to save solution results
+    u_array = np.empty((len(time), len(data.mesh.mesh)))
+    mesh, dx, ds, bm, dm = domain.generate_domain(data.mesh.mesh)
 
     # Initialize parameters
     F = 96487
     Iapp = 0
-
-    # remove repeated boundary
-    fun = comsol_data.remove_dup_boundary(data.j)
 
     Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
     sigma_eff = mkparam(dm, params.neg.sigma_ref * params.neg.eps_s ** params.neg.brug_sigma, 0,
                         params.pos.sigma_ref * params.pos.eps_s ** params.pos.brug_sigma)
     a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
 
-    for i, j in enumerate(fun):
+    for i, j in enumerate(data.j):
         # Define function space and basis functions
         V = fem.FunctionSpace(mesh, 'Lagrange', 1)
         phi = fem.TrialFunction(V)
         v = fem.TestFunction(V)
 
         # Initialize Dirichlet BCs
-        bc = [fem.DirichletBC(V, 0.0, bm, 1), fem.DirichletBC(V, 4.2, bm, 4)]
+        bc = [fem.DirichletBC(V, 0.0, bm, 1), fem.DirichletBC(V, 3.8, bm, 4)]
         f = fem.Function(V)
         f.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double') * fem.Constant(F)
 
@@ -95,11 +97,13 @@ def phis():
         fem.plot(phi)
 
         u_nodal_values = phi.vector()
-        u_array[i, :] = u_nodal_values.get_local()
+        u_array[i, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(V)]
     plt.savefig('test.png', dpi=300)
     plt.grid()
     plt.show()
 
+    print(engine.rmse(u_array[:, data.mesh.neg], data.phis[:, data.mesh.neg]))
+    print(engine.rmse(u_array[:, data.mesh.pos], data.phis[:, data.mesh.pos]))
 
     coor = mesh.coordinates()
     # for i in range(len(u_array)):

@@ -16,6 +16,118 @@ class Metadata:
         self.bounds = bounds
 
 
+class SimMesh(object):
+    """1D mesh for reference cell. Cell regions overlap, i.e. both neg and sep contain 2."""
+
+    def __init__(self, mesh: np.ndarray) -> None:
+        """
+        Store the mesh along with each individual region.
+
+        :param mesh: Points at which to evaluate the data
+        """
+
+        logging.debug('Creating simulation mesh...')
+        self.neg = self.pos = self.sep = None
+        self.mesh = mesh
+        self._region()
+
+    def _unique(self, comparison):
+        ind = np.nonzero(comparison)[0]
+
+        if ind[0] > 0:
+            ind = np.insert(ind, 0, ind[0] - 1)
+
+        if ind[-1] < len(self.mesh) - 1:
+            ind = np.append(ind, ind[-1] + 1)
+
+        return ind
+
+    def _region(self) -> None:
+        """
+        Find the reference regions in the mesh
+        """
+
+        # Find each subspace
+        logging.debug('Dividing mesh into subspaces')
+        self.neg = self._unique(self.mesh < 1)
+        self.pos = self._unique(self.mesh > 2)
+        self.sep = self._unique((self.mesh > 1) & (self.mesh < 2))
+
+
+class SolutionData(object):
+    """PDE Solution results for cell state"""
+
+    def __init__(self, mesh: Union[SimMesh, float], ce: np.ndarray, cse: np.ndarray, phie: np.ndarray,
+                 phis: np.ndarray, j: np.ndarray, dt: float) -> None:
+        """
+        Store the solutions to each cell parameter
+
+        :param mesh: Solution mesh
+        :param ce: Lithium in the electrolyte
+        :param cse: Lithium between the solid and electrolyte
+        :param phie: Electric potential in the electrolyte
+        :param phis: Electric potential in the solid
+        :param j: Rate of positive charge flowing out of a particle
+        """
+
+        logging.debug('Initializing solution data...')
+        self.ce = ce
+        self.cse = cse
+        self.phie = phie
+        self.phis = phis
+        self.j = j
+        self.mesh = mesh
+        self.dt = dt
+
+    def get_solution_near_time(self, time: List[float]) -> Union[None, 'SolutionData']:
+        """
+        Retrieve the solution data near a given time
+
+        :param time: time in solution to retrieve data
+        :return: stationary solution
+        """
+
+        logging.debug('Retrieving solution near time: {}'.format(time))
+        index = list(map(lambda x: int(x / self.dt), time))
+        logging.debug('Using time: {}'.format(list(map(lambda x: int(x * self.dt), index))))
+
+        return SolutionData(self.mesh, self.ce[index], self.cse[index],
+                            self.phie[index], self.phis[index], self.j[index], 0)
+
+    def get_solution_at_time_index(self, index):
+        logging.debug('Retrieving solution at time index: {}'.format(index))
+
+        return SolutionData(self.mesh, self.ce[index, :], self.cse[index, :], self.phie[index, :],
+                            self.phis[index, :], self.j[index, :], 0)
+
+    def get_solution_near_position(self, position: float) -> 'SolutionData':
+        """
+        Retrieve the solution data near a given point in space
+
+        :param position: location in solution to retrieve data
+        :return: time varying solution at a given position
+        """
+
+        logging.debug('Retrieving solution near position: {}'.format(position))
+        space = (np.abs(self.mesh.mesh - position)).argmin()
+        logging.debug('Using position: {}'.format(space))
+        return SolutionData(space, self.ce[np.newaxis, :, space], self.cse[np.newaxis, :, space],
+                            self.phie[np.newaxis, :, space],
+                            self.phis[np.newaxis, :, space], self.j[np.newaxis, :, space], self.dt)
+
+    def get_solution_in_neg(self):
+        logging.debug('Retrieving solution in negative electrode.')
+        return SolutionData(self.mesh, self.ce[..., self.mesh.neg], self.cse[..., self.mesh.neg],
+                            self.phie[..., self.mesh.neg], self.phis[..., self.mesh.neg],
+                            self.j[..., self.mesh.neg], self.dt)
+
+    def get_solution_in_pos(self):
+        logging.debug('Retrieving solution in negative electrode.')
+        return SolutionData(self.mesh, self.ce[..., self.mesh.pos], self.cse[..., self.mesh.pos],
+                            self.phie[..., self.mesh.pos], self.phis[..., self.mesh.pos],
+                            self.j[..., self.mesh.pos], self.dt)
+
+
 class ComsolData:
     """Collect and save COMSOL solutions"""
 
@@ -55,11 +167,28 @@ class ComsolData:
         self.data = SolutionData(SimMesh(data['mesh']), data['ce'], data['cse'], data['phie'],
                                  data['phis'], data['j'], dt)
 
-    def remove_dup_boundary(self, item: np.ndarray):
-        # remove repeated boundary TODO: make sure this works
+    def remove_dup_boundary(self, item: np.ndarray) -> Union[None, np.ndarray]:
+        """
+        Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
+        :return: Array of points with interior boundaries removed
+        """
         mask = np.ones(item.shape[-1], dtype=bool)
         mask[[self.data.mesh.sep[0], self.data.mesh.sep[-1]]] = False
         return item[..., mask]
+
+    def get_fenics_friendly(self) -> SolutionData:
+        """
+        Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
+        :return: Simplified solution data
+        """
+        mesh = self.remove_dup_boundary(self.data.mesh.mesh)
+        ce = self.remove_dup_boundary(self.data.ce)
+        cse = self.remove_dup_boundary(self.data.cse)
+        phie = self.remove_dup_boundary(self.data.phie)
+        phis = self.remove_dup_boundary(self.data.phis)
+        j = self.remove_dup_boundary(self.data.j)
+
+        return SolutionData(SimMesh(mesh), ce, cse, phie, phis, j, self.data.dt)
 
     @staticmethod
     def collect_csv_data(csv_file_list: List[str]) -> Dict[str, np.ndarray]:
@@ -180,118 +309,6 @@ class ComsolData:
             raise Exception('No data saved')
 
         return formatted_data
-
-
-class SimMesh(object):
-    """1D mesh for reference cell. Cell regions overlap, i.e. both neg and sep contain 2."""
-
-    def __init__(self, mesh: np.ndarray) -> None:
-        """
-        Store the mesh along with each individual region.
-
-        :param mesh: Points at which to evaluate the data
-        """
-
-        logging.debug('Creating simulation mesh...')
-        self.neg = self.pos = self.sep = None
-        self.mesh = mesh
-        self._region()
-
-    def _unique(self, comparison):
-        ind = np.nonzero(comparison)[0]
-
-        if ind[0] > 0:
-            ind = np.insert(ind, 0, ind[0] - 1)
-
-        if ind[-1] < len(self.mesh) - 1:
-            ind = np.append(ind, ind[-1] + 1)
-
-        return ind
-
-    def _region(self) -> None:
-        """
-        Find the reference regions in the mesh
-        """
-
-        # Find each subspace
-        logging.debug('Dividing mesh into subspaces')
-        self.neg = self._unique(self.mesh < 1)
-        self.pos = self._unique(self.mesh > 2)
-        self.sep = self._unique((self.mesh > 1) & (self.mesh < 2))
-
-
-class SolutionData(object):
-    """PDE Solution results for cell state"""
-
-    def __init__(self, mesh: Union[SimMesh, float], ce: np.ndarray, cse: np.ndarray, phie: np.ndarray,
-                 phis: np.ndarray, j: np.ndarray, dt: float) -> None:
-        """
-        Store the solutions to each cell parameter
-
-        :param mesh: Solution mesh
-        :param ce: Lithium in the electrolyte
-        :param cse: Lithium between the solid and electrolyte
-        :param phie: Electric potential in the electrolyte
-        :param phis: Electric potential in the solid
-        :param j: Rate of positive charge flowing out of a particle
-        """
-
-        logging.debug('Initializing solution data...')
-        self.ce = ce
-        self.cse = cse
-        self.phie = phie
-        self.phis = phis
-        self.j = j
-        self.mesh = mesh
-        self.dt = dt
-
-    def get_solution_near_time(self, time: List[float]) -> Union[None, 'SolutionData']:
-        """
-        Retrieve the solution data near a given time
-
-        :param time: time in solution to retrieve data
-        :return: stationary solution
-        """
-
-        logging.debug('Retrieving solution near time: {}'.format(time))
-        index = list(map(lambda x: int(x / self.dt), time))
-        logging.debug('Using time: {}'.format(list(map(lambda x: int(x * self.dt), index))))
-
-        return SolutionData(self.mesh, self.ce[index], self.cse[index],
-                            self.phie[index], self.phis[index], self.j[index], 0)
-
-    def get_solution_at_time_index(self, index):
-        logging.debug('Retrieving solution at time index: {}'.format(index))
-
-        return SolutionData(self.mesh, self.ce[index, :], self.cse[index, :], self.phie[index, :],
-                            self.phis[index, :], self.j[index, :], 0)
-
-    def get_solution_near_position(self, position: float) -> 'SolutionData':
-        """
-        Retrieve the solution data near a given point in space
-
-        :param position: location in solution to retrieve data
-        :return: time varying solution at a given position
-        """
-
-        logging.debug('Retrieving solution near position: {}'.format(position))
-        space = (np.abs(self.mesh.mesh - position)).argmin()
-        logging.debug('Using position: {}'.format(space))
-        return SolutionData(space, self.ce[np.newaxis, :, space], self.cse[np.newaxis, :, space],
-                            self.phie[np.newaxis, :, space],
-                            self.phis[np.newaxis, :, space], self.j[np.newaxis, :, space], self.dt)
-
-    def get_solution_in_neg(self):
-        logging.debug('Retrieving solution in negative electrode.')
-        return SolutionData(self.mesh, self.ce[..., self.mesh.neg], self.cse[..., self.mesh.neg],
-                            self.phie[..., self.mesh.neg], self.phis[..., self.mesh.neg],
-                            self.j[..., self.mesh.neg], self.dt)
-
-    def get_solution_in_pos(self):
-        logging.debug('Retrieving solution in negative electrode.')
-        return SolutionData(self.mesh, self.ce[..., self.mesh.pos], self.cse[..., self.mesh.pos],
-                            self.phie[..., self.mesh.pos], self.phis[..., self.mesh.pos],
-                            self.j[..., self.mesh.pos], self.dt)
 
 
 @click.command()

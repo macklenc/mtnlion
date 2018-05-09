@@ -3,9 +3,13 @@ Equation solver
 """
 
 import munch
+import numpy as np
 
 import ldp
 
+
+def rmse(estimated, true):
+    return np.sqrt(((estimated - true) ** 2).mean(axis=1))
 
 def fetch_params(filename):
     print('Loading Cell Parameters')
