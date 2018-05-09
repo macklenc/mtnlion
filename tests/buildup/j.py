@@ -100,7 +100,7 @@ def main():
     time = [5, 10, 15, 20, 25]
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.ComsolData(resources + 'guwang_new.npz')
+    d_comsol = comsol.ComsolData(resources + 'guwang.npz')
 
     st = timeit.default_timer()
     jneg, jpos = calculate_j(time, d_comsol.data, params)

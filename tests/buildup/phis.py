@@ -10,7 +10,7 @@ def gather_data():
     # Load required cell data
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    c_data = comsol.ComsolData(resources + 'guwang_new.npz')
+    c_data = comsol.ComsolData(resources + 'guwang.npz')
 
     return c_data, params
 
