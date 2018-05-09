@@ -57,6 +57,11 @@ class ComsolData:
         self.data = engine.SolutionData(engine.SimMesh(data['mesh']), data['ce'], data['cse'], data['phie'],
                                         data['phis'], data['j'], dt)
 
+    def remove_dup_boundary(self, item: np.ndarray):
+        # remove repeated boundary TODO: make sure this works
+        mask = np.ones(item.shape[-1], dtype=bool)
+        mask[[self.data.mesh.sep[0], self.data.mesh.sep[-1]]] = False
+        return item[..., mask]
 
     @staticmethod
     def collect_csv_data(csv_file_list: List[str]) -> Dict[str, np.ndarray]:

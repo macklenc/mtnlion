@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import comsol
+import domain
 import engine
 
 
@@ -13,54 +14,6 @@ def gather_data():
     c_data = comsol.ComsolData(resources + 'guwang.npz')
 
     return c_data, params
-
-
-def generate_domain(comsol):
-    boundaries = range(4)
-
-    # Create 1D mesh
-    mesh = fem.IntervalMesh(len(np.unique(comsol.data.mesh.mesh)) - 1, 0, 3)
-    mesh.coordinates()[:] = np.array([np.unique(comsol.data.mesh.mesh)]).transpose()
-
-    # Setup subdomain markers
-    neg_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[0], b2=boundaries[1])
-    sep_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[1], b2=boundaries[2])
-    pos_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[2], b2=boundaries[3])
-
-    # Setup boundary markers
-    b0 = fem.CompiledSubDomain('on_boundary && near(x[0], b, DOLFIN_EPS)', b=boundaries[0])
-    b1 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=boundaries[1])
-    b2 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=boundaries[2])
-    b3 = fem.CompiledSubDomain('on_boundary && near(x[0], b, DOLFIN_EPS)', b=boundaries[3])
-
-    # Mark the subdomains
-    domain_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim())
-    domain_markers.set_all(0)
-    neg_domain.mark(domain_markers, 1)
-    sep_domain.mark(domain_markers, 2)
-    pos_domain.mark(domain_markers, 3)
-
-    # Mark the boundaries
-    boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
-    boundary_markers.set_all(0)
-    b0.mark(boundary_markers, 1)
-    b1.mark(boundary_markers, 2)
-    b2.mark(boundary_markers, 3)
-    b3.mark(boundary_markers, 4)
-
-    # Setup measures
-    dx = fem.Measure('dx', domain=mesh, subdomain_data=domain_markers)
-    ds = fem.Measure('ds', domain=mesh, subdomain_data=boundary_markers)
-
-    # print(domain_markers.array())
-    # print(boundary_markers.array())
-    # fem.plot(markers)
-    # plt.show()
-
-    return mesh, dx, ds, boundary_markers, domain_markers
 
 
 def mkparam(markers, k_1 = 0, k_2 = 0, k_3 = 0, k_4 = 0):
@@ -103,50 +56,54 @@ def mkparam(markers, k_1 = 0, k_2 = 0, k_3 = 0, k_4 = 0):
 
 
 def phis():
+    time = [0, 5, 10, 15, 20]
     # Collect required data
     comsol_data, params = gather_data()
-    mesh, dx, ds, bm, dm = generate_domain(comsol_data)
-
-    # Define function space and basis functions
-    V = fem.FunctionSpace(mesh, 'Lagrange', 1)
-    phi = fem.TrialFunction(V)
-    v = fem.TestFunction(V)
-
-    # Initialize Dirichlet BCs
-    bc = [fem.DirichletBC(V, 0.0, bm, 1), fem.DirichletBC(V, 4.2, bm, 4)]
+    data = comsol_data.data.get_solution_near_time(time)
+    u_array = np.empty((len(time), len(data.mesh.mesh) - 2))
+    mesh, dx, ds, bm, dm = domain.generate_domain(comsol_data)
 
     # Initialize parameters
     F = 96487
     Iapp = 0
 
-    f = fem.Function(V)
-    # f.vector()[:] = comsol_data['j'][fem.dof_to_vertex_map(V),1].astype('double')*fem.Constant(F)
-    # data = engine.fetch_comsol_solutions('../tests/reference/guwang.npz', [5])
-
-    data = comsol_data.data.get_solution_near_time(5)
-    f.vector()[:] = data.j[fem.dof_to_vertex_map(V)].astype('double') * fem.Constant(F)
+    # remove repeated boundary
+    fun = comsol_data.remove_dup_boundary(data.j)
 
     Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
+    sigma_eff = mkparam(dm, params.neg.sigma_ref * params.neg.eps_s ** params.neg.brug_sigma, 0,
+                        params.pos.sigma_ref * params.pos.eps_s ** params.pos.brug_sigma)
+    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
 
-    sigma_eff = mkparam(dm, params.neg.sigma_ref*params.neg.eps_s**params.neg.brug_sigma, 0,
-                        params.pos.sigma_ref*params.pos.eps_s**params.pos.brug_sigma)
-    a_s = mkparam(dm, 3*params.neg.eps_s/params.neg.Rs, 0, 3*params.pos.eps_s/params.pos.Rs)
+    for i, j in enumerate(fun):
+        # Define function space and basis functions
+        V = fem.FunctionSpace(mesh, 'Lagrange', 1)
+        phi = fem.TrialFunction(V)
+        v = fem.TestFunction(V)
 
-    a = fem.Constant(1)/(Lc*Lc)*sigma_eff*fem.dot(fem.grad(phi), fem.grad(v))*dx(1) + fem.Constant(1)/(Lc*Lc)*sigma_eff*fem.dot(fem.grad(phi), fem.grad(v))*dx(3)
-    L = -a_s*f*v*dx(1) - a_s*f*v*dx(3) - fem.Constant(Iapp/params.const.Acell)*v*ds(4)
+        # Initialize Dirichlet BCs
+        bc = [fem.DirichletBC(V, 0.0, bm, 1), fem.DirichletBC(V, 4.2, bm, 4)]
+        f = fem.Function(V)
+        f.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double') * fem.Constant(F)
 
-    phi = fem.Function(V)
-    fem.solve(a == L, phi, bc)
-    fem.plot(phi)
+        a = fem.Constant(1) / (Lc * Lc) * sigma_eff * fem.dot(fem.grad(phi), fem.grad(v)) * dx(1) + fem.Constant(1) / (
+                Lc * Lc) * sigma_eff * fem.dot(fem.grad(phi), fem.grad(v)) * dx(3)
+        L = -a_s * f * v * dx(1) - a_s * f * v * dx(3) - fem.Constant(Iapp / params.const.Acell) * v * ds(4)
+
+        phi = fem.Function(V)
+        fem.solve(a == L, phi, bc)
+        fem.plot(phi)
+
+        u_nodal_values = phi.vector()
+        u_array[i, :] = u_nodal_values.get_local()
     plt.savefig('test.png', dpi=300)
     plt.grid()
     plt.show()
 
-    u_nodal_values = phi.vector()
-    u_array = u_nodal_values.get_local()
+
     coor = mesh.coordinates()
-    for i in range(len(u_array)):
-        print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
+    # for i in range(len(u_array)):
+    #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
     print(type(u_array))
 
