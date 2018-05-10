@@ -17,7 +17,7 @@ TODO: Get boundary info from refdomain module
 import logging
 import os
 import sys
-from typing import List, Dict, Union
+from typing import List, Union
 
 import click
 import numpy as np
@@ -103,6 +103,11 @@ class SolutionData(object):
         self.mesh = mesh
         self.dt = dt
 
+    def get_dict(self):
+        d = self.__dict__
+        d['mesh'] = self.mesh.mesh
+        return d
+
     def get_solution_near_time(self, time: List[float]) -> Union[None, 'SolutionData']:
         """
         Retrieve the solution data near a given time
@@ -171,83 +176,32 @@ class SolutionData(object):
                             self.j[..., self.mesh.pos], self.dt)
 
 
-class ComsolData:
-    """Collect and save COMSOL solutions"""
+class IOHandler:
+    """Collect COMSOL formatted CSV files/formatted npz files and save npz files."""
 
-    def __init__(self, datafile: str = None, csv_file_list: List[str] = None, boundaries=None, dt: float = 0.1) -> None:
+    def __init__(self, datafile: str = None) -> None:
+        self.data = self.raw_data = None
+        self.filename = datafile
+
+        if datafile:
+            logging.debug('Loading COMSOL data from npz')
+            self.data = np.load(datafile)
+
+    def collect_csv_files(self, csv_file_list: List[str] = None):
         """
-        Collect data and save if both options are provided. Data is saved as a dictionary with key values being the
-         basename of the file.
-
-        :param datafile: file in which to load/save COMSOL data
-        :param csv_file_list: CSV files in which to load COMSOL data
-        :param dt: time between temporal samples
-        """
-
-        boundaries = [1, 2]
-
-        logging.debug('Initializing ComsolData')
-        self.datafile = datafile
-        self.boundaries = boundaries
-        self.data = None
-        error = False
-
-        if csv_file_list:
-            logging.debug('Loading CSV files.')
-            raw_params = self.collect_csv_data(csv_file_list)
-            data = self.format_data(raw_params, boundaries, dt)
-        elif datafile:
-            logging.debug('Loading NPZ data file.')
-            data = np.load(datafile)
-        else:
-            logging.error('Cannot do anything without CSV files or NPZ data file. Aborting.')
-            return
-
-        if csv_file_list and datafile:
-            logging.info('Saving COMSOL data to NPZ: {}'.format(datafile))
-            np.savez(datafile, **data)
-
-        self.data = SolutionData(SimMesh(data['mesh']), data['ce'], data['cse'], data['phie'],
-                                 data['phis'], data['j'], dt)
-
-    def remove_dup_boundary(self, item: np.ndarray) -> Union[None, np.ndarray]:
-        """
-        Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
-        :return: Array of points with interior boundaries removed
-        """
-        mask = np.ones(item.shape[-1], dtype=bool)
-        mask[[self.data.mesh.sep[0], self.data.mesh.sep[-1]]] = False
-        return item[..., mask]
-
-    def get_fenics_friendly(self) -> SolutionData:
-        """
-        Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
-        :return: Simplified solution data
-        """
-        mesh = self.remove_dup_boundary(self.data.mesh.mesh)
-        ce = self.remove_dup_boundary(self.data.ce)
-        cse = self.remove_dup_boundary(self.data.cse)
-        phie = self.remove_dup_boundary(self.data.phie)
-        phis = self.remove_dup_boundary(self.data.phis)
-        j = self.remove_dup_boundary(self.data.j)
-
-        return SolutionData(SimMesh(mesh), ce, cse, phie, phis, j, self.data.dt)
-
-    @staticmethod
-    def collect_csv_data(csv_file_list: List[str]) -> Dict[str, np.ndarray]:
-        """
-        Collect CSV data from list of filenames and return a dictionary of the data where the key is the basename of the
-         file, and the data is a 2D ndarray, where the first column is the mesh, and the second is the data. Both are
-         repeated for each new time step.
+        Collect CSV data from list of filenames and create a dictionary of the data where the key is the basename of the
+        file, and the data is a 2D ndarray, where the first column is the mesh, and the second is the data. Both are
+        repeated for each new time step.
 
         :param csv_file_list: list of files to read
-        :return: extracted data
+
+        TODO: abstract out dimensionality requirement
         """
         params = dict()
         logging.info('Collecting CSV data...')
         for file_name in csv_file_list:
             logging.info('Reading {}...'.format(file_name))
-            # create function name from flie name
+            # create function name from file name
             varName, ext = os.path.splitext(os.path.basename(file_name))
 
             if ext.upper() != '.CSV':
@@ -260,62 +214,85 @@ class ComsolData:
                 logging.error('Failed to read {}, ignoring.  See DEBUG log.'.format(file_name))
                 logging.debug(ex)
 
+        self.raw_data = params
         logging.info('Finished collecting CSV data.')
-        return params
 
-    @staticmethod
-    def fix_boundaries(x_data, y_data, boundaries):
-        b_indices = np.searchsorted(x_data, boundaries)
+    def save_npz_file(self, filename: str = None):
+        """
+        Save self.data to an npz file. If no filename is provided, the filename that was used to load the data will be
+        used.
 
-        if not b_indices.any():
-            return y_data
+        :param filename: Name of the npz file
+        """
+        logging.info('Saving data to npz: {}'.format(filename))
+        if not filename:
+            filename = self.filename
+        np.savez(filename, **self.data)
 
-        modifier = 0
-        for x in b_indices:
-            if x_data[x] == x_data[x + 1]:  # swap
-                y_tmp = y_data[x + modifier]
-                y_data[x + modifier] = y_data[x + modifier + 1]
-                y_data[x + modifier + 1] = y_tmp
-            else:  # add boundary
-                y_data = np.insert(y_data, x + modifier, y_data[x + modifier])
-                modifier += 1
+    def load_npz_file(self, filename: str = None):
+        """
+        Load self.data from an npz file. If no filename is provided, the filename that was used to load the data will be
+        used.
 
-        return y_data
+        :param filename: Name of the npz file
+        """
+        logging.info('Loading data from npz: {}'.format(filename))
+        if not filename:
+            filename = self.filename
+        else:
+            self.filename = filename
+        self.data = np.load(filename)
 
-    @staticmethod
-    def format_data(raw_params: Dict[str, np.ndarray], boundaries, dt: float) -> Union[
-        Dict[str, np.ndarray], Dict[str, float]]:
+
+class Formatter:
+    """
+    Format COMSOL data to be more useful
+    """
+
+    def __init__(self, raw_data, boundaries=None, dt: float = 0.1) -> None:
+        """
+        Format a "raw" data dictionary, where each data element is assumed to be in COMSOL's asinine format, with the
+        exception of 'mesh' which must exist in the dictionary. If boundaries is provided, an attempt will be made to
+        deal with duplicate internal boundary data. The data is also assumed to be formatted such that it has two
+        columns, the first is the mesh that the data is on, and the second is the data. The data is stacked in time,
+        so every time the mesh restarts, that data will be saved as a new time step. Each time step is separated by dt
+        time.
+
+        :param raw_data: COMSOL formatted data dictionary
+        :param boundaries: internal boundaries that may need correction
+        :param dt: time change per step in data
+        """
+        self.data = None
+        self._format(raw_data, boundaries, dt)
+
+    def _format(self, raw_data, boundaries, dt):
         """
         Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
         first dimension is time and the second is the solution in space. Each solution has it's own entry in a
         dictionary where the key is the name of the variable. The time step size (dt) and mesh have their own keys.
 
-        :param raw_params: COMSOL formatted CSV files
-        :param dt: time step for temporal problems
+        :param raw_data: COMSOL formatted CSV files
+        :param boundaries: internal boundary locations
+        :param dt: change in time between each sample
         :return: convenient dictionary of non-stationary solutions
         """
 
-        logging.info('Reformatting CSV data for NPZ storage.')
-        formatted_data = dict()
-        formatted_data['dt'] = dt
+        logging.info('Reformatting raw data')
+        data = dict()
 
-        if 'mesh' not in raw_params:
-            logging.critical('File named "mesh.csv" required.')
-            raise Exception('File named "mesh.csv" required.')
-
-        formatted_data['mesh'] = raw_params['mesh']
-
+        if 'mesh' not in raw_data:
+            logging.critical('Data named "mesh" required')
+            raise Exception('Data named "mesh" required')
 
         # for each variable
-        counter = 0
-        for key, data in raw_params.items():
+        for key, value in raw_data.items():
             if key == 'mesh':
                 continue
 
             logging.debug('Reformatting {}.'.format(key))
 
             try:
-                (x_data, y_data) = (data[:, 0], data[:, 1])
+                (x_data, y_data) = (value[:, 0], value[:, 1])
             except Exception as ex:
                 logging.warning('{} must have two columns, skipping. See DEBUG log.'.format(key))
                 logging.debug(ex)
@@ -329,29 +306,72 @@ class ComsolData:
                 # Frame stop indices
                 stop = np.append(time_frame, len(x_data) - 1) + 1
                 # collect y_data determining if there are discontinuous boundaries
+                data[key] = np.array([
+                    self._fix_boundaries(x_data[start[i]:stop[i]], y_data[start[i]:stop[i]], boundaries)
+                    for i in range(len(start))])
 
-
-                y_data_new = np.empty([len(start), len(formatted_data['mesh'])])
-                b = 0
-                for i in range(len(start)):
-                    b = i
-                    y_section = y_data[start[i]:stop[i]]
-                    x_section = x_data[start[i]:stop[i]]
-                    a = ComsolData.fix_boundaries(x_section, y_section, boundaries)
-                    y_data_new[i, :] = a
-
-                # formatted_data[key] = Metadata(y_data_new, boundaries)
-                formatted_data[key] = y_data_new
+                if data[key].shape[-1] != len(raw_data['mesh']):
+                    logging.warning('{} does not fit the mesh, skipping')
+                    data.pop(key, None)
+                elif key not in data:
+                    logging.warning('{} was skipped, unknown reason')
             except Exception as ex:
                 logging.error('Error occurred while formatting {}, skipping. See DEBUG log.'.format(key))
                 logging.debug(ex)
 
-            counter += 1
-
-        if counter == 0:
+        if not len(data):
+            logging.critical('No data recovered, aborting')
             raise Exception('No data saved')
 
-        return formatted_data
+        data['dt'] = dt
+        data['mesh'] = raw_data['mesh']
+        data['boundaries'] = boundaries
+
+        self.data = self.set_data(data)
+
+    def _fix_boundaries(self, x_data, y_data, boundaries):
+        b_indices = np.searchsorted(x_data, boundaries)
+
+        if not len(b_indices):
+            return y_data
+
+        for x in b_indices[::-1]:
+            if x_data[x] == x_data[x + 1]:  # swap
+                (y_data[x], y_data[x + 1]) = (y_data[x + 1], y_data[x])
+            else:  # add boundary
+                y_data = np.insert(y_data, x, y_data[x])
+
+        return y_data
+
+    @staticmethod
+    def set_data(data):
+        return SolutionData(SimMesh(data['mesh']), data['ce'], data['cse'], data['phie'],
+                            data['phis'], data['j'], data['dt'])
+
+    @staticmethod
+    def remove_dup_boundary(data: SolutionData, item: np.ndarray) -> Union[None, np.ndarray]:
+        """
+        Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
+        :return: Array of points with interior boundaries removed
+        """
+        mask = np.ones(item.shape[-1], dtype=bool)
+        mask[[data.mesh.sep[0], data.mesh.sep[-1]]] = False
+        return item[..., mask]
+
+    @staticmethod
+    def get_fenics_friendly(data: SolutionData) -> SolutionData:
+        """
+        Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
+        :return: Simplified solution data
+        """
+        mesh = Formatter.remove_dup_boundary(data, data.mesh.mesh)
+        ce = Formatter.remove_dup_boundary(data, data.ce)
+        cse = Formatter.remove_dup_boundary(data, data.cse)
+        phie = Formatter.remove_dup_boundary(data, data.phie)
+        phis = Formatter.remove_dup_boundary(data, data.phis)
+        j = Formatter.remove_dup_boundary(data, data.j)
+
+        return SolutionData(SimMesh(mesh), ce, cse, phie, phis, j, data.dt)
 
 
 @click.command()
@@ -383,7 +403,11 @@ def main(input, output, dt, loglevel):
     logging.debug('dt: {}'.format(dt))
 
     try:
-        ComsolData(output, input, dt)
+        # ComsolData(output, input, dt)
+        file = IOHandler()
+        file.collect_csv_files(input)
+        file.data = Formatter(file.raw_data, boundaries=[1, 2], dt=dt).data.get_dict()
+        file.save_npz_file(output)
     except Exception as ex:
         logging.error('Unhandled exception occurred: {}'.format(ex))
         sys.exit(2)

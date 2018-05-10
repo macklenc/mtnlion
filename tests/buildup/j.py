@@ -96,11 +96,13 @@ def main():
     time = [5, 10, 15, 20, 25]
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.ComsolData(resources + 'guwang.npz')
+    data_file = comsol.IOHandler(resources + 'guwang.npz')
+    d_comsol = comsol.Formatter.set_data(data_file.data)
+    # d_comsol = comsol.ComsolData(resources + 'guwang.npz')
 
     st = timeit.default_timer()
-    jneg, jpos = calculate_j(time, d_comsol.data, params)
-    plot_j(time, d_comsol.data, params, jneg, jpos)
+    jneg, jpos = calculate_j(time, d_comsol, params)
+    plot_j(time, d_comsol, params, jneg, jpos)
     print('Time: {}'.format(timeit.default_timer()-st))
 
     # jneg_orig = d_comsol.data.get_solution_in_neg().get_solution_at_time_index(list(map(lambda x: x*10, time))).j

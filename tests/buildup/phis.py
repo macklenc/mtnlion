@@ -11,9 +11,10 @@ def gather_data():
     # Load required cell data
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    c_data = comsol.ComsolData(resources + 'guwang.npz')
-
-    return c_data, params
+    # c_data = comsol.ComsolData(resources + 'guwang.npz')
+    data_file = comsol.IOHandler(resources + 'guwang.npz')
+    d_comsol = comsol.Formatter.set_data(data_file.data)
+    return d_comsol, params
 
 
 def mkparam(markers, k_1 = 0, k_2 = 0, k_3 = 0, k_4 = 0):
@@ -60,8 +61,9 @@ def phis():
     time = [0, 5, 10, 15, 20]
 
     # Collect required data
+    # TODO: make sure refactored comsol works here
     comsol_data, params = gather_data()
-    sim_data = comsol_data.get_fenics_friendly()
+    sim_data = comsol.Formatter.get_fenics_friendly(comsol_data)
     data = sim_data.get_solution_near_time(time)
 
     # initialize matrix to save solution results
