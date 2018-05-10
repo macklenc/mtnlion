@@ -1,5 +1,18 @@
 """
-COMSOL Data Handling
+COMSOL Data Handling. This module is designed to load 1D solution data from a Gu & Wang reference model from COMSOL as
+CSV files. The idea is that CSV files take a long time to load, so it is more efficient to convert the data to a binary
+(npz) format before processing. When converting, this module will also reformat the data from COMSOL's rather confusing
+output format.
+
+My current hypothesis is that the discontinuities at the internal boundaries from the solutions are due to the boundary
+being computed for both the left and right side. I.e. at x=1 on the mesh, there could be two solutions, y=1 and y=NaN.
+It also appears that COMSOL for some strange reason flips the order on the boundaries, such that the first x=1 position
+is for the right side of the boundary, while the second is the left side. Thus, this module will reverse these. Another
+odd formatting choice from COMSOL is to conditionally add the repeated x coordinate, i.e. the first time sample of j
+might have a repeated x=1, but only one x=2. In order to solve this, this module will duplicate non-repeated boundaries.
+
+TODO: modify this module to support arbitrary solution data (on the same mesh?)
+TODO: Get boundary info from refdomain module
 """
 import logging
 import os
@@ -10,14 +23,13 @@ import click
 import numpy as np
 
 
-class Metadata:
-    def __init__(self, data, bounds=None):
-        self.data = data
-        self.bounds = bounds
-
-
 class SimMesh(object):
-    """1D mesh for reference cell. Cell regions overlap, i.e. both neg and sep contain 2."""
+    """
+    1D mesh for reference cell. Cell regions may overlap, i.e. both neg and sep contain x=2, and mesh will contain two
+    x=2 values.
+
+    TODO: abstract out dimensionality
+    """
 
     def __init__(self, mesh: np.ndarray) -> None:
         """
@@ -31,7 +43,13 @@ class SimMesh(object):
         self.mesh = mesh
         self._region()
 
-    def _unique(self, comparison):
+    def _unique(self, comparison: np.ndarray) -> np.ndarray:
+        """
+        This method will add internal repeated boundaries to subdomains if they are missing.
+
+        :param comparison: list of boolean values
+        :return: Uniform subdomain mesh
+        """
         ind = np.nonzero(comparison)[0]
 
         if ind[0] > 0:
@@ -55,7 +73,13 @@ class SimMesh(object):
 
 
 class SolutionData(object):
-    """PDE Solution results for cell state"""
+    """
+    PDE Solution results for cell state. This class holds onto solution data imported from COMSOL, and provides
+    methods to more easily interact with the data.
+
+    TODO: abstract to work with any imported variables
+    TODO: track dimensionality of data
+    """
 
     def __init__(self, mesh: Union[SimMesh, float], ce: np.ndarray, cse: np.ndarray, phie: np.ndarray,
                  phis: np.ndarray, j: np.ndarray, dt: float) -> None:
@@ -94,7 +118,13 @@ class SolutionData(object):
         return SolutionData(self.mesh, self.ce[index], self.cse[index],
                             self.phie[index], self.phis[index], self.j[index], 0)
 
-    def get_solution_at_time_index(self, index):
+    def get_solution_at_time_index(self, index: List) -> 'SolutionData':
+        """
+        Slice solution in time.
+
+        :param index: time indices to retrieve data
+        :return: time-reduced solution
+        """
         logging.debug('Retrieving solution at time index: {}'.format(index))
 
         return SolutionData(self.mesh, self.ce[index, :], self.cse[index, :], self.phie[index, :],
@@ -106,6 +136,8 @@ class SolutionData(object):
 
         :param position: location in solution to retrieve data
         :return: time varying solution at a given position
+
+        TODO: Remove dependence on adding newaxis
         """
 
         logging.debug('Retrieving solution near position: {}'.format(position))
@@ -115,13 +147,24 @@ class SolutionData(object):
                             self.phie[np.newaxis, :, space],
                             self.phis[np.newaxis, :, space], self.j[np.newaxis, :, space], self.dt)
 
-    def get_solution_in_neg(self):
+    def get_solution_in_neg(self) -> 'SolutionData':
+        """
+        Return the solution for only the negative electrode
+
+        :return: reduced solution set to only contain the negative electrode space
+        """
         logging.debug('Retrieving solution in negative electrode.')
         return SolutionData(self.mesh, self.ce[..., self.mesh.neg], self.cse[..., self.mesh.neg],
                             self.phie[..., self.mesh.neg], self.phis[..., self.mesh.neg],
                             self.j[..., self.mesh.neg], self.dt)
 
-    def get_solution_in_pos(self):
+    # TODO: add get solution in sep
+    def get_solution_in_pos(self) -> 'SolutionData':
+        """
+        Return the solution for only the positive electrode
+
+        :return: reduced solution set to only contain the positive electrode space
+        """
         logging.debug('Retrieving solution in negative electrode.')
         return SolutionData(self.mesh, self.ce[..., self.mesh.pos], self.cse[..., self.mesh.pos],
                             self.phie[..., self.mesh.pos], self.phis[..., self.mesh.pos],
