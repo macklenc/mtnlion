@@ -59,15 +59,24 @@ Get Started!
 
 Ready to contribute? Here's how to set up `mtnlion` for local development.
 
-1. Fork the `mtnlion` repo on GitHub.
-2. Clone your fork locally::
+For the time being, Ubuntu is the easiest distribution to setup for development. The instructions here *may* be able to
+be adapted for other distributions. To start off with, install ``python3-dolfin`` to get the python3 modules. I
+recommend using ``virtualenvwrapper`` to setup an isolated virtual environment to work on:
+
+1. Install `FEniCS <https://fenicsproject.org/download/>`_
+2. Install `git-lfs <https://git-lfs.github.com/>`_
+3. Fork the `mtnlion` repo on GitHub.
+4. Clone your fork locally::
 
     $ git clone git@github.com:your_name_here/mtnlion.git
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+5. Install your local copy into a virtualenv. Assuming you have
+   `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_ installed, this is how you set up your
+   fork for local development::
 
-    $ mkvirtualenv mtnlion
+    $ mkvirtualenv -p python3 --system-site-packages mtnlion
     $ cd mtnlion/
+    $ echo "$(pwd)" > $WORKON_HOME/mtnlion/.project
     $ python setup.py devel
 
 4. Create a branch for local development::
@@ -78,7 +87,7 @@ Ready to contribute? Here's how to set up `mtnlion` for local development.
 
 5. When you're done making changes, check that your changes pass flake8 and the
    tests, including testing other Python versions with tox::
-
+   
     $ flake8 mtnlion tests
     $ python setup.py test or py.test
     $ tox
@@ -102,16 +111,38 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
-3. The pull request should work for Python 2.7, 3.4, 3.5 and 3.6, and for PyPy. Check
+   - If a new module is added, make sure to run::
+        
+        $ sphinx-apidoc -F -o docs mtnlion --separate
+
+     in order to generate new documentation for the modules. 
+3. The pull request should work for Python 3.6, and for PyPy. Check
    https://travis-ci.org/macklenc/mtnlion/pull_requests
    and make sure that the tests pass for all supported Python versions.
 
 Tips
 ----
 
-To run a subset of tests::
+- To run a subset of tests::
 
-$ py.test tests.test_mtnlion
+    $ py.test tests.test_mtnlion
+
+- To quickly setup ``virtualenvwrapper`` add these to your shell rc file::
+
+    export WORKON_HOME=$HOME/.virtualenvs
+    export PROJECT_HOME=$HOME/devel
+    export VIRTUALENVWRAPPER_PYTHON='/usr/bin/python3'
+    source /usr/local/bin/virtualenvwrapper.sh
+
+  and make sure that your clone of mtnlion is in ``$HOME/devel``.
+
+- Use ``deactivate`` to leave the virtualenv, and verify that you are in the virtual env with ``which python`` which
+  should point to a directory in ``$WORKON_HOME``.
+
+- Use pycharm! To setup pycharm simply import mtnlion and go to settings ``Ctrl+Alt+S`` then go to
+  ``Project: mtnlion -> Project Interpreter``, click on the gear and select ``add``. Select ``existing interpreter``,
+  and the virtual environment in ``~/.virtualenvs`` should be auto-discovered. Choose that and exit all menu's
+  selecting "OK".
 
 
 Deploying

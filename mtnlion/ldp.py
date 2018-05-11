@@ -126,8 +126,7 @@ def load_section(sheet, row_range=None, col_range=None):
     :example:
 
     spreadsheet = read_excel('parameters.xlsx', 'Parameters')
-    cell_data = load_section(
-        spreadsheet, [1, 3, 5], range(7, 42))
+    cell_data = load_section(spreadsheet, [1, 3, 5], range(7, 42))
 
     :param sheet: spreadsheet data
     :param row_range: selected rows

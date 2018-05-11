@@ -1,5 +1,5 @@
 Welcome to Mountian Lion CSS's documentation!
-======================================
+=============================================
 
 .. toctree::
    :maxdepth: 2
@@ -8,7 +8,7 @@ Welcome to Mountian Lion CSS's documentation!
    readme
    installation
    usage
-   modules
+   mtnlion
    contributing
    authors
    history

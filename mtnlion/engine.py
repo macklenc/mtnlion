@@ -5,7 +5,7 @@ Equation solver
 import munch
 import numpy as np
 
-import ldp
+import mtnlion.ldp as ldp
 
 
 def rmse(estimated, true):
