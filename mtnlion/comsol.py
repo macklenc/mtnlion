@@ -10,25 +10,21 @@ It also appears that COMSOL for some strange reason flips the order on the bound
 is for the right side of the boundary, while the second is the left side. Thus, this module will reverse these. Another
 odd formatting choice from COMSOL is to conditionally add the repeated x coordinate, i.e. the first time sample of j
 might have a repeated x=1, but only one x=2. In order to solve this, this module will duplicate non-repeated boundaries.
-
-TODO: modify this module to support arbitrary solution data (on the same mesh?)
-TODO: Get boundary info from refdomain module
 """
 import logging
 import os
 import sys
-from typing import List, Union
+from typing import List, Union, Dict
 
 import click
+import munch
 import numpy as np
 
 
-class SimMesh(object):
+class Domain(object):
     """
     1D mesh for reference cell. Cell regions may overlap, i.e. both neg and sep contain x=2, and mesh will contain two
     x=2 values.
-
-    TODO: abstract out dimensionality
     """
 
     def __init__(self, mesh: np.ndarray) -> None:
@@ -39,13 +35,16 @@ class SimMesh(object):
         """
 
         logging.debug('Creating simulation mesh...')
-        self.neg = self.pos = self.sep = None
+        self.neg_ind = self.pos_ind = self.sep_ind = None
         self.mesh = mesh
         self._region()
+        self.neg, self.pos, self.sep = \
+            self.mesh[self.neg_ind, ...], self.mesh[self.pos_ind, ...], self.mesh[self.sep_ind, ...]
 
     def _unique(self, comparison: np.ndarray) -> np.ndarray:
         """
-        This method will add internal repeated boundaries to subdomains if they are missing.
+        This method will add internal repeated boundaries to subdomains if they are missing in the first dimension of
+        the mesh.
 
         :param comparison: list of boolean values
         :return: Uniform subdomain mesh
@@ -55,34 +54,28 @@ class SimMesh(object):
         if ind[0] > 0:
             ind = np.insert(ind, 0, ind[0] - 1)
 
-        if ind[-1] < len(self.mesh) - 1:
+        if ind[-1] < len(self.mesh[0:]) - 1:
             ind = np.append(ind, ind[-1] + 1)
 
         return ind
 
     def _region(self) -> None:
         """
-        Find the reference regions in the mesh
+        Find the reference regions in the first dimension of the mesh
         """
-
-        # Find each subspace
         logging.debug('Dividing mesh into subspaces')
-        self.neg = self._unique(self.mesh < 1)
-        self.pos = self._unique(self.mesh > 2)
-        self.sep = self._unique((self.mesh > 1) & (self.mesh < 2))
+        self.neg_ind = self._unique(self.mesh[0:] < 1)
+        self.pos_ind = self._unique(self.mesh[0:] > 2)
+        self.sep_ind = self._unique((self.mesh[0:] > 1) & (self.mesh[0:] < 2))
 
 
 class SolutionData(object):
     """
     PDE Solution results for cell state. This class holds onto solution data imported from COMSOL, and provides
     methods to more easily interact with the data.
-
-    TODO: abstract to work with any imported variables
-    TODO: track dimensionality of data
     """
 
-    def __init__(self, mesh: Union[SimMesh, float], ce: np.ndarray, cse: np.ndarray, phie: np.ndarray,
-                 phis: np.ndarray, j: np.ndarray, dt: float) -> None:
+    def __init__(self, mesh: Union[Domain, float], dt: float, boundaries: np.ndarray, **kwargs) -> None:
         """
         Store the solutions to each cell parameter
 
@@ -95,18 +88,26 @@ class SolutionData(object):
         """
 
         logging.debug('Initializing solution data...')
-        self.ce = ce
-        self.cse = cse
-        self.phie = phie
-        self.phis = phis
-        self.j = j
+        self.data = munch.Munch(kwargs)
         self.mesh = mesh
         self.dt = dt
+        self.boundaries = boundaries
 
-    def get_dict(self):
-        d = self.__dict__
-        d['mesh'] = self.mesh.mesh
-        return d
+    def get_dict(self) -> Union[Dict[str, Domain], Dict[str, np.ndarray]]:
+        """
+        Retrieve dictionary of SolutionData to serialize
+        :return: data dictionary
+        """
+        d = {'mesh': self.mesh.mesh, 'dt': self.dt, 'boundaries': self.boundaries}
+        return dict(d, **self.data)
+
+    def _filter(self, index: Union[List['ellipsis'], List[int], slice]) -> Dict[str, np.ndarray]:
+        """
+        Filter through dictionary to collect sections of the contained ndarrays.
+        :param index: subset of arrays to collect
+        :return: dictionary of reduced arrays
+        """
+        return {k: v[index] for k, v in self.data.items() if not np.isscalar(v)}
 
     def get_solution_near_time(self, time: List[float]) -> Union[None, 'SolutionData']:
         """
@@ -120,8 +121,7 @@ class SolutionData(object):
         index = list(map(lambda x: int(x / self.dt), time))
         logging.debug('Using time: {}'.format(list(map(lambda x: int(x * self.dt), index))))
 
-        return SolutionData(self.mesh, self.ce[index], self.cse[index],
-                            self.phie[index], self.phis[index], self.j[index], 0)
+        return SolutionData(self.mesh, 0, self.boundaries, **self._filter(index))
 
     def get_solution_at_time_index(self, index: List) -> 'SolutionData':
         """
@@ -132,8 +132,7 @@ class SolutionData(object):
         """
         logging.debug('Retrieving solution at time index: {}'.format(index))
 
-        return SolutionData(self.mesh, self.ce[index, :], self.cse[index, :], self.phie[index, :],
-                            self.phis[index, :], self.j[index, :], 0)
+        return SolutionData(self.mesh, 0, self.boundaries, **self._filter([index, ...]))
 
     def get_solution_near_position(self, position: float) -> 'SolutionData':
         """
@@ -141,39 +140,30 @@ class SolutionData(object):
 
         :param position: location in solution to retrieve data
         :return: time varying solution at a given position
-
-        TODO: Remove dependence on adding newaxis
         """
 
         logging.debug('Retrieving solution near position: {}'.format(position))
         space = (np.abs(self.mesh.mesh - position)).argmin()
         logging.debug('Using position: {}'.format(space))
-        return SolutionData(space, self.ce[np.newaxis, :, space], self.cse[np.newaxis, :, space],
-                            self.phie[np.newaxis, :, space],
-                            self.phis[np.newaxis, :, space], self.j[np.newaxis, :, space], self.dt)
+        return SolutionData(space, self.dt, self.boundaries, **self._filter([..., space]))
 
-    def get_solution_in_neg(self) -> 'SolutionData':
+    def get_solution_in(self, subspace: str) -> Union[None, 'SolutionData']:
         """
-        Return the solution for only the negative electrode
+        Return the solution for only the given subspace
 
-        :return: reduced solution set to only contain the negative electrode space
+        :return: reduced solution set to only contain the given space
         """
-        logging.debug('Retrieving solution in negative electrode.')
-        return SolutionData(self.mesh, self.ce[..., self.mesh.neg], self.cse[..., self.mesh.neg],
-                            self.phie[..., self.mesh.neg], self.phis[..., self.mesh.neg],
-                            self.j[..., self.mesh.neg], self.dt)
+        logging.debug('Retrieving solution in {}'.format(subspace))
+        if subspace is 'neg':
+            space = self.mesh.neg_ind
+        elif subspace is 'sep':
+            space = self.mesh.sep_ind
+        elif subspace is 'pos':
+            space = self.mesh.pos_ind
+        else:
+            return None
 
-    # TODO: add get solution in sep
-    def get_solution_in_pos(self) -> 'SolutionData':
-        """
-        Return the solution for only the positive electrode
-
-        :return: reduced solution set to only contain the positive electrode space
-        """
-        logging.debug('Retrieving solution in negative electrode.')
-        return SolutionData(self.mesh, self.ce[..., self.mesh.pos], self.cse[..., self.mesh.pos],
-                            self.phie[..., self.mesh.pos], self.phis[..., self.mesh.pos],
-                            self.j[..., self.mesh.pos], self.dt)
+        return SolutionData(self.mesh, self.dt, self.boundaries, **self._filter([..., space]))
 
 
 class IOHandler:
@@ -185,13 +175,14 @@ class IOHandler:
 
         if datafile:
             logging.debug('Loading COMSOL data from npz')
-            self.data = np.load(datafile)
+            self.load_npz_file()
 
     def collect_csv_files(self, csv_file_list: List[str] = None):
         """
         Collect CSV data from list of filenames and create a dictionary of the data where the key is the basename of the
         file, and the data is a 2D ndarray, where the first column is the mesh, and the second is the data. Both are
-        repeated for each new time step.
+        repeated for each new time step. Cannot read entire file names if they contain extra periods that do not proceed
+        an extension. I.e. j.csv.bz2 or j.csv are okay, but my.file.csv is not.
 
         :param csv_file_list: list of files to read
 
@@ -202,10 +193,12 @@ class IOHandler:
         for file_name in csv_file_list:
             logging.info('Reading {}...'.format(file_name))
             # create function name from file name
-            varName, ext = os.path.splitext(os.path.basename(file_name))
+            varName = os.path.splitext(os.path.basename(file_name))[0]
 
-            if ext.upper() != '.CSV':
+            if '.CSV' not in file_name.upper():
                 logging.warning('{} does not have a CSV extension!'.format(file_name))
+            else:
+                varName = varName.split('.', 1)[0]
 
             # load the data into a dictionary with the correct key name
             try:
@@ -241,13 +234,16 @@ class IOHandler:
             filename = self.filename
         else:
             self.filename = filename
-        self.data = np.load(filename)
+
+        with np.load(filename) as data:
+            self.data = {k: v for k, v in data.items()}
 
 
 class Formatter:
     """
     Format COMSOL data to be more useful
     """
+    data: 'SolutionData'
 
     def __init__(self, raw_data, boundaries=None, dt: float = 0.1) -> None:
         """
@@ -265,7 +261,7 @@ class Formatter:
         self.data = None
         self._format(raw_data, boundaries, dt)
 
-    def _format(self, raw_data, boundaries, dt):
+    def _format(self, raw_data: Dict[str, np.ndarray], boundaries: List[int], dt: float) -> None:
         """
         Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
         first dimension is time and the second is the solution in space. Each solution has it's own entry in a
@@ -306,15 +302,16 @@ class Formatter:
                 # Frame stop indices
                 stop = np.append(time_frame, len(x_data) - 1) + 1
                 # collect y_data determining if there are discontinuous boundaries
+                logging.debug('Separating data time segments and fixing boundaries')
                 data[key] = np.array([
-                    self._fix_boundaries(x_data[start[i]:stop[i]], y_data[start[i]:stop[i]], boundaries)
+                    Formatter._fix_boundaries(x_data[start[i]:stop[i]], y_data[start[i]:stop[i]], boundaries)
                     for i in range(len(start))])
 
                 if data[key].shape[-1] != len(raw_data['mesh']):
-                    logging.warning('{} does not fit the mesh, skipping')
+                    logging.warning('{} does not fit the mesh, skipping'.format(key))
                     data.pop(key, None)
                 elif key not in data:
-                    logging.warning('{} was skipped, unknown reason')
+                    logging.warning('{} was skipped, unknown reason'.format(key))
             except Exception as ex:
                 logging.error('Error occurred while formatting {}, skipping. See DEBUG log.'.format(key))
                 logging.debug(ex)
@@ -329,7 +326,8 @@ class Formatter:
 
         self.data = self.set_data(data)
 
-    def _fix_boundaries(self, x_data, y_data, boundaries):
+    @staticmethod
+    def _fix_boundaries(x_data: np.ndarray, y_data: np.ndarray, boundaries: List[int]) -> np.ndarray:
         b_indices = np.searchsorted(x_data, boundaries)
 
         if not len(b_indices):
@@ -344,9 +342,13 @@ class Formatter:
         return y_data
 
     @staticmethod
-    def set_data(data):
-        return SolutionData(SimMesh(data['mesh']), data['ce'], data['cse'], data['phie'],
-                            data['phis'], data['j'], data['dt'])
+    def set_data(data: Dict):
+        """
+        Convert dictionary to SolutionData
+        :param data: dictionary of formatted data
+        :return: consolidated simulation data
+        """
+        return SolutionData(Domain(data.pop('mesh')), data.pop('dt'), data.pop('boundaries'), **data)
 
     @staticmethod
     def remove_dup_boundary(data: SolutionData, item: np.ndarray) -> Union[None, np.ndarray]:
@@ -354,8 +356,9 @@ class Formatter:
         Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
         :return: Array of points with interior boundaries removed
         """
+        logging.debug('Removing duplicate boundaries')
         mask = np.ones(item.shape[-1], dtype=bool)
-        mask[[data.mesh.sep[0], data.mesh.sep[-1]]] = False
+        mask[[data.mesh.sep_ind[0], data.mesh.sep_ind[-1]]] = False
         return item[..., mask]
 
     @staticmethod
@@ -364,14 +367,11 @@ class Formatter:
         Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
         :return: Simplified solution data
         """
+        logging.debug('Retrieving FEniCS friendly solution data')
         mesh = Formatter.remove_dup_boundary(data, data.mesh.mesh)
-        ce = Formatter.remove_dup_boundary(data, data.ce)
-        cse = Formatter.remove_dup_boundary(data, data.cse)
-        phie = Formatter.remove_dup_boundary(data, data.phie)
-        phis = Formatter.remove_dup_boundary(data, data.phis)
-        j = Formatter.remove_dup_boundary(data, data.j)
+        new_data = {k: Formatter.remove_dup_boundary(data, v) for k, v in data.data.items()}
 
-        return SolutionData(SimMesh(mesh), ce, cse, phie, phis, j, data.dt)
+        return SolutionData(Domain(mesh), data.dt, data.boundaries, **new_data)
 
 
 @click.command()
@@ -382,10 +382,11 @@ class Formatter:
 @click.option('--info', 'loglevel', flag_value=logging.INFO, help='Set log-level to INFO', default=True)
 @click.option('--debug', 'loglevel', flag_value=logging.DEBUG, help='Set log-level to DEBUG')
 @click.argument('output', type=click.Path(writable=True, resolve_path=True))
-@click.argument('input', nargs=-1, type=click.Path(exists=True, readable=True, resolve_path=True))
-def main(input, output, dt, loglevel):
+@click.argument('input_files', nargs=-1, type=click.Path(exists=True, readable=True, resolve_path=True))
+def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
+         dt: float, loglevel: Union[None, int]) -> Union[None, int]:
     """
-    Convert COMSOL CSV files to Mtnlion npz.
+    Convert COMSOL CSV files to npz.
 
     Create a numpy zip (npz) with variables corresponding to the csv file names.
     Each variable contains the data from the file as a list. Additionally, each
@@ -394,18 +395,18 @@ def main(input, output, dt, loglevel):
 
     logging.basicConfig(level=loglevel)
 
-    if not input:
+    if not input_files:
         logging.error('No CSVs were specified. Aborting.')
         sys.exit(1)
 
     logging.debug('Output file: {}'.format(output))
-    logging.debug('Input file(s): {}'.format(input))
+    logging.debug('Input file(s): {}'.format(input_files))
     logging.debug('dt: {}'.format(dt))
 
     try:
-        # ComsolData(output, input, dt)
+        # ComsolData(output, input_files, dt)
         file = IOHandler()
-        file.collect_csv_files(input)
+        file.collect_csv_files(input_files)
         file.data = Formatter(file.raw_data, boundaries=[1, 2], dt=dt).data.get_dict()
         file.save_npz_file(output)
     except Exception as ex:

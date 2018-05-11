@@ -50,11 +50,11 @@ def reaction_flux(sim_data, params, const):
 
 
 def calculate_j(time, data, params):
-    negdata = data.get_solution_in_neg()
-    posdata = data.get_solution_in_pos()
+    negdata = data.get_solution_in('neg')
+    posdata = data.get_solution_in('pos')
 
-    jneg = reaction_flux(negdata.get_solution_near_time(time), params.neg, params.const)
-    jpos = reaction_flux(posdata.get_solution_near_time(time), params.pos, params.const)
+    jneg = reaction_flux(negdata.get_solution_near_time(time).data, params.neg, params.const)
+    jpos = reaction_flux(posdata.get_solution_near_time(time).data, params.pos, params.const)
 
     return jneg, jpos
 
@@ -73,9 +73,9 @@ def plot_j(time, data, params, jneg, jpos):
     # Lneg = 100;
     # Lsep = 52;
     # Lpos = 183
-    neg = data.mesh.mesh[data.mesh.neg] * params['neg']['L']
-    sep = ((data.mesh.mesh[data.mesh.sep] - 1) * params['sep']['L'] + params['neg']['L'])
-    pos = ((data.mesh.mesh[data.mesh.pos] - 2) * params['pos']['L'] + params['sep']['L'] + params['neg']['L'])
+    neg = data.mesh.neg * params['neg']['L']
+    sep = ((data.mesh.sep - 1) * params['sep']['L'] + params['neg']['L'])
+    pos = ((data.mesh.pos - 2) * params['pos']['L'] + params['sep']['L'] + params['neg']['L'])
 
     jsep = np.empty([1, len(sep)])[0]
     jsep[:] = np.nan

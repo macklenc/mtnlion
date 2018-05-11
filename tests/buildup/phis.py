@@ -79,7 +79,7 @@ def phis():
                         params.pos.sigma_ref * params.pos.eps_s ** params.pos.brug_sigma)
     a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
 
-    for i, j in enumerate(data.j):
+    for i, j in enumerate(data.data.j):
         # Define function space and basis functions
         V = fem.FunctionSpace(mesh, 'Lagrange', 1)
         phi = fem.TrialFunction(V)
@@ -104,8 +104,8 @@ def phis():
     plt.grid()
     plt.show()
 
-    print(engine.rmse(u_array[:, data.mesh.neg], data.phis[:, data.mesh.neg]))
-    print(engine.rmse(u_array[:, data.mesh.pos], data.phis[:, data.mesh.pos]))
+    print(engine.rmse(u_array[:, data.mesh.neg_ind], data.data.phis[:, data.mesh.neg_ind]))
+    print(engine.rmse(u_array[:, data.mesh.pos_ind], data.data.phis[:, data.mesh.pos_ind]))
 
     coor = mesh.coordinates()
     # for i in range(len(u_array)):

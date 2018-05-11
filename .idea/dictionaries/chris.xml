@@ -4,7 +4,13 @@
       <w>comsol</w>
       <w>csmax</w>
       <w>fenics</w>
+      <w>filenames</w>
+      <w>loglevel</w>
+      <w>ndarray</w>
+      <w>ndarrays</w>
       <w>phie</w>
+      <w>subdomain</w>
+      <w>subdomains</w>
       <w>tref</w>
     </words>
   </dictionary>
