@@ -9,10 +9,9 @@ Mountian Lion CSS
 .. image:: https://img.shields.io/travis/macklenc/mtnlion.svg
         :target: https://travis-ci.org/macklenc/mtnlion
 
-.. image:: https://readthedocs.org/projects/mtnlion/badge/?version=latest
-        :target: https://mtnlion.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/mtnlion/badge/?version=devel
+        :target: http://mtnlion.readthedocs.io/en/devel/?badge=devel
         :alt: Documentation Status
-
 
 .. image:: https://pyup.io/repos/github/macklenc/mtnlion/shield.svg
      :target: https://pyup.io/repos/github/macklenc/mtnlion/
