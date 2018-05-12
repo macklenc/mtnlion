@@ -3,8 +3,8 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-import comsol
-import engine
+import mtnlion.comsol as comsol
+import mtnlion.engine as engine
 
 
 def nice_abs(number):

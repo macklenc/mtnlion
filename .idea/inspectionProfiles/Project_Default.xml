@@ -25,6 +25,8 @@
           <option value="numpy.abs" />
           <option value="numpy.sign" />
           <option value="numpy.arange" />
+          <option value="fenics.dof_to_vertex_map" />
+          <option value="fenics.vertex_to_dof_map" />
         </list>
       </option>
     </inspection_tool>
