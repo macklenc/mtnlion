@@ -2,9 +2,9 @@ import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
 
-import comsol
 import domain
-import engine
+import mtnlion.comsol as comsol
+import mtnlion.engine as engine
 
 
 def gather_data():
