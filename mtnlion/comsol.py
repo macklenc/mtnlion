@@ -14,59 +14,47 @@ might have a repeated x=1, but only one x=2. In order to solve this, this module
 import logging
 import os
 import sys
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Tuple
 
 import click
 import munch
 import numpy as np
 
 
-class Domain(object):
+def subdomain(comparison: np.ndarray) -> slice:
     """
-    1D mesh for reference cell. Cell regions may overlap, i.e. both neg and sep contain x=2, and mesh will contain two
-    x=2 values.
+    Find the indices of the requested subdomain, correcting for internal boundaries. I.e. if the mesh is defined by
+    ``numpy.arange(0, 3, 0.1)`` and you wish to find the subdomain ``0 <= x <= 1`` then you would call::
+        subdomain(mesh, x < 1)
+    Subdomain returns ``x <= 1``, the reason for the exclusive less-than is to work around having repeated internal
+    domain problems. I.e. if ``x <= 1`` had been used on a mesh with repeated boundaries at 1, then the subdomain would
+    exist over both boundaries at 1.
+
+    :param comparison: list of boolean values
+    :return: indices of subdomain
     """
+    start = int(np.argmax(comparison))
+    stop = int(len(comparison) - np.argmax(comparison[::-1]))
 
-    def __init__(self, mesh: np.ndarray) -> None:
-        """
-        Store the mesh along with each individual region.
+    if start > 0:
+        start -= 1
 
-        :param mesh: Points at which to evaluate the data
-        """
+    if stop < len(comparison):
+        stop += 1
 
-        logging.debug('Creating simulation mesh...')
-        self.neg_ind = self.pos_ind = self.sep_ind = None
-        self.mesh = mesh
-        self._region()
-        self.neg, self.pos, self.sep = \
-            self.mesh[self.neg_ind, ...], self.mesh[self.pos_ind, ...], self.mesh[self.sep_ind, ...]
+    return slice(start, stop)
 
-    def _unique(self, comparison: np.ndarray) -> np.ndarray:
-        """
-        This method will add internal repeated boundaries to subdomains if they are missing in the first dimension of
-        the mesh.
 
-        :param comparison: list of boolean values
-        :return: Uniform subdomain mesh
-        """
-        ind = np.nonzero(comparison)[0]
-
-        if ind[0] > 0:
-            ind = np.insert(ind, 0, ind[0] - 1)
-
-        if ind[-1] < len(self.mesh[0:]) - 1:
-            ind = np.append(ind, ind[-1] + 1)
-
-        return ind
-
-    def _region(self) -> None:
-        """
-        Find the reference regions in the first dimension of the mesh
-        """
-        logging.debug('Dividing mesh into subspaces')
-        self.neg_ind = self._unique(self.mesh[0:] < 1)
-        self.pos_ind = self._unique(self.mesh[0:] > 2)
-        self.sep_ind = self._unique((self.mesh[0:] > 1) & (self.mesh[0:] < 2))
+def subdomains(mesh: np.ndarray, regions: List[Tuple[float, float]]):
+    """
+    Find indices of given subdomains. For example separating a domain from [0, 3] into [0, 1], [1, 2], and [2, 3] would
+    be::
+        subdomains(np.arange(0, 3, 0.1), [(0, 1), (1, 2), (2, 3)])
+    :param mesh: one-dimensional list of domain values
+    :param regions: two dimensional list containing multiple ranges for subdomains
+    :return: tuple of each subdomain indices
+    """
+    return (subdomain((r[0] < mesh) & (mesh < r[1])) for r in regions)
 
 
 class SolutionData(object):
@@ -75,7 +63,7 @@ class SolutionData(object):
     methods to more easily interact with the data.
     """
 
-    def __init__(self, mesh: Union[Domain, float], dt: float, boundaries: np.ndarray, **kwargs) -> None:
+    def __init__(self, mesh: Union[np.ndarray, float], dt: float, boundaries: np.ndarray, **kwargs) -> None:
         """
         Store the solutions to each cell parameter
 
@@ -90,15 +78,17 @@ class SolutionData(object):
         logging.debug('Initializing solution data...')
         self.data = munch.Munch(kwargs)
         self.mesh = mesh
+        self.neg_ind, self.sep_ind, self.pos_ind = subdomains(mesh[0:], [(0, 1), (1, 2), (2, 3)])
+        self.neg, self.sep, self.pos = mesh[self.neg_ind, ...], mesh[self.sep_ind, ...], mesh[self.pos_ind, ...]
         self.dt = dt
         self.boundaries = boundaries
 
-    def get_dict(self) -> Union[Dict[str, Domain], Dict[str, np.ndarray]]:
+    def get_dict(self) -> Union[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Retrieve dictionary of SolutionData to serialize
         :return: data dictionary
         """
-        d = {'mesh': self.mesh.mesh, 'dt': self.dt, 'boundaries': self.boundaries}
+        d = {'mesh': self.mesh, 'dt': self.dt, 'boundaries': self.boundaries}
         return dict(d, **self.data)
 
     def _filter(self, index: Union[List['ellipsis'], List[int], slice]) -> Dict[str, np.ndarray]:
@@ -143,7 +133,7 @@ class SolutionData(object):
         """
 
         logging.debug('Retrieving solution near position: {}'.format(position))
-        space = (np.abs(self.mesh.mesh - position)).argmin()
+        space = (np.abs(self.mesh - position)).argmin()
         logging.debug('Using position: {}'.format(space))
         return SolutionData(space, self.dt, self.boundaries, **self._filter([..., space]))
 
@@ -155,11 +145,11 @@ class SolutionData(object):
         """
         logging.debug('Retrieving solution in {}'.format(subspace))
         if subspace is 'neg':
-            space = self.mesh.neg_ind
+            space = self.neg_ind
         elif subspace is 'sep':
-            space = self.mesh.sep_ind
+            space = self.sep_ind
         elif subspace is 'pos':
-            space = self.mesh.pos_ind
+            space = self.pos_ind
         else:
             return None
 
@@ -348,7 +338,7 @@ class Formatter:
         :param data: dictionary of formatted data
         :return: consolidated simulation data
         """
-        return SolutionData(Domain(data.pop('mesh')), data.pop('dt'), data.pop('boundaries'), **data)
+        return SolutionData(data.pop('mesh'), data.pop('dt'), data.pop('boundaries'), **data)
 
     @staticmethod
     def remove_dup_boundary(data: SolutionData, item: np.ndarray) -> Union[None, np.ndarray]:
@@ -358,7 +348,7 @@ class Formatter:
         """
         logging.debug('Removing duplicate boundaries')
         mask = np.ones(item.shape[-1], dtype=bool)
-        mask[[data.mesh.sep_ind[0], data.mesh.sep_ind[-1]]] = False
+        mask[[data.sep_ind.start, data.sep_ind.stop - 1]] = False
         return item[..., mask]
 
     @staticmethod
@@ -368,10 +358,10 @@ class Formatter:
         :return: Simplified solution data
         """
         logging.debug('Retrieving FEniCS friendly solution data')
-        mesh = Formatter.remove_dup_boundary(data, data.mesh.mesh)
+        mesh = Formatter.remove_dup_boundary(data, data.mesh)
         new_data = {k: Formatter.remove_dup_boundary(data, v) for k, v in data.data.items()}
 
-        return SolutionData(Domain(mesh), data.dt, data.boundaries, **new_data)
+        return SolutionData(mesh, data.dt, data.boundaries, **new_data)
 
 
 @click.command()

@@ -73,9 +73,9 @@ def plot_j(time, data, params, jneg, jpos):
     # Lneg = 100;
     # Lsep = 52;
     # Lpos = 183
-    neg = data.mesh.neg * params['neg']['L']
-    sep = ((data.mesh.sep - 1) * params['sep']['L'] + params['neg']['L'])
-    pos = ((data.mesh.pos - 2) * params['pos']['L'] + params['sep']['L'] + params['neg']['L'])
+    neg = data.neg * params['neg']['L']
+    sep = ((data.sep - 1) * params['sep']['L'] + params['neg']['L'])
+    pos = ((data.pos - 2) * params['pos']['L'] + params['sep']['L'] + params['neg']['L'])
 
     jsep = np.empty([1, len(sep)])[0]
     jsep[:] = np.nan

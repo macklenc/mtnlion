@@ -67,8 +67,8 @@ def phis():
     data = sim_data.get_solution_near_time(time)
 
     # initialize matrix to save solution results
-    u_array = np.empty((len(time), len(data.mesh.mesh)))
-    mesh, dx, ds, bm, dm = domain.generate_domain(data.mesh.mesh)
+    u_array = np.empty((len(time), len(data.mesh)))
+    mesh, dx, ds, bm, dm = domain.generate_domain(data.mesh)
 
     # Initialize parameters
     F = 96487
@@ -104,8 +104,8 @@ def phis():
     plt.grid()
     plt.show()
 
-    print(engine.rmse(u_array[:, data.mesh.neg_ind], data.data.phis[:, data.mesh.neg_ind]))
-    print(engine.rmse(u_array[:, data.mesh.pos_ind], data.data.phis[:, data.mesh.pos_ind]))
+    print(engine.rmse(u_array[:, data.neg_ind], data.data.phis[:, data.neg_ind]))
+    print(engine.rmse(u_array[:, data.pos_ind], data.data.phis[:, data.pos_ind]))
 
     coor = mesh.coordinates()
     # for i in range(len(u_array)):
