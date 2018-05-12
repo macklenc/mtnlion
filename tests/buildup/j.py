@@ -52,9 +52,10 @@ def reaction_flux(sim_data, params, const):
 def calculate_j(time, data, params):
     negdata = data.get_solution_in('neg')
     posdata = data.get_solution_in('pos')
+    time_ind = engine.find_ind(data.time_mesh, time)
 
-    jneg = reaction_flux(negdata.get_solution_near_time(time).data, params.neg, params.const)
-    jpos = reaction_flux(posdata.get_solution_near_time(time).data, params.pos, params.const)
+    jneg = reaction_flux(negdata.filter_time(time_ind).data, params.neg, params.const)
+    jpos = reaction_flux(posdata.filter_time(time_ind).data, params.pos, params.const)
 
     return jneg, jpos
 

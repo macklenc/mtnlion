@@ -14,146 +14,14 @@ might have a repeated x=1, but only one x=2. In order to solve this, this module
 import logging
 import os
 import sys
-from typing import List, Union, Dict, Tuple
+from typing import List, Union, Dict
 
 import click
-import munch
 import numpy as np
 
+import domain
 
-def subdomain(comparison: np.ndarray) -> slice:
-    """
-    Find the indices of the requested subdomain, correcting for internal boundaries. I.e. if the mesh is defined by
-    ``numpy.arange(0, 3, 0.1)`` and you wish to find the subdomain ``0 <= x <= 1`` then you would call::
-        subdomain(mesh, x < 1)
-    Subdomain returns ``x <= 1``, the reason for the exclusive less-than is to work around having repeated internal
-    domain problems. I.e. if ``x <= 1`` had been used on a mesh with repeated boundaries at 1, then the subdomain would
-    exist over both boundaries at 1.
-
-    :param comparison: list of boolean values
-    :return: indices of subdomain
-    """
-    start = int(np.argmax(comparison))
-    stop = int(len(comparison) - np.argmax(comparison[::-1]))
-
-    if start > 0:
-        start -= 1
-
-    if stop < len(comparison):
-        stop += 1
-
-    return slice(start, stop)
-
-
-def subdomains(mesh: np.ndarray, regions: List[Tuple[float, float]]):
-    """
-    Find indices of given subdomains. For example separating a domain from [0, 3] into [0, 1], [1, 2], and [2, 3] would
-    be::
-        subdomains(np.arange(0, 3, 0.1), [(0, 1), (1, 2), (2, 3)])
-    :param mesh: one-dimensional list of domain values
-    :param regions: two dimensional list containing multiple ranges for subdomains
-    :return: tuple of each subdomain indices
-    """
-    return (subdomain((r[0] < mesh) & (mesh < r[1])) for r in regions)
-
-
-class SolutionData(object):
-    """
-    PDE Solution results for cell state. This class holds onto solution data imported from COMSOL, and provides
-    methods to more easily interact with the data.
-    """
-
-    def __init__(self, mesh: Union[np.ndarray, float], dt: float, boundaries: np.ndarray, **kwargs) -> None:
-        """
-        Store the solutions to each cell parameter
-
-        :param mesh: Solution mesh
-        :param ce: Lithium in the electrolyte
-        :param cse: Lithium between the solid and electrolyte
-        :param phie: Electric potential in the electrolyte
-        :param phis: Electric potential in the solid
-        :param j: Rate of positive charge flowing out of a particle
-        """
-
-        logging.debug('Initializing solution data...')
-        self.data = munch.Munch(kwargs)
-        self.mesh = mesh
-        self.neg_ind, self.sep_ind, self.pos_ind = subdomains(mesh[0:], [(0, 1), (1, 2), (2, 3)])
-        self.neg, self.sep, self.pos = mesh[self.neg_ind, ...], mesh[self.sep_ind, ...], mesh[self.pos_ind, ...]
-        self.dt = dt
-        self.boundaries = boundaries
-
-    def get_dict(self) -> Union[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-        """
-        Retrieve dictionary of SolutionData to serialize
-        :return: data dictionary
-        """
-        d = {'mesh': self.mesh, 'dt': self.dt, 'boundaries': self.boundaries}
-        return dict(d, **self.data)
-
-    def _filter(self, index: Union[List['ellipsis'], List[int], slice]) -> Dict[str, np.ndarray]:
-        """
-        Filter through dictionary to collect sections of the contained ndarrays.
-        :param index: subset of arrays to collect
-        :return: dictionary of reduced arrays
-        """
-        return {k: v[index] for k, v in self.data.items() if not np.isscalar(v)}
-
-    def get_solution_near_time(self, time: List[float]) -> Union[None, 'SolutionData']:
-        """
-        Retrieve the solution data near a given time
-
-        :param time: time in solution to retrieve data
-        :return: stationary solution
-        """
-
-        logging.debug('Retrieving solution near time: {}'.format(time))
-        index = list(map(lambda x: int(x / self.dt), time))
-        logging.debug('Using time: {}'.format(list(map(lambda x: int(x * self.dt), index))))
-
-        return SolutionData(self.mesh, 0, self.boundaries, **self._filter(index))
-
-    def get_solution_at_time_index(self, index: List) -> 'SolutionData':
-        """
-        Slice solution in time.
-
-        :param index: time indices to retrieve data
-        :return: time-reduced solution
-        """
-        logging.debug('Retrieving solution at time index: {}'.format(index))
-
-        return SolutionData(self.mesh, 0, self.boundaries, **self._filter([index, ...]))
-
-    def get_solution_near_position(self, position: float) -> 'SolutionData':
-        """
-        Retrieve the solution data near a given point in space
-
-        :param position: location in solution to retrieve data
-        :return: time varying solution at a given position
-        """
-
-        logging.debug('Retrieving solution near position: {}'.format(position))
-        space = (np.abs(self.mesh - position)).argmin()
-        logging.debug('Using position: {}'.format(space))
-        return SolutionData(space, self.dt, self.boundaries, **self._filter([..., space]))
-
-    def get_solution_in(self, subspace: str) -> Union[None, 'SolutionData']:
-        """
-        Return the solution for only the given subspace
-
-        :return: reduced solution set to only contain the given space
-        """
-        logging.debug('Retrieving solution in {}'.format(subspace))
-        if subspace is 'neg':
-            space = self.neg_ind
-        elif subspace is 'sep':
-            space = self.sep_ind
-        elif subspace is 'pos':
-            space = self.pos_ind
-        else:
-            return None
-
-        return SolutionData(self.mesh, self.dt, self.boundaries, **self._filter([..., space]))
+logger = logging.getLogger(__name__)
 
 
 class IOHandler:
@@ -233,7 +101,7 @@ class Formatter:
     """
     Format COMSOL data to be more useful
     """
-    data: 'SolutionData'
+    data: 'domain.ReferenceCell'
 
     def __init__(self, raw_data, boundaries=None, dt: float = 0.1) -> None:
         """
@@ -310,7 +178,7 @@ class Formatter:
             logging.critical('No data recovered, aborting')
             raise Exception('No data saved')
 
-        data['dt'] = dt
+        data['time_mesh'] = dt
         data['mesh'] = raw_data['mesh']
         data['boundaries'] = boundaries
 
@@ -338,10 +206,10 @@ class Formatter:
         :param data: dictionary of formatted data
         :return: consolidated simulation data
         """
-        return SolutionData(data.pop('mesh'), data.pop('dt'), data.pop('boundaries'), **data)
+        return domain.ReferenceCell(data.pop('mesh'), data.pop('time_mesh'), data.pop('boundaries'), **data)
 
     @staticmethod
-    def remove_dup_boundary(data: SolutionData, item: np.ndarray) -> Union[None, np.ndarray]:
+    def remove_dup_boundary(data: 'domain.ReferenceCell', item: np.ndarray) -> Union[None, np.ndarray]:
         """
         Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
         :return: Array of points with interior boundaries removed
@@ -352,7 +220,7 @@ class Formatter:
         return item[..., mask]
 
     @staticmethod
-    def get_fenics_friendly(data: SolutionData) -> SolutionData:
+    def get_fenics_friendly(data: 'domain.ReferenceCell') -> 'domain.ReferenceCell':
         """
         Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
         :return: Simplified solution data
@@ -361,7 +229,7 @@ class Formatter:
         mesh = Formatter.remove_dup_boundary(data, data.mesh)
         new_data = {k: Formatter.remove_dup_boundary(data, v) for k, v in data.data.items()}
 
-        return SolutionData(mesh, data.dt, data.boundaries, **new_data)
+        return domain.ReferenceCell(mesh, data.time_mesh, data.boundaries, **new_data)
 
 
 @click.command()
@@ -373,6 +241,7 @@ class Formatter:
 @click.option('--debug', 'loglevel', flag_value=logging.DEBUG, help='Set log-level to DEBUG')
 @click.argument('output', type=click.Path(writable=True, resolve_path=True))
 @click.argument('input_files', nargs=-1, type=click.Path(exists=True, readable=True, resolve_path=True))
+# TODO: allow importing time mesh -- fix dt
 def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
          dt: float, loglevel: Union[None, int]) -> Union[None, int]:
     """
@@ -393,6 +262,8 @@ def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
     logging.debug('Input file(s): {}'.format(input_files))
     logging.debug('dt: {}'.format(dt))
 
+    dt = np.arange(0, 50.1, dt)
+
     try:
         # ComsolData(output, input_files, dt)
         file = IOHandler()
@@ -401,7 +272,7 @@ def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
         file.save_npz_file(output)
     except Exception as ex:
         logging.error('Unhandled exception occurred: {}'.format(ex))
-        sys.exit(2)
+        raise ex
     logging.info('Conversion completed successfully')
     return 0
 

@@ -2,7 +2,7 @@ import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
 
-import domain
+import domain2
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
 
@@ -64,11 +64,11 @@ def phis():
     # TODO: make sure refactored comsol works here
     comsol_data, params = gather_data()
     sim_data = comsol.Formatter.get_fenics_friendly(comsol_data)
-    data = sim_data.get_solution_near_time(time)
+    data = sim_data.filter_time(engine.find_ind(sim_data.time_mesh, time))
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time), len(data.mesh)))
-    mesh, dx, ds, bm, dm = domain.generate_domain(data.mesh)
+    mesh, dx, ds, bm, dm = domain2.generate_domain(data.mesh)
 
     # Initialize parameters
     F = 96487
