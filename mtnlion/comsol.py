@@ -25,139 +25,128 @@ import loader
 logger = logging.getLogger(__name__)
 
 
-class Formatter:
+def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: List[int]) -> np.ndarray:
     """
-    Format COMSOL data to be more useful
+    When COMSOL outputs data from the reference model there are two solutions at every internal boundary, which causes
+    COMSOL to have repeated domain values; one for the right and one for the left of the boundary. For some asinine
+    reason, when the solution on both sides of the boundary is the same, they decided to save space and remove the
+    repeated value, resulting in a mesh that fluctuates in length over time. Additionally, for some god-awful reason
+    the left and right boundaries are switched in the mesh, i.e. the left boundary comes after the right boundary. This
+    method is intended to fix this... If there is only one internal boundary on the variable mesh at a given time,
+    then a duplicate is added, otherwise it will switch the two values.
+
+    :param mesh: x data to use to correct the y data
+    :param data: in 2D, this would be the y data
+    :param boundaries: internal boundaries
+    :return: normalized boundaries to be consistant
     """
-    data: 'domain.ReferenceCell'
+    logger.info('Fixing boundaries')
+    b_indices = np.searchsorted(mesh, boundaries)
 
-    def __init__(self, raw_data, boundaries=None, dt: float = 0.1) -> None:
-        """
-        Format a "raw" data dictionary, where each data element is assumed to be in COMSOL's asinine format, with the
-        exception of 'mesh' which must exist in the dictionary. If boundaries is provided, an attempt will be made to
-        deal with duplicate internal boundary data. The data is also assumed to be formatted such that it has two
-        columns, the first is the mesh that the data is on, and the second is the data. The data is stacked in time,
-        so every time the mesh restarts, that data will be saved as a new time step. Each time step is separated by dt
-        time.
+    if not len(b_indices):
+        return data
 
-        :param raw_data: COMSOL formatted data dictionary
-        :param boundaries: internal boundaries that may need correction
-        :param dt: time change per step in data
-        """
-        self.data = None
-        self._format(raw_data, boundaries, dt)
+    for x in b_indices[::-1]:
+        if mesh[x] == mesh[x + 1]:  # swap
+            logger.debug('Swapping boundaries {x0}, {x1}, at indices {i0}, {i1}'.format(
+                x0=mesh[x], x1=mesh[x + 1], i0=x, i1=x + 1))
+            (data[x], data[x + 1]) = (data[x + 1], data[x])
+        else:  # add boundary
+            logger.debug('Adding boundary, copying {x} at index {i}'.format(x=mesh[x], i=x))
+            data = np.insert(data, x, data[x])
 
-    def _format(self, raw_data: Dict[str, np.ndarray], boundaries: List[int], dt: float) -> None:
-        """
-        Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
-        first dimension is time and the second is the solution in space. Each solution has it's own entry in a
-        dictionary where the key is the name of the variable. The time step size (dt) and mesh have their own keys.
+    return data
 
-        :param raw_data: COMSOL formatted CSV files
-        :param boundaries: internal boundary locations
-        :param dt: change in time between each sample
-        :return: convenient dictionary of non-stationary solutions
-        """
 
-        logging.info('Reformatting raw data')
-        data = dict()
+def remove_dup_boundary(data: 'domain.ReferenceCell', item: np.ndarray) -> Union[None, np.ndarray]:
+    """
+    Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
+    :return: Array of points with interior boundaries removed
+    """
+    logger.info('Removing duplicate boundaries')
+    mask = np.ones(item.shape[-1], dtype=bool)
+    mask[[data.sep_ind.start, data.sep_ind.stop - 1]] = False
+    return item[..., mask]
 
-        if 'mesh' not in raw_data:
-            logging.critical('Data named "mesh" required')
-            raise Exception('Data named "mesh" required')
 
-        # for each variable
-        for key, value in raw_data.items():
-            if key == 'mesh':
-                continue
+def get_fenics_friendly(cell: 'domain.ReferenceCell') -> 'domain.ReferenceCell':
+    """
+    Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
+    :return: Simplified solution cell
+    """
+    logger.info('Retrieving FEniCS friendly solution cell')
+    return cell.filter_space(slice(0, len(cell.mesh)), func=lambda x: remove_dup_boundary(cell, x))
+    # mesh = remove_dup_boundary(cell, cell.mesh)
+    # new_data = {k: remove_dup_boundary(cell, v) for k, v in cell.data.items()}
+    # return domain.ReferenceCell(mesh, cell.time_mesh, cell.boundaries, **new_data)
 
-            logging.debug('Reformatting {}.'.format(key))
 
-            try:
-                (x_data, y_data) = (value[:, 0], value[:, 1])
-            except Exception as ex:
-                logging.warning('{} must have two columns, skipping. See DEBUG log.'.format(key))
-                logging.debug(ex)
-                continue
+def separate_frames(mesh, data, boundaries):
+    logger.info('Separating data time segments')
+    # Separate time segments (frames)
+    time_frame = np.nonzero(np.diff(mesh) < 0)[0]
+    # Frame start indices
+    start = np.insert(time_frame + 1, 0, 0)
+    # Frame stop indices
+    stop = np.append(time_frame, len(mesh) - 1) + 1
+    # collect y_data determining if there are discontinuous boundaries
+    return np.array([fix_boundaries(mesh[start[i]:stop[i]], data[start[i]:stop[i]], boundaries)
+                     for i in range(len(start))])
 
-            try:
-                # Separate time segments (frames)
-                time_frame = np.nonzero(np.diff(x_data) < 0)[0]
-                # Frame start indices
-                start = np.insert(time_frame + 1, 0, 0)
-                # Frame stop indices
-                stop = np.append(time_frame, len(x_data) - 1) + 1
-                # collect y_data determining if there are discontinuous boundaries
-                logging.debug('Separating data time segments and fixing boundaries')
-                data[key] = np.array([
-                    Formatter._fix_boundaries(x_data[start[i]:stop[i]], y_data[start[i]:stop[i]], boundaries)
-                    for i in range(len(start))])
 
-                if data[key].shape[-1] != len(raw_data['mesh']):
-                    logging.warning('{} does not fit the mesh, skipping'.format(key))
-                    data.pop(key, None)
-                elif key not in data:
-                    logging.warning('{} was skipped, unknown reason'.format(key))
-            except Exception as ex:
-                logging.error('Error occurred while formatting {}, skipping. See DEBUG log.'.format(key))
-                logging.debug(ex)
+def format(raw_data: Dict[str, np.ndarray], boundaries: List[int]) -> Dict[str, np.ndarray]:
+    """
+    Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
+    first dimension is time and the second is the solution in space. Each solution has it's own entry in a
+    dictionary where the key is the name of the variable. The time step size (dt) and mesh have their own keys.
 
-        if not len(data):
-            logging.critical('No data recovered, aborting')
-            raise Exception('No data saved')
+    :param raw_data: COMSOL formatted CSV files
+    :param boundaries: internal boundary locations
+    :param dt: change in time between each sample
+    :return: convenient dictionary of non-stationary solutions
+    """
 
-        data['time_mesh'] = dt
-        data['mesh'] = raw_data['mesh']
-        data['boundaries'] = boundaries
+    logger.info('Reformatting raw data')
+    data = dict()
+    try:
+        mesh_dict = {'time_mesh': raw_data['time_mesh'], 'mesh': raw_data['mesh'], 'boundaries': boundaries}
+    except KeyError as ex:
+        logger.critical('Missing required data: {}'.format(ex))
+        raise ex
 
-        self.data = self.set_data(data)
+    for key, value in raw_data.items():
+        if key == 'mesh':
+            continue
 
-    @staticmethod
-    def _fix_boundaries(x_data: np.ndarray, y_data: np.ndarray, boundaries: List[int]) -> np.ndarray:
-        b_indices = np.searchsorted(x_data, boundaries)
+        logger.info('Reformatting {}.'.format(key))
+        try:
+            (x_data, y_data) = (value[:, 0], value[:, 1])
+            data[key] = separate_frames(x_data, y_data, boundaries)
 
-        if not len(b_indices):
-            return y_data
+            if data[key].shape[-1] != len(raw_data['mesh']):
+                logger.warning('{} does not fit the mesh, skipping'.format(key))
+                data.pop(key, None)
+            elif key not in data:
+                logger.warning('{} was skipped, unknown reason'.format(key))
+        except IndexError as ex:
+            logger.warning('{key} must have two columns, skipping. Error: {ex}'.format(key=key, ex=ex))
+            continue
+        except Exception as ex:
+            logger.critical('Error occurred while formatting {key}. Error: {ex}'.format(key=key, ex=ex))
+            raise ex
 
-        for x in b_indices[::-1]:
-            if x_data[x] == x_data[x + 1]:  # swap
-                (y_data[x], y_data[x + 1]) = (y_data[x + 1], y_data[x])
-            else:  # add boundary
-                y_data = np.insert(y_data, x, y_data[x])
+        logger.info('Done formatting {}'.format(key))
+    return {**data, **mesh_dict}
 
-        return y_data
 
-    @staticmethod
-    def set_data(data: Dict):
-        """
-        Convert dictionary to SolutionData
-        :param data: dictionary of formatted data
-        :return: consolidated simulation data
-        """
-        return domain.ReferenceCell(data.pop('mesh'), data.pop('time_mesh'), data.pop('boundaries'), **data)
-
-    @staticmethod
-    def remove_dup_boundary(data: 'domain.ReferenceCell', item: np.ndarray) -> Union[None, np.ndarray]:
-        """
-        Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
-        :return: Array of points with interior boundaries removed
-        """
-        logging.debug('Removing duplicate boundaries')
-        mask = np.ones(item.shape[-1], dtype=bool)
-        mask[[data.sep_ind.start, data.sep_ind.stop - 1]] = False
-        return item[..., mask]
-
-    @staticmethod
-    def get_fenics_friendly(data: 'domain.ReferenceCell') -> 'domain.ReferenceCell':
-        """
-        Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
-        :return: Simplified solution data
-        """
-        logging.debug('Retrieving FEniCS friendly solution data')
-        mesh = Formatter.remove_dup_boundary(data, data.mesh)
-        new_data = {k: Formatter.remove_dup_boundary(data, v) for k, v in data.data.items()}
-
-        return domain.ReferenceCell(mesh, data.time_mesh, data.boundaries, **new_data)
+"""
+Format a "raw" data dictionary, where each data element is assumed to be in COMSOL's asinine format, with the
+exception of 'mesh' which must exist in the dictionary. If boundaries is provided, an attempt will be made to
+deal with duplicate internal boundary data. The data is also assumed to be formatted such that it has two
+columns, the first is the mesh that the data is on, and the second is the data. The data is stacked in time,
+so every time the mesh restarts, that data will be saved as a new time step. Each time step is separated by dt
+time.
+"""
 
 
 def format_name(name):
@@ -172,10 +161,11 @@ def format_name(name):
 
 def load(filename):
     file_data = loader.load_numpy_file(filename)
-    return Formatter.set_data(file_data)
+    return domain.ReferenceCell.from_dict(file_data)
+
 
 @click.command()
-@click.option('--dt', '-t', default=0.1, type=float, help='time between samples (delta t), default=0.1')
+@click.option('--dt', '-t', nargs=3, type=float, help='[start time stop time delta time]')
 @click.option('--critical', 'loglevel', flag_value=logging.CRITICAL, help='Set log-level to CRITICAL')
 @click.option('--error', 'loglevel', flag_value=logging.ERROR, help='Set log-level to ERROR')
 @click.option('--warn', 'loglevel', flag_value=logging.WARNING, help='Set log-level to WARNING')
@@ -183,7 +173,6 @@ def load(filename):
 @click.option('--debug', 'loglevel', flag_value=logging.DEBUG, help='Set log-level to DEBUG')
 @click.argument('output', type=click.Path(writable=True, resolve_path=True))
 @click.argument('input_files', nargs=-1, type=click.Path(exists=True, readable=True, resolve_path=True))
-# TODO: allow importing time mesh -- fix dt
 def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
          dt: float, loglevel: Union[None, int]) -> Union[None, int]:
     """
@@ -204,15 +193,13 @@ def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
     logging.debug('Input file(s): {}'.format(input_files))
     logging.debug('dt: {}'.format(dt))
 
-    dt = np.arange(0, 50.1, dt)
+    file_data = loader.collect_files(input_files, format_key=format_name, loader=loader.load_csv_file)
+    if 'time_mesh' not in file_data:
+        file_data['time_mesh'] = np.arange(dt[0], dt[1] + dt[2], dt[2])
 
-    try:
-        file_data = loader.collect_files(input_files, format_key=format_name, loader=loader.load_csv_file)
-        data = Formatter(file_data, boundaries=[1, 2], dt=dt).data.get_dict()
-        loader.save_npz_file(output, data)
-    except Exception as ex:
-        logging.error('Unhandled exception occurred: {}'.format(ex))
-        raise ex
+    data = format(file_data, boundaries=[1, 2])
+    loader.save_npz_file(output, data)
+
     logging.info('Conversion completed successfully')
     return 0
 

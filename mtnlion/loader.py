@@ -42,6 +42,7 @@ def load_csv_file(filename, comments: str = '%', delimiter: str = ',', d_type=np
     :param kwargs: additional numpy.loadtxt arguments
     :return:
     """
+    logger.info('Loading CSV file: {}'.format(filename))
     return np.loadtxt(filename, comments=comments, delimiter=delimiter, dtype=d_type, **kwargs)
 
 
@@ -66,7 +67,7 @@ def collect_files(file_list: List[str], format_key=None, loader=load_numpy_file)
 
     data_dict = dict()
     for f in file_list:
-        logger.debug('Reading "{variable}" from: {file}'.format(variable=format_key(f), file=f))
+        logger.debug('Loading \'{variable}\'...'.format(variable=format_key(f)))
         data_dict[format_key(f)] = loader(f)
 
     # return {format_key(k): loader(k) for k in file_list}

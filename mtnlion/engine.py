@@ -33,6 +33,11 @@ def find_ind(data, value):
     return np.nonzero(np.in1d(data, value))
 
 
+def _dummy(item):
+    """Do nothing"""
+    return item
+
+
 class Mountain:
     """
     Container for holding n-variable n-dimensional data in space and time.
@@ -54,7 +59,7 @@ class Mountain:
         self.time_mesh = time_mesh
         self.boundaries = boundaries
 
-    def get_dict(self) -> Union[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+    def to_dict(self) -> Union[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Retrieve dictionary of Mountain to serialize
         :return: data dictionary
@@ -62,15 +67,27 @@ class Mountain:
         d = {'mesh': self.mesh, 'time_mesh': self.time_mesh, 'boundaries': self.boundaries}
         return dict(d, **self.data)
 
-    def filter(self, index: Union[List['ellipsis'], List[int], List[slice], slice]) -> Dict[str, np.ndarray]:
+    @classmethod
+    def from_dict(cls, data: Dict):
+        """
+        Convert dictionary to SolutionData
+        :param data: dictionary of formatted data
+        :return: consolidated simulation data
+        """
+        return cls(data.pop('mesh'), data.pop('time_mesh'), data.pop('boundaries'), **data)
+
+    def filter(self, index: Union[List['ellipsis'], List[int], List[slice], slice], func=None) -> Dict[str, np.ndarray]:
         """
         Filter through dictionary to collect sections of the contained ndarrays.
         :param index: subset of arrays to collect
         :return: dictionary of reduced arrays
         """
-        return {k: v[index] for k, v in self.data.items() if not np.isscalar(v)}
+        if func is None:
+            func = _dummy
 
-    def filter_time(self, index: Union[List['ellipsis'], List[int], slice]) -> Union[None, 'Mountain']:
+        return {k: func(v[index]) for k, v in self.data.items() if not np.isscalar(v)}
+
+    def filter_time(self, index: Union[List['ellipsis'], List[int], slice], func=None) -> Union[None, 'Mountain']:
         """
         Filter the Mountain for a subset of time indices. For example::
             solution.filter_time(slice(0,5))
@@ -82,9 +99,12 @@ class Mountain:
         :param index: indices or slices of time to retrieve
         :return: time filtered Mountain
         """
-        return type(self)(self.mesh, self.time_mesh[index], self.boundaries, **self.filter(index))
+        if func is None:
+            func = _dummy
 
-    def filter_space(self, index: Union[List['ellipsis'], List[int], slice]) -> Union[None, 'Mountain']:
+        return type(self)(self.mesh, func(self.time_mesh[index]), self.boundaries, **self.filter(index, func=func))
+
+    def filter_space(self, index: Union[List['ellipsis'], List[int], slice], func=None) -> Union[None, 'Mountain']:
         """
         Filter the Mountain for a subset of space indices. For example::
             solution.filter_time([slice(0,5), 4]) # for 2D space
@@ -99,7 +119,11 @@ class Mountain:
         if isinstance(index, slice):
             index = [index]
 
-        return type(self)(self.mesh[index], self.time_mesh, self.boundaries, **self.filter([...] + index))
+        if func is None:
+            func = _dummy
+
+        return type(self)(func(self.mesh[index]), self.time_mesh, self.boundaries,
+                          **self.filter([...] + index, func=func))
 
 
 # def main():
