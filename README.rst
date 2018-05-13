@@ -2,23 +2,19 @@
 Mountian Lion CSS
 =================
 
+:PyPi: |version|
+:readthedocs: |documentation|
+:Travis CI: |travis|
+:PyUp: |pyup|
 
-.. image:: https://img.shields.io/pypi/v/mtnlion.svg
-        :target: https://pypi.python.org/pypi/mtnlion
-
-.. image:: https://img.shields.io/travis/macklenc/mtnlion.svg
-        :target: https://travis-ci.org/macklenc/mtnlion
-
-.. image:: https://readthedocs.org/projects/mtnlion/badge/?version=devel
+.. |documentation| image:: https://readthedocs.org/projects/mtnlion/badge/?version=devel
         :target: http://mtnlion.readthedocs.io/en/devel/?badge=devel
-        :alt: Documentation Status
-
-.. image:: https://pyup.io/repos/github/macklenc/mtnlion/shield.svg
-     :target: https://pyup.io/repos/github/macklenc/mtnlion/
-     :alt: Updates
-
-
-
+.. |version|  image:: https://img.shields.io/pypi/v/mtnlion.svg
+        :target: https://pypi.python.org/pypi/mtnlion
+.. |travis| image:: https://img.shields.io/travis/macklenc/mtnlion.svg
+        :target: https://travis-ci.org/macklenc/mtnlion
+.. |pyup| image:: https://pyup.io/repos/github/macklenc/mtnlion/shield.svg
+        :target: https://pyup.io/repos/github/macklenc/mtnlion/
                 Mountain Lion Continuum-Scale Lithium-Ion Cell Simulator uses FEniCS to solve partial differential equation models for lithium-ion cells.
 
 
@@ -33,7 +29,7 @@ Features
 
 Usage
 -----
-First, install `FEniCS <https://fenicsproject.org/download/>`_. If you want access to COMSOL reference data, or to run unit tests, make 
+First, install `FEniCS <https://fenicsproject.org/download/>`_. If you want access to COMSOL reference data, or to run unit tests, make
 sure to install `git-lfs <https://git-lfs.github.com/>`_ before cloning mtnlion. The COMSOL reference data is about 50MB.
 
 

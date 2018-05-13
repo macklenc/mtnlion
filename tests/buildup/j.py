@@ -52,9 +52,10 @@ def reaction_flux(sim_data, params, const):
 def calculate_j(time, data, params):
     negdata = data.get_solution_in('neg')
     posdata = data.get_solution_in('pos')
+    time_ind = engine.find_ind(data.time_mesh, time)
 
-    jneg = reaction_flux(negdata.get_solution_near_time(time).data, params.neg, params.const)
-    jpos = reaction_flux(posdata.get_solution_near_time(time).data, params.pos, params.const)
+    jneg = reaction_flux(negdata.filter_time(time_ind).data, params.neg, params.const)
+    jpos = reaction_flux(posdata.filter_time(time_ind).data, params.pos, params.const)
 
     return jneg, jpos
 
@@ -73,9 +74,9 @@ def plot_j(time, data, params, jneg, jpos):
     # Lneg = 100;
     # Lsep = 52;
     # Lpos = 183
-    neg = data.mesh.neg * params['neg']['L']
-    sep = ((data.mesh.sep - 1) * params['sep']['L'] + params['neg']['L'])
-    pos = ((data.mesh.pos - 2) * params['pos']['L'] + params['sep']['L'] + params['neg']['L'])
+    neg = data.neg * params['neg']['L']
+    sep = ((data.sep - 1) * params['sep']['L'] + params['neg']['L'])
+    pos = ((data.pos - 2) * params['pos']['L'] + params['sep']['L'] + params['neg']['L'])
 
     jsep = np.empty([1, len(sep)])[0]
     jsep[:] = np.nan
@@ -96,8 +97,7 @@ def main():
     time = [5, 10, 15, 20, 25]
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    data_file = comsol.IOHandler(resources + 'guwang.npz')
-    d_comsol = comsol.Formatter.set_data(data_file.data)
+    d_comsol = comsol.load(resources + 'guwang.npz')
     # d_comsol = comsol.ComsolData(resources + 'guwang.npz')
 
     st = timeit.default_timer()
