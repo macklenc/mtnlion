@@ -89,7 +89,7 @@ recommend using ``virtualenvwrapper`` to setup an isolated virtual environment t
    tests, including testing other Python versions with tox::
    
     $ flake8 mtnlion tests
-    $ python setup.py test or py.test
+    $ python setup.py test or pytest
     $ tox
 
    To get flake8 and tox, just pip install them into your virtualenv.
@@ -125,7 +125,7 @@ Tips
 
 - To run a subset of tests::
 
-    $ py.test tests.test_mtnlion
+    $ pytest tests.test_mtnlion
 
 - To quickly setup ``virtualenvwrapper`` add these to your shell rc file::
 
