@@ -20,81 +20,9 @@ import click
 import numpy as np
 
 import domain
+import loader
 
 logger = logging.getLogger(__name__)
-
-
-class IOHandler:
-    """Collect COMSOL formatted CSV files/formatted npz files and save npz files."""
-
-    def __init__(self, datafile: str = None) -> None:
-        self.data = self.raw_data = None
-        self.filename = datafile
-
-        if datafile:
-            logging.debug('Loading COMSOL data from npz')
-            self.load_npz_file()
-
-    def collect_csv_files(self, csv_file_list: List[str] = None):
-        """
-        Collect CSV data from list of filenames and create a dictionary of the data where the key is the basename of the
-        file, and the data is a 2D ndarray, where the first column is the mesh, and the second is the data. Both are
-        repeated for each new time step. Cannot read entire file names if they contain extra periods that do not proceed
-        an extension. I.e. j.csv.bz2 or j.csv are okay, but my.file.csv is not.
-
-        :param csv_file_list: list of files to read
-
-        TODO: abstract out dimensionality requirement
-        """
-        params = dict()
-        logging.info('Collecting CSV data...')
-        for file_name in csv_file_list:
-            logging.info('Reading {}...'.format(file_name))
-            # create function name from file name
-            varName = os.path.splitext(os.path.basename(file_name))[0]
-
-            if '.CSV' not in file_name.upper():
-                logging.warning('{} does not have a CSV extension!'.format(file_name))
-            else:
-                varName = varName.split('.', 1)[0]
-
-            # load the data into a dictionary with the correct key name
-            try:
-                params[varName] = np.loadtxt(file_name, comments='%', delimiter=',', dtype=np.float64)
-            except Exception as ex:
-                logging.error('Failed to read {}, ignoring.  See DEBUG log.'.format(file_name))
-                logging.debug(ex)
-
-        self.raw_data = params
-        logging.info('Finished collecting CSV data.')
-
-    def save_npz_file(self, filename: str = None):
-        """
-        Save self.data to an npz file. If no filename is provided, the filename that was used to load the data will be
-        used.
-
-        :param filename: Name of the npz file
-        """
-        logging.info('Saving data to npz: {}'.format(filename))
-        if not filename:
-            filename = self.filename
-        np.savez(filename, **self.data)
-
-    def load_npz_file(self, filename: str = None):
-        """
-        Load self.data from an npz file. If no filename is provided, the filename that was used to load the data will be
-        used.
-
-        :param filename: Name of the npz file
-        """
-        logging.info('Loading data from npz: {}'.format(filename))
-        if not filename:
-            filename = self.filename
-        else:
-            self.filename = filename
-
-        with np.load(filename) as data:
-            self.data = {k: v for k, v in data.items()}
 
 
 class Formatter:
@@ -232,6 +160,20 @@ class Formatter:
         return domain.ReferenceCell(mesh, data.time_mesh, data.boundaries, **new_data)
 
 
+def format_name(name):
+    varName = os.path.splitext(os.path.basename(name))[0]
+    if '.CSV' not in name.upper():
+        logging.warning('{} does not have a CSV extension!'.format(name))
+    else:
+        varName = varName.split('.', 1)[0]
+
+    return varName
+
+
+def load(filename):
+    file_data = loader.load_numpy_file(filename)
+    return Formatter.set_data(file_data)
+
 @click.command()
 @click.option('--dt', '-t', default=0.1, type=float, help='time between samples (delta t), default=0.1')
 @click.option('--critical', 'loglevel', flag_value=logging.CRITICAL, help='Set log-level to CRITICAL')
@@ -265,11 +207,9 @@ def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
     dt = np.arange(0, 50.1, dt)
 
     try:
-        # ComsolData(output, input_files, dt)
-        file = IOHandler()
-        file.collect_csv_files(input_files)
-        file.data = Formatter(file.raw_data, boundaries=[1, 2], dt=dt).data.get_dict()
-        file.save_npz_file(output)
+        file_data = loader.collect_files(input_files, format_key=format_name, loader=loader.load_csv_file)
+        data = Formatter(file_data, boundaries=[1, 2], dt=dt).data.get_dict()
+        loader.save_npz_file(output, data)
     except Exception as ex:
         logging.error('Unhandled exception occurred: {}'.format(ex))
         raise ex

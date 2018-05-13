@@ -1,3 +1,6 @@
+"""
+Domain creation/manipulation.
+"""
 import logging
 from typing import List, Tuple, Union
 
@@ -48,10 +51,24 @@ def subdomains(mesh: np.ndarray, regions: List[Tuple[float, float]]):
 
 
 class ReferenceCell(engine.Mountain):
+    """
+    Reference lithium-ion cell geometry, where the dimensions are normalized. The x dimension is defined such that the
+    negative electrode exists between [0, 1], the separator exists between [1, 2], and the positive electrode exists
+    between [2, 3]. For convenience the subdomains are added onto engine.Mountain.
+    """
     def __init__(self, mesh: Union[np.ndarray, float], time_mesh: Union[np.ndarray, float],
                  boundaries: np.ndarray, **kwargs) -> None:
+        """
+        Store the solutions to each cell parameter
+
+        :param mesh: Solution mesh
+        :param boundaries: internal boundaries in the mesh
+        :param kwargs: arrays for each solution
+        """
+        logger.info('Creating ReferenceCell...')
         super(ReferenceCell, self).__init__(mesh, time_mesh, boundaries, **kwargs)
 
+        logger.info('Finding subdomains and indices...')
         self.neg_ind, self.sep_ind, self.pos_ind = subdomains(mesh[0:], [(0, 1), (1, 2), (2, 3)])
         self.neg, self.sep, self.pos = mesh[self.neg_ind, ...], mesh[self.sep_ind, ...], mesh[self.pos_ind, ...]
 

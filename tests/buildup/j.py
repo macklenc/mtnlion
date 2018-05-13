@@ -97,8 +97,7 @@ def main():
     time = [5, 10, 15, 20, 25]
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    data_file = comsol.IOHandler(resources + 'guwang.npz')
-    d_comsol = comsol.Formatter.set_data(data_file.data)
+    d_comsol = comsol.load(resources + 'guwang.npz')
     # d_comsol = comsol.ComsolData(resources + 'guwang.npz')
 
     st = timeit.default_timer()

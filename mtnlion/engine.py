@@ -41,7 +41,7 @@ class Mountain:
     def __init__(self, mesh: Union[np.ndarray, float], time_mesh: Union[np.ndarray, float],
                  boundaries: np.ndarray, **kwargs) -> None:
         """
-        Store the solutions to each cell parameter
+        Store the solutions to each given parameter
 
         :param mesh: Solution mesh
         :param boundaries: internal boundaries in the mesh
