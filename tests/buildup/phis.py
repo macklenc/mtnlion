@@ -2,7 +2,7 @@ import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
 
-import domain
+import domain2
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
 
@@ -11,9 +11,7 @@ def gather_data():
     # Load required cell data
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    # c_data = comsol.ComsolData(resources + 'guwang.npz')
-    data_file = comsol.IOHandler(resources + 'guwang.npz')
-    d_comsol = comsol.Formatter.set_data(data_file.data)
+    d_comsol = comsol.load(resources + 'guwang.npz')
     return d_comsol, params
 
 
@@ -63,12 +61,12 @@ def phis():
     # Collect required data
     # TODO: make sure refactored comsol works here
     comsol_data, params = gather_data()
-    sim_data = comsol.Formatter.get_fenics_friendly(comsol_data)
-    data = sim_data.get_solution_near_time(time)
+    time_ind = engine.find_ind(comsol_data.time_mesh, time)
+    data = comsol.get_standardized(comsol_data.filter_time(time_ind))
 
     # initialize matrix to save solution results
-    u_array = np.empty((len(time), len(data.mesh.mesh)))
-    mesh, dx, ds, bm, dm = domain.generate_domain(data.mesh.mesh)
+    u_array = np.empty((len(time), len(data.mesh)))
+    mesh, dx, ds, bm, dm = domain2.generate_domain(data.mesh)
 
     # Initialize parameters
     F = 96487
@@ -104,8 +102,8 @@ def phis():
     plt.grid()
     plt.show()
 
-    print(engine.rmse(u_array[:, data.mesh.neg_ind], data.data.phis[:, data.mesh.neg_ind]))
-    print(engine.rmse(u_array[:, data.mesh.pos_ind], data.data.phis[:, data.mesh.pos_ind]))
+    print(engine.rmse(u_array[:, data.neg_ind], data.data.phis[:, data.neg_ind]))
+    print(engine.rmse(u_array[:, data.pos_ind], data.data.phis[:, data.pos_ind]))
 
     coor = mesh.coordinates()
     # for i in range(len(u_array)):
