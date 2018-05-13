@@ -62,7 +62,7 @@ def phis():
     # TODO: make sure refactored comsol works here
     comsol_data, params = gather_data()
     time_ind = engine.find_ind(comsol_data.time_mesh, time)
-    data = comsol.get_fenics_friendly(comsol_data.filter_time(time_ind))
+    data = comsol.get_standardized(comsol_data.filter_time(time_ind))
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time), len(data.mesh)))

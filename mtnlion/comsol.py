@@ -25,7 +25,8 @@ import loader
 logger = logging.getLogger(__name__)
 
 
-def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: List[int]) -> np.ndarray:
+def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: Union[float, List[int], np.ndarray]) \
+    -> Union[None, np.ndarray]:
     """
     When COMSOL outputs data from the reference model there are two solutions at every internal boundary, which causes
     COMSOL to have repeated domain values; one for the right and one for the left of the boundary. For some asinine
@@ -38,9 +39,9 @@ def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: List[int]) ->
     :param mesh: x data to use to correct the y data
     :param data: in 2D, this would be the y data
     :param boundaries: internal boundaries
-    :return: normalized boundaries to be consistant
+    :return: normalized boundaries to be consistent
     """
-    logger.info('Fixing boundaries')
+    logger.debug('Fixing boundaries: {}'.format(boundaries))
     b_indices = np.searchsorted(mesh, boundaries)
 
     if not len(b_indices):
@@ -58,9 +59,11 @@ def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: List[int]) ->
     return data
 
 
-def remove_dup_boundary(data: 'domain.ReferenceCell', item: np.ndarray) -> Union[None, np.ndarray]:
+def remove_dup_boundary(data: domain.ReferenceCell, item: np.ndarray) -> Union[np.ndarray, None]:
     """
     Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
+    :param data: data in which to reference the mesh and separator indices from
+    :param item: item to apply change to
     :return: Array of points with interior boundaries removed
     """
     logger.info('Removing duplicate boundaries')
@@ -69,9 +72,10 @@ def remove_dup_boundary(data: 'domain.ReferenceCell', item: np.ndarray) -> Union
     return item[..., mask]
 
 
-def get_fenics_friendly(cell: 'domain.ReferenceCell') -> 'domain.ReferenceCell':
+def get_standardized(cell: domain.ReferenceCell) -> Union[domain.ReferenceCell, None]:
     """
     Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
+    :param cell: reference cell to remove double boundary values from
     :return: Simplified solution cell
     """
     logger.info('Retrieving FEniCS friendly solution cell')
@@ -81,7 +85,16 @@ def get_fenics_friendly(cell: 'domain.ReferenceCell') -> 'domain.ReferenceCell':
     # return domain.ReferenceCell(mesh, cell.time_mesh, cell.boundaries, **new_data)
 
 
-def separate_frames(mesh, data, boundaries):
+def separate_frames(mesh: np.ndarray, data: np.ndarray, boundaries: List[int]) -> np.ndarray:
+    """
+    COMSOL saves its data as two columns, spaces and data, which is repeated (in the same column) for every time step.
+    This breaks out the 1D data in to 2D to be able to easily reference time and space. The boundaries are fixed
+    so that the data has uniform length and can fit in a matrix.
+    :param mesh: mesh corresponding to the data
+    :param data: data that maps to the mesh
+    :param boundaries: internal boundaries
+    :return: 2D normalized data in time and space
+    """
     logger.info('Separating data time segments')
     # Separate time segments (frames)
     time_frame = np.nonzero(np.diff(mesh) < 0)[0]
@@ -89,12 +102,14 @@ def separate_frames(mesh, data, boundaries):
     start = np.insert(time_frame + 1, 0, 0)
     # Frame stop indices
     stop = np.append(time_frame, len(mesh) - 1) + 1
+    logger.info('Found {time} time steps'.format(time=len(start)))
     # collect y_data determining if there are discontinuous boundaries
     return np.array([fix_boundaries(mesh[start[i]:stop[i]], data[start[i]:stop[i]], boundaries)
                      for i in range(len(start))])
 
 
-def format(raw_data: Dict[str, np.ndarray], boundaries: List[int]) -> Dict[str, np.ndarray]:
+def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]]) -> \
+    Union[Dict[str, np.ndarray], None]:
     """
     Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
     first dimension is time and the second is the solution in space. Each solution has it's own entry in a
@@ -102,7 +117,6 @@ def format(raw_data: Dict[str, np.ndarray], boundaries: List[int]) -> Dict[str, 
 
     :param raw_data: COMSOL formatted CSV files
     :param boundaries: internal boundary locations
-    :param dt: change in time between each sample
     :return: convenient dictionary of non-stationary solutions
     """
 
@@ -111,14 +125,14 @@ def format(raw_data: Dict[str, np.ndarray], boundaries: List[int]) -> Dict[str, 
     try:
         mesh_dict = {'time_mesh': raw_data['time_mesh'], 'mesh': raw_data['mesh'], 'boundaries': boundaries}
     except KeyError as ex:
-        logger.critical('Missing required data: {}'.format(ex))
+        logger.critical('Missing required data', exc_info=True)
         raise ex
 
     for key, value in raw_data.items():
-        if key == 'mesh':
+        if key in ('mesh', 'time_mesh'):
             continue
 
-        logger.info('Reformatting {}.'.format(key))
+        logger.info('Reformatting {}'.format(key))
         try:
             (x_data, y_data) = (value[:, 0], value[:, 1])
             data[key] = separate_frames(x_data, y_data, boundaries)
@@ -129,43 +143,45 @@ def format(raw_data: Dict[str, np.ndarray], boundaries: List[int]) -> Dict[str, 
             elif key not in data:
                 logger.warning('{} was skipped, unknown reason'.format(key))
         except IndexError as ex:
-            logger.warning('{key} must have two columns, skipping. Error: {ex}'.format(key=key, ex=ex))
+            logger.warning('{key} must have two columns, skipping'.format(key=key), exc_info=True)
             continue
         except Exception as ex:
-            logger.critical('Error occurred while formatting {key}. Error: {ex}'.format(key=key, ex=ex))
+            logger.critical('Error occurred while formatting {key}'.format(key=key), exc_info=True)
             raise ex
 
         logger.info('Done formatting {}'.format(key))
     return {**data, **mesh_dict}
 
 
-"""
-Format a "raw" data dictionary, where each data element is assumed to be in COMSOL's asinine format, with the
-exception of 'mesh' which must exist in the dictionary. If boundaries is provided, an attempt will be made to
-deal with duplicate internal boundary data. The data is also assumed to be formatted such that it has two
-columns, the first is the mesh that the data is on, and the second is the data. The data is stacked in time,
-so every time the mesh restarts, that data will be saved as a new time step. Each time step is separated by dt
-time.
-"""
-
-
-def format_name(name):
+def format_name(name: str) -> str:
+    """
+    Determine variable name from filename to be used in loader.collect_files.
+    :param name: filename
+    :return: variable name
+    """
     varName = os.path.splitext(os.path.basename(name))[0]
     if '.CSV' not in name.upper():
-        logging.warning('{} does not have a CSV extension!'.format(name))
+        logger.warning('{} does not have a CSV extension'.format(name))
     else:
         varName = varName.split('.', 1)[0]
 
     return varName
 
 
-def load(filename):
+def load(filename: str) -> domain.ReferenceCell:
+    """
+    Load COMSOL reference cell from formatted npz file.
+    :param filename: name of the npz file
+    :return: ReferenceCell
+    """
     file_data = loader.load_numpy_file(filename)
     return domain.ReferenceCell.from_dict(file_data)
 
 
 @click.command()
 @click.option('--dt', '-t', nargs=3, type=float, help='[start time stop time delta time]')
+@click.option('--bound', '-b', type=click.Path(exists=True, readable=True, resolve_path=True),
+              help='file containing boundaries, defaults to [1, 2]')
 @click.option('--critical', 'loglevel', flag_value=logging.CRITICAL, help='Set log-level to CRITICAL')
 @click.option('--error', 'loglevel', flag_value=logging.ERROR, help='Set log-level to ERROR')
 @click.option('--warn', 'loglevel', flag_value=logging.WARNING, help='Set log-level to WARNING')
@@ -174,7 +190,7 @@ def load(filename):
 @click.argument('output', type=click.Path(writable=True, resolve_path=True))
 @click.argument('input_files', nargs=-1, type=click.Path(exists=True, readable=True, resolve_path=True))
 def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
-         dt: float, loglevel: Union[None, int]) -> Union[None, int]:
+         dt: List[float], loglevel: Union[None, int], bound: Union[None, str]) -> Union[None, int]:
     """
     Convert COMSOL CSV files to npz.
 
@@ -186,21 +202,32 @@ def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
     logging.basicConfig(level=loglevel)
 
     if not input_files:
-        logging.error('No CSVs were specified. Aborting.')
+        logger.error('No CSVs were specified. Aborting.')
         sys.exit(1)
 
-    logging.debug('Output file: {}'.format(output))
-    logging.debug('Input file(s): {}'.format(input_files))
-    logging.debug('dt: {}'.format(dt))
+    if not bound:
+        bound = [1, 2]
+    else:
+        bound = loader.load_csv_file(bound)
+
+    logger.info('Output file: {}'.format(output))
+    logger.info('Input file(s): {}'.format(input_files))
+    logger.info('dt: {}'.format(dt))
+    logger.info('boundaries: {}'.format(bound))
 
     file_data = loader.collect_files(input_files, format_key=format_name, loader=loader.load_csv_file)
     if 'time_mesh' not in file_data:
-        file_data['time_mesh'] = np.arange(dt[0], dt[1] + dt[2], dt[2])
+        try:
+            file_data['time_mesh'] = np.arange(dt[0], dt[1] + dt[2], dt[2])
+        except IndexError as ex:
+            logger.critical('Either a dt option provided with start and stop time (inclusive) or a csv defining the '
+                            'time mesh is required', exc_info=True)
+            raise ex
 
-    data = format(file_data, boundaries=[1, 2])
+    data = format_data(file_data, boundaries=bound)
     loader.save_npz_file(output, data)
 
-    logging.info('Conversion completed successfully')
+    logger.info('Conversion completed successfully')
     return 0
 
 

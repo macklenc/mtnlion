@@ -1,13 +1,16 @@
+"""
+Utilities for loading/saving files in various formats.
+"""
 import logging
 import os
-from typing import List
+from typing import List, Dict, Callable
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-def save_npz_file(filename, data_dict, **kwargs):
+def save_npz_file(filename: str, data_dict: Dict[str, np.ndarray], **kwargs) -> None:
     """
     Save data to an npz file. See numpy.savez for additional argument options.
 
@@ -19,19 +22,21 @@ def save_npz_file(filename, data_dict, **kwargs):
     np.savez(filename, **data_dict, **kwargs)
 
 
-def load_numpy_file(filename, **kwargs):
+def load_numpy_file(filename: str, **kwargs) -> Dict[str, np.ndarray]:
     """
     Load data from an npz file. See numpy.load for additional argument options.
 
     :param filename: name of the npz file
     :param kwargs: additional numpy.load arguments
+    :return: data dictionary
     """
     logger.info('Loading data from npz: {}'.format(filename))
     with np.load(filename, **kwargs) as data:
         return {k: v for k, v in data.items()}
 
 
-def load_csv_file(filename, comments: str = '%', delimiter: str = ',', d_type=np.float64, **kwargs):
+def load_csv_file(filename: str, comments: str = '%', delimiter: str = ',', d_type: type = np.float64, **kwargs) \
+    -> np.ndarray:
     """
     Load data from a csv file. See numpy.load for additional argument options.
 
@@ -40,35 +45,40 @@ def load_csv_file(filename, comments: str = '%', delimiter: str = ',', d_type=np
     :param delimiter: delimiting character(s)
     :param d_type: data type
     :param kwargs: additional numpy.loadtxt arguments
-    :return:
+    :return: file data
     """
     logger.info('Loading CSV file: {}'.format(filename))
     return np.loadtxt(filename, comments=comments, delimiter=delimiter, dtype=d_type, **kwargs)
 
 
-def format_name(name):
-    return os.path.splitext(os.path.basename(name))[0]
-
-
-def collect_files(file_list: List[str], format_key=None, loader=load_numpy_file):
+def format_name(name: str) -> str:
     """
-    Collect CSV data from list of filenames and create a dictionary of the data where the key is the basename of the
-    file, and the data is a 2D ndarray, where the first column is the mesh, and the second is the data. Both are
-    repeated for each new time step. Cannot read entire file names if they contain extra periods that do not proceed
-    an extension. I.e. j.csv.bz2 or j.csv are okay, but my.file.csv is not.
+    Default function for formatting variable names from filenames
+    :param name: filename
+    :return: variable name
+    """
+    key = os.path.splitext(os.path.basename(name))[0]
+    logger.info('Using key name: {}'.format(key))
+    return key
 
-    :param csv_file_list: list of files to read
 
-    TODO: abstract out dimensionality requirement
+def collect_files(file_list: List[str], format_key: Callable = format_name, loader: Callable = load_numpy_file,
+                  **kwargs) \
+    -> Dict[str, np.ndarray]:
+    """
+    Collect files given as a list of filenames using the function loader to load the file and the function format_key
+    to format the variable name.
+    :param file_list: list of filenames
+    :param format_key: function to format variable names
+    :param loader: function to load files
+    :param kwargs: extra arguments to the loader
+    :return: data dictionary
     """
     logger.info('Collecting files: {}'.format(file_list))
-    if not format_key:
-        format_key = format_name
 
     data_dict = dict()
     for f in file_list:
-        logger.debug('Loading \'{variable}\'...'.format(variable=format_key(f)))
-        data_dict[format_key(f)] = loader(f)
+        data_dict[format_key(f)] = loader(f, **kwargs)
 
     # return {format_key(k): loader(k) for k in file_list}
     return data_dict
