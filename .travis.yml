@@ -2,11 +2,18 @@
 
 language: python
 python:
-  - 3.7
   - 3.6
 
+before_install:
+- echo -e "machine github.com\n  login $GITHUB_TOKEN" >> ~/.netrc
+- git lfs pull
+
 # Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
-install: pip install -U tox-travis
+install:
+  - pip install -U tox-travis
+  - pip install requirements.txt
+  - pip install requirements_dev.txt
+  - python setup.py develop
 
 # Command to run tests, e.g. python setup.py test
 script: tox
