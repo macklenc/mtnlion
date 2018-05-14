@@ -63,6 +63,7 @@ def remove_dup_boundary(data: domain.ReferenceCell, item: np.ndarray) -> Union[n
     """
     Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
     :param data: data in which to reference the mesh and separator indices from
+
     :param item: item to apply change to
     :return: Array of points with interior boundaries removed
     """
@@ -75,6 +76,7 @@ def remove_dup_boundary(data: domain.ReferenceCell, item: np.ndarray) -> Union[n
 def get_standardized(cell: domain.ReferenceCell) -> Union[domain.ReferenceCell, None]:
     """
     Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
+
     :param cell: reference cell to remove double boundary values from
     :return: Simplified solution cell
     """
@@ -90,6 +92,7 @@ def separate_frames(mesh: np.ndarray, data: np.ndarray, boundaries: List[int]) -
     COMSOL saves its data as two columns, spaces and data, which is repeated (in the same column) for every time step.
     This breaks out the 1D data in to 2D to be able to easily reference time and space. The boundaries are fixed
     so that the data has uniform length and can fit in a matrix.
+
     :param mesh: mesh corresponding to the data
     :param data: data that maps to the mesh
     :param boundaries: internal boundaries
@@ -156,6 +159,7 @@ def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[i
 def format_name(name: str) -> str:
     """
     Determine variable name from filename to be used in loader.collect_files.
+
     :param name: filename
     :return: variable name
     """
@@ -171,6 +175,7 @@ def format_name(name: str) -> str:
 def load(filename: str) -> domain.ReferenceCell:
     """
     Load COMSOL reference cell from formatted npz file.
+
     :param filename: name of the npz file
     :return: ReferenceCell
     """

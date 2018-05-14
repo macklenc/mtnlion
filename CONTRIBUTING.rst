@@ -87,9 +87,9 @@ recommend using ``virtualenvwrapper`` to setup an isolated virtual environment t
 
 5. When you're done making changes, check that your changes pass flake8 and the
    tests, including testing other Python versions with tox::
-   
-    $ flake8 mtnlion tests
-    $ python setup.py test or pytest
+
+    $ flake8 --max-line-length 120 mtnlion tests
+    $ python setup.py test # or pytest
     $ tox
 
    To get flake8 and tox, just pip install them into your virtualenv.
@@ -112,10 +112,10 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
    - If a new module is added, make sure to run::
-        
-        $ sphinx-apidoc -F -o docs mtnlion --separate
 
-     in order to generate new documentation for the modules. 
+        $ sphinx-apidoc -o docs mtnlion --separate
+
+     in order to generate new documentation for the modules.
 3. The pull request should work for Python 3.6, and for PyPy. Check
    https://travis-ci.org/macklenc/mtnlion/pull_requests
    and make sure that the tests pass for all supported Python versions.
