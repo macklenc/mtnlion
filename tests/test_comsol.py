@@ -149,7 +149,7 @@ def run_full(tmpdir_factory: _pytest.tmpdir.TempdirFactory) \
     """
     fn1 = tmpdir_factory.mktemp('data').join('test_cli.npz')
 
-    solutions = 'reference/comsol_solution/'
+    solutions = 'tests/reference/comsol_solution/'
     csvlist = ['j.csv.bz2', 'ce.csv.bz2', 'cse.csv.bz2', 'phie.csv.bz2', 'phis.csv.bz2', 'v.csv.bz2', 'mesh.csv.bz2']
     csvlist = [solutions + i for i in csvlist]
     options = ['-t', '0', '50', '0.1']
@@ -162,6 +162,8 @@ def run_full(tmpdir_factory: _pytest.tmpdir.TempdirFactory) \
 @pytest.mark.order1
 def test_command_line_interface(run_full: Union[click.testing.Result, Tuple[click.testing.Result, str]]) -> None:
     """Test the CLI. Ensure return codes are as expected."""
+    import os
+    print(os.getcwd())
     result, _ = run_full
     assert 0 == result.exit_code
 

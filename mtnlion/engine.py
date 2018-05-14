@@ -7,7 +7,7 @@ from typing import Union, Dict, List, Tuple, Callable
 import munch
 import numpy as np
 
-import ldp
+from . import ldp
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class Mountain:
         return cls(data.pop('mesh'), data.pop('time_mesh'), data.pop('boundaries'), **data)
 
     def filter(self, index: Union[List['ellipsis'], List[int], List[slice], slice], func: Callable = lambda x: x) \
-        -> Dict[str, np.ndarray]:
+            -> Dict[str, np.ndarray]:
         """
         Filter through dictionary to collect sections of the contained ndarrays.
         :param index: subset of arrays to collect

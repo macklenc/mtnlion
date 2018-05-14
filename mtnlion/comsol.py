@@ -19,14 +19,14 @@ from typing import List, Union, Dict
 import click
 import numpy as np
 
-import domain
-import loader
+from . import domain
+from . import loader
 
 logger = logging.getLogger(__name__)
 
 
 def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: Union[float, List[int], np.ndarray]) \
-    -> Union[None, np.ndarray]:
+        -> Union[None, np.ndarray]:
     """
     When COMSOL outputs data from the reference model there are two solutions at every internal boundary, which causes
     COMSOL to have repeated domain values; one for the right and one for the left of the boundary. For some asinine
@@ -108,8 +108,8 @@ def separate_frames(mesh: np.ndarray, data: np.ndarray, boundaries: List[int]) -
                      for i in range(len(start))])
 
 
-def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]]) -> \
-    Union[Dict[str, np.ndarray], None]:
+def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]])\
+        -> Union[Dict[str, np.ndarray], None]:
     """
     Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
     first dimension is time and the second is the solution in space. Each solution has it's own entry in a
@@ -142,7 +142,7 @@ def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[i
                 data.pop(key, None)
             elif key not in data:
                 logger.warning('{} was skipped, unknown reason'.format(key))
-        except IndexError as ex:
+        except IndexError:
             logger.warning('{key} must have two columns and fit the mesh, skipping'.format(key=key), exc_info=True)
             continue
         except Exception as ex:
