@@ -143,7 +143,7 @@ def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[i
             elif key not in data:
                 logger.warning('{} was skipped, unknown reason'.format(key))
         except IndexError as ex:
-            logger.warning('{key} must have two columns, skipping'.format(key=key), exc_info=True)
+            logger.warning('{key} must have two columns and fit the mesh, skipping'.format(key=key), exc_info=True)
             continue
         except Exception as ex:
             logger.critical('Error occurred while formatting {key}'.format(key=key), exc_info=True)

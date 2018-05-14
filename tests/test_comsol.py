@@ -4,60 +4,174 @@
 """Tests for `comsol` module."""
 
 import os
+from typing import List, Union, Callable, Tuple
 
+import _pytest
+import numpy as np
 import pytest
+from click._unicodefun import click
 from click.testing import CliRunner
 
 from mtnlion import comsol
 
 
-# class test_ComsolData:
-#     def test_collect_csv_data(self):
-#         resources = 'reference/comsol_solution/'
-#
-#         # test singular files
-#         c = comsol.ComsolData
-#         for file in os.listdir(resources):
-#             c.collect_csv_data([file])
+def test_fix_boundaries() -> None:
+    boundaries = [4, 5, 6]
+    test1_mesh = np.arange(0, 10)
+    test2_mesh = np.insert(test1_mesh, [4, 5], [4, 5])
+
+    test1_data = test1_mesh
+    test1_expected = np.insert(test1_data, boundaries, boundaries)
+    test2_data = np.arange(0, len(test2_mesh))
+    test2_expected = np.arange(0, len(test2_mesh))
+    test2_expected = np.insert(test2_expected, 8, 8)
+    (test2_expected[4], test2_expected[5]) = (test2_expected[5], test2_expected[4])
+    (test2_expected[6], test2_expected[7]) = (test2_expected[7], test2_expected[6])
+
+    test1_result = comsol.fix_boundaries(test1_mesh, test1_data, boundaries)
+    test2_result = comsol.fix_boundaries(test2_mesh, test2_data, boundaries)
+    test3_result = comsol.fix_boundaries(test2_mesh, test2_data, [])
+
+    assert 1 == np.array_equal(test1_result, test1_expected)
+    assert 1 == np.array_equal(test2_result, test2_expected)
+    assert 1 == np.array_equal(test3_result, test2_data)
 
 
-# @pytest.fixture
-# def response():
-#     """Sample pytest fixture.
-#
-#     See more at: http://doc.pytest.org/en/latest/fixture.html
-#     """
-#     # import requests
-#     # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
-#
-#
-# def test_content(response):
-#     """Sample pytest test function with the pytest fixture as an argument."""
-#     # from bs4 import BeautifulSoup
-#     # assert 'GitHub' in BeautifulSoup(response.content).title.string
+@pytest.fixture()
+def make_cell() -> Union[comsol.domain.ReferenceCell, Callable]:
+    """
+    Create a reference cell
+    :return: reference cell
+    """
+
+    def cell(mesh: np.ndarray = None, time_mesh: np.ndarray = None, bound: List[float] = None, **kwargs: np.ndarray) \
+        -> comsol.domain.ReferenceCell:
+        """
+        Create a reference cell with default values
+        :param mesh: space mesh
+        :param time_mesh: time mesh
+        :param bound: boundaries
+        :param kwargs: data
+        :return: reference cell
+        """
+        if mesh is None:
+            mesh = np.array([0, 0.5, 1, 1, 1.5, 2, 2, 2.5, 3])
+        if time_mesh is None:
+            time_mesh = np.array([0, 1])
+        if bound is None:
+            bound = [1, 2]
+
+        return comsol.domain.ReferenceCell(mesh, time_mesh, bound, **kwargs)
+
+    return cell
 
 
-def test_command_line_interface(tmpdir_factory):
-    """Test the CLI. Ensure return codes are as expected."""
+def test_remove_dup_boundary(make_cell: Union[comsol.domain.ReferenceCell, Callable]) -> None:
+    data = np.array([range(0, 9), range(9, 18)])
+    expected = np.array([[0, 1, 2, 4, 6, 7, 8], [9, 10, 11, 13, 15, 16, 17]])
 
+    cell = make_cell()
+
+    result = comsol.remove_dup_boundary(cell, data)
+
+    assert 1 == np.array_equal(expected, result)
+    pass
+
+
+def test_get_standardized(make_cell: Union[comsol.domain.ReferenceCell, Callable]) -> None:
+    data = np.array([range(0, 9), range(9, 18)])
+    expected_data = np.array([[0, 1, 2, 4, 6, 7, 8], [9, 10, 11, 13, 15, 16, 17]])
+
+    expected = make_cell(test1=expected_data, test2=expected_data)
+    cell = make_cell(test1=data, test2=data)
+    result = comsol.get_standardized(cell)
+
+    assert 1 == np.array_equal(expected.data.test1, result.data.test1)
+    assert 1 == np.array_equal(expected.data.test2, result.data.test2)
+
+
+def test_separate_frames() -> None:
+    bound = [1, 2]
+    frame1 = np.arange(0, 3.5, 0.5)
+    frame2 = np.insert(frame1, 3, 1)
+    frame3 = np.insert(frame2, 6, 2)
+    frame = np.concatenate((frame1, frame2, frame3))
+    mesh = frame
+    expected = np.vstack((frame3, frame3, frame3))
+
+    result = comsol.separate_frames(mesh, frame, bound)
+
+    assert 1 == np.array_equal(expected, result)
+
+
+def test_format_data() -> None:
+    data_dict = dict()
+
+    mesh1 = np.array([0, 0.5, 1, 1, 1.5, 2, 2, 2.5, 3])
+    mesh2 = np.array([0, 0.5, 1, 1.5, 2, 2, 2.5, 3])
+    mesh3 = np.array([0, 0.5, 1, 1.5, 2, 2.5, 3])
+    time_mesh = np.array([0, 1])
+    bound = [1, 2]
+
+    data_dict['d1'] = np.array([mesh1, np.arange(0, len(mesh1))]).T
+    data_dict['d2'] = np.array([mesh2, np.arange(0, len(mesh2))]).T
+    data_dict['d3'] = np.array([mesh3, np.arange(0, len(mesh3))]).T
+    data_dict['bad'] = np.array([1])
+    data_dict['bad2'] = np.vstack((np.insert(mesh1, 4, 1), np.arange(0, len(mesh1) + 1))).T
+    data_dict['mesh'] = mesh1
+    data_dict['time_mesh'] = time_mesh
+
+    result = comsol.format_data(data_dict, bound)
+
+    expected = {'d1': np.array([[0, 1, 3, 2, 4, 6, 5, 7, 8]]),
+                'd2': np.array([[0, 1, 2, 2, 3, 5, 4, 6, 7]]),
+                'd3': np.array([[0, 1, 2, 2, 3, 4, 4, 5, 6]])}
+
+    assert bound == result.pop('boundaries')
+    assert np.array_equal(mesh1, result.pop('mesh'))
+    assert np.array_equal(time_mesh, result.pop('time_mesh'))
+    assert np.array_equal(expected['d1'], result['d1'])
+    assert np.array_equal(expected['d2'], result['d2'])
+    assert np.array_equal(expected['d3'], result['d3'])
+
+    data_dict.pop('mesh')
+    with pytest.raises(Exception) as ex:
+        comsol.format_data(data_dict, bound)
+
+
+@pytest.fixture(scope='session')
+def run_full(tmpdir_factory: _pytest.tmpdir.TempdirFactory) \
+    -> Union[click.testing.Result, Tuple[click.testing.Result, str]]:
+    """
+    Run full program and save result
+    :param tmpdir_factory: directory to save to
+    :return: execution result and directory name
+    """
     fn1 = tmpdir_factory.mktemp('data').join('test_cli.npz')
 
-    csvlist = ['reference/comsol_solution/j.csv', 'reference/comsol_solution/ce.csv',
-               'reference/comsol_solution/cse.csv', 'reference/comsol_solution/phie.csv',
-               'reference/comsol_solution/phis.csv', 'reference/comsol_solution/v.csv', str(fn1)]
+    solutions = 'reference/comsol_solution/'
+    csvlist = ['j.csv.bz2', 'ce.csv.bz2', 'cse.csv.bz2', 'phie.csv.bz2', 'phis.csv.bz2', 'v.csv.bz2', 'mesh.csv.bz2']
+    csvlist = [solutions + i for i in csvlist]
+    options = ['-t', '0', '50', '0.1']
 
     runner = CliRunner()
-    result = runner.invoke(comsol.main, [str(fn1), csvlist[0]])
-    assert 0 == result.exit_code
-    result = runner.invoke(comsol.main, [str(fn1)] + csvlist[0:5])
-    assert 0 == result.exit_code
-    result = runner.invoke(comsol.main, [str(fn1)] + csvlist[0:7])
-    assert 0 == result.exit_code
-    help_result = runner.invoke(comsol.main, ['--help'])
-    assert 0 == help_result.exit_code
+    result = runner.invoke(comsol.main, [str(fn1)] + csvlist + options)
+    return result, str(fn1)
 
-    result = runner.invoke(comsol.main, [str(fn1), csvlist[6]])
-    assert 2 == result.exit_code
+
+@pytest.mark.order1
+def test_command_line_interface(run_full: Union[click.testing.Result, Tuple[click.testing.Result, str]]) -> None:
+    """Test the CLI. Ensure return codes are as expected."""
+    result, _ = run_full
+    assert 0 == result.exit_code
+
+
+@pytest.mark.order2
+def test_load(run_full: Union[click.testing.Result, Tuple[click.testing.Result, str]]) -> None:
+    _, file = run_full
+    cell = comsol.load(file)
+
+    assert cell.data
 
 
 if __name__ == '__main__':
