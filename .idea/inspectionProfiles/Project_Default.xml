@@ -27,6 +27,7 @@
           <option value="numpy.arange" />
           <option value="fenics.dof_to_vertex_map" />
           <option value="fenics.vertex_to_dof_map" />
+          <option value="_pytest.tmpdir" />
         </list>
       </option>
     </inspection_tool>

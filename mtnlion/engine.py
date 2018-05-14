@@ -52,7 +52,8 @@ class Mountain:
     Container for holding n-variable n-dimensional data in space and time.
     """
 
-    def __init__(self, mesh: np.ndarray, time_mesh: np.ndarray, boundaries: np.ndarray, **kwargs: np.ndarray) -> None:
+    def __init__(self, mesh: np.ndarray, time_mesh: np.ndarray, boundaries: Union[np.ndarray, List[float]],
+                 **kwargs: np.ndarray) -> None:
         """
         Store the solutions to each given parameter
 

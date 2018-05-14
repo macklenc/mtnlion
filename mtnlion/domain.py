@@ -56,8 +56,9 @@ class ReferenceCell(engine.Mountain):
     negative electrode exists between [0, 1], the separator exists between [1, 2], and the positive electrode exists
     between [2, 3]. For convenience the subdomains are added onto engine.Mountain.
     """
-    def __init__(self, mesh: Union[np.ndarray, float], time_mesh: Union[np.ndarray, float],
-                 boundaries: np.ndarray, **kwargs) -> None:
+
+    def __init__(self, mesh: np.ndarray, time_mesh: np.ndarray, boundaries: Union[np.ndarray, List[float]],
+                 **kwargs: np.ndarray) -> None:
         """
         Store the solutions to each cell parameter
 
