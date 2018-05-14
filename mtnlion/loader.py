@@ -36,7 +36,7 @@ def load_numpy_file(filename: str, **kwargs) -> Dict[str, np.ndarray]:
 
 
 def load_csv_file(filename: str, comments: str = '%', delimiter: str = ',', d_type: type = np.float64, **kwargs) \
-    -> np.ndarray:
+        -> np.ndarray:
     """
     Load data from a csv file. See numpy.load for additional argument options.
 
@@ -63,8 +63,7 @@ def format_name(name: str) -> str:
 
 
 def collect_files(file_list: List[str], format_key: Callable = format_name, loader: Callable = load_numpy_file,
-                  **kwargs) \
-    -> Dict[str, np.ndarray]:
+                  **kwargs) -> Dict[str, np.ndarray]:
     """
     Collect files given as a list of filenames using the function loader to load the file and the function format_key
     to format the variable name.

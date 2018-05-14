@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 
 import numpy as np
 
-import engine
+from . import engine
 
 logger = logging.getLogger(__name__)
 
