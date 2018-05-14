@@ -11,9 +11,6 @@ before_install:
 # Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
 install:
   - pip install -U tox-travis
-  - pip install -r requirements.txt
-  - pip install -r requirements_dev.txt
-  - python setup.py develop
 
 # Command to run tests, e.g. python setup.py test
 script: tox
