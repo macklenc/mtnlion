@@ -32,8 +32,8 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
     ],
     description="Mountain Lion Continuum-Scale Lithium-Ion Cell Simulator uses FEniCS to solve partial differential "
                 "equations for the internal states of Lithium-Ion cells.",
