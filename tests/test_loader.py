@@ -19,7 +19,7 @@ def save_npz(tmpdir_factory: _pytest.tmpdir.TempdirFactory):
     fn1 = tmpdir_factory.mktemp('data').join(filename)
     data = {'test1': np.arange(0, 50), 'test2': np.arange(50, 100)}
 
-    loader.save_npz_file(fn1, data)
+    loader.save_npz_file(str(fn1), data)
     return str(fn1), data
 
 
