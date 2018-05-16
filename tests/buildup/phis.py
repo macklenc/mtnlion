@@ -1,10 +1,9 @@
+import domain2
 import fenics as fem
 import matplotlib.pyplot as plt
-import numpy as np
-
-import domain2
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
+import numpy as np
 
 
 def gather_data():
@@ -84,7 +83,7 @@ def phis():
         v = fem.TestFunction(V)
 
         # Initialize Dirichlet BCs
-        bc = [fem.DirichletBC(V, 0.0, bm, 1), fem.DirichletBC(V, 3.8, bm, 4)]
+        bc = [fem.DirichletBC(V, 0.0, bm, 1), fem.DirichletBC(V, data.data.phis[i, -1], bm, 4)]
         f = fem.Function(V)
         f.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double') * fem.Constant(F)
 
@@ -109,10 +108,22 @@ def phis():
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
-    print(type(u_array))
+    plt.figure(1, figsize=(15, 9))
 
-    pass
+    plt.subplot(221)
+    plt.plot(np.repeat([data.neg], len(time), axis=0).T, u_array[:, data.neg_ind].T)
+    plt.grid(), plt.title('FEniCS Negative Electrode')
+    plt.subplot(222)
+    plt.plot(np.repeat([data.neg], len(time), axis=0).T, data.data.phis[:, data.neg_ind].T)
+    plt.grid(), plt.title('COMSOL Negative Electrode')
+    plt.subplot(223)
+    plt.plot(np.repeat([data.pos], len(time), axis=0).T, u_array[:, data.pos_ind].T)
+    plt.grid(), plt.title('FEniCS Positive Electrode')
+    plt.subplot(224)
+    plt.plot(np.repeat([data.pos], len(time), axis=0).T, data.data.phis[:, data.pos_ind].T)
+    plt.grid(), plt.title('COMSOL Positive Electrode')
 
+    plt.show()
 
 if __name__ == '__main__':
     phis()
