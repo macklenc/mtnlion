@@ -68,8 +68,9 @@ def phis():
     mesh, dx, ds, bm, dm = domain2.generate_domain(data.mesh)
 
     # Initialize parameters
-    F = 96487
-    Iapp = 0
+    F = fem.Constant(96487)
+    Iapp = fem.Constant(0)
+    Acell = fem.Comstant(params.const.Acell)
 
     Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
     sigma_eff = mkparam(dm, params.neg.sigma_ref * params.neg.eps_s ** params.neg.brug_sigma, 0,
@@ -84,13 +85,20 @@ def phis():
 
         # Initialize Dirichlet BCs
         bc = [fem.DirichletBC(V, 0.0, bm, 1), fem.DirichletBC(V, data.data.phis[i, -1], bm, 4)]
-        f = fem.Function(V)
-        f.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double') * fem.Constant(F)
+        jbar = fem.Function(V)
+        jbar.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double')
 
-        a = fem.Constant(1) / (Lc * Lc) * sigma_eff * fem.dot(fem.grad(phi), fem.grad(v)) * dx(1) + fem.Constant(1) / (
-                Lc * Lc) * sigma_eff * fem.dot(fem.grad(phi), fem.grad(v)) * dx(3)
-        L = -a_s * f * v * dx(1) - a_s * f * v * dx(3) - fem.Constant(Iapp / params.const.Acell) * v * ds(4)
+        # Setup Neumann BCs
+        neumann = 0*v*ds(1) + 0*v*ds(2) + 0*v*ds(3) + Iapp/Acell*v*ds(4)
 
+        # Setup equation
+        a1 = -sigma_eff/Lc * fem.dot(fem.grad(phi), fem.grad(v))
+        a = a1*dx(1) + 0*v*dx(2) + a1*dx(3)
+
+        L1 = Lc*a_s*F*jbar*v
+        L = L1*dx(1) + 0*v*dx(2) + L2*dx(3) + neumann
+
+        # Solve
         phi = fem.Function(V)
         fem.solve(a == L, phi, bc)
         fem.plot(phi)
