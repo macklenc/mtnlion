@@ -4,13 +4,10 @@
 """Tests for `comsol` module."""
 
 import os
-from typing import List, Union, Callable, Tuple
+from typing import List, Union, Callable
 
-import _pytest
 import numpy as np
 import pytest
-from click._unicodefun import click
-from click.testing import CliRunner
 
 from mtnlion import comsol
 
@@ -139,41 +136,42 @@ def test_format_data() -> None:
         comsol.format_data(data_dict, bound)
 
 
-@pytest.fixture(scope='session')
-def run_full(tmpdir_factory: _pytest.tmpdir.TempdirFactory) \
-    -> Union[click.testing.Result, Tuple[click.testing.Result, str]]:
-    """
-    Run full program and save result
-    :param tmpdir_factory: directory to save to
-    :return: execution result and directory name
-    """
-    fn1 = tmpdir_factory.mktemp('data').join('test_cli.npz')
-
-    solutions = 'tests/reference/comsol_solution/'
-    csvlist = ['j.csv.bz2', 'ce.csv.bz2', 'cse.csv.bz2', 'phie.csv.bz2', 'phis.csv.bz2', 'v.csv.bz2', 'mesh.csv.bz2']
-    csvlist = [solutions + i for i in csvlist]
-    options = ['-t', '0', '50', '0.1']
-
-    runner = CliRunner()
-    result = runner.invoke(comsol.main, [str(fn1)] + csvlist + options)
-    return result, str(fn1)
-
-
-@pytest.mark.order1
-def test_command_line_interface(run_full: Union[click.testing.Result, Tuple[click.testing.Result, str]]) -> None:
-    """Test the CLI. Ensure return codes are as expected."""
-    import os
-    print(os.getcwd())
-    result, _ = run_full
-    assert 0 == result.exit_code
-
-
-@pytest.mark.order2
-def test_load(run_full: Union[click.testing.Result, Tuple[click.testing.Result, str]]) -> None:
-    _, file = run_full
-    cell = comsol.load(file)
-
-    assert cell.data
+# TODO: move to different test file
+# @pytest.fixture(scope='session')
+# def run_full(tmpdir_factory: _pytest.tmpdir.TempdirFactory) \
+#     -> Union[click.testing.Result, Tuple[click.testing.Result, str]]:
+#     """
+#     Run full program and save result
+#     :param tmpdir_factory: directory to save to
+#     :return: execution result and directory name
+#     """
+#     fn1 = tmpdir_factory.mktemp('data').join('test_cli.npz')
+#
+#     solutions = 'tests/reference/comsol_solution/'
+#     csvlist = ['j.csv.bz2', 'ce.csv.bz2', 'cse.csv.bz2', 'phie.csv.bz2', 'phis.csv.bz2', 'v.csv.bz2', 'mesh.csv.bz2']
+#     csvlist = [solutions + i for i in csvlist]
+#     options = ['-t', '0', '50', '0.1']
+#
+#     runner = CliRunner()
+#     result = runner.invoke(comsol.main, [str(fn1)] + csvlist + options)
+#     return result, str(fn1)
+#
+#
+# @pytest.mark.order1
+# def test_command_line_interface(run_full: Union[click.testing.Result, Tuple[click.testing.Result, str]]) -> None:
+#     """Test the CLI. Ensure return codes are as expected."""
+#     import os
+#     print(os.getcwd())
+#     result, _ = run_full
+#     assert 0 == result.exit_code
+#
+#
+# @pytest.mark.order2
+# def test_load(run_full: Union[click.testing.Result, Tuple[click.testing.Result, str]]) -> None:
+#     _, file = run_full
+#     cell = comsol.load(file)
+#
+#     assert cell.data
 
 
 if __name__ == '__main__':
