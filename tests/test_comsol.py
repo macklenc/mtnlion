@@ -22,8 +22,6 @@ def test_fix_boundaries() -> None:
     test2_data = np.arange(0, len(test2_mesh))
     test2_expected = np.arange(0, len(test2_mesh))
     test2_expected = np.insert(test2_expected, 8, 8)
-    (test2_expected[4], test2_expected[5]) = (test2_expected[5], test2_expected[4])
-    (test2_expected[6], test2_expected[7]) = (test2_expected[7], test2_expected[6])
 
     test1_result = comsol.fix_boundaries(test1_mesh, test1_data, boundaries)
     test2_result = comsol.fix_boundaries(test2_mesh, test2_data, boundaries)
@@ -87,20 +85,6 @@ def test_get_standardized(make_cell: Union[comsol.domain.ReferenceCell, Callable
     assert 1 == np.array_equal(expected.data.test2, result.data.test2)
 
 
-def test_separate_frames() -> None:
-    bound = [1, 2]
-    frame1 = np.arange(0, 3.5, 0.5)
-    frame2 = np.insert(frame1, 3, 1)
-    frame3 = np.insert(frame2, 6, 2)
-    frame = np.concatenate((frame1, frame2, frame3))
-    mesh = frame
-    expected = np.vstack((frame3, frame3, frame3))
-
-    result = comsol.separate_frames(mesh, frame, bound)
-
-    assert 1 == np.array_equal(expected, result)
-
-
 def test_format_data() -> None:
     data_dict = dict()
 
@@ -120,8 +104,8 @@ def test_format_data() -> None:
 
     result = comsol.format_data(data_dict, bound)
 
-    expected = {'d1': np.array([[0, 1, 3, 2, 4, 6, 5, 7, 8]]),
-                'd2': np.array([[0, 1, 2, 2, 3, 5, 4, 6, 7]]),
+    expected = {'d1': np.array([[0, 1, 2, 3, 4, 5, 6, 7, 8]]),
+                'd2': np.array([[0, 1, 2, 2, 3, 4, 5, 6, 7]]),
                 'd3': np.array([[0, 1, 2, 2, 3, 4, 4, 5, 6]])}
 
     assert bound == result.pop('boundaries')

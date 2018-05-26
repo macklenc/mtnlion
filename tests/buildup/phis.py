@@ -69,13 +69,14 @@ def phis():
 
     # Initialize parameters
     F = fem.Constant(96487)
-    Iapp = fem.Constant(0)
-    Acell = fem.Comstant(params.const.Acell)
+    I_1C = fem.Constant(20.5)
+    Iapp = [I_1C if 10 <= i <= 20 else -I_1C if 30 <= i <= 40 else fem.Constant(0) for i in time]
+    Acell = fem.Constant(params.const.Acell)
 
     Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
     sigma_eff = mkparam(dm, params.neg.sigma_ref * params.neg.eps_s ** params.neg.brug_sigma, 0,
                         params.pos.sigma_ref * params.pos.eps_s ** params.pos.brug_sigma)
-    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
+    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / 8e-6)
 
     for i, j in enumerate(data.data.j):
         # Define function space and basis functions
@@ -89,14 +90,14 @@ def phis():
         jbar.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double')
 
         # Setup Neumann BCs
-        neumann = 0*v*ds(1) + 0*v*ds(2) + 0*v*ds(3) + Iapp/Acell*v*ds(4)
+        neumann = 0*v*ds(1) + 0*v*ds(2) + 0*v*ds(3) + Iapp[i]/Acell*v*ds(4)
 
         # Setup equation
         a1 = -sigma_eff/Lc * fem.dot(fem.grad(phi), fem.grad(v))
         a = a1*dx(1) + 0*v*dx(2) + a1*dx(3)
 
         L1 = Lc*a_s*F*jbar*v
-        L = L1*dx(1) + 0*v*dx(2) + L2*dx(3) + neumann
+        L = L1*dx(1) + 0*v*dx(2) + L1*dx(3) + neumann
 
         # Solve
         phi = fem.Function(V)
@@ -130,6 +131,7 @@ def phis():
     plt.subplot(224)
     plt.plot(np.repeat([data.pos], len(time), axis=0).T, data.data.phis[:, data.pos_ind].T)
     plt.grid(), plt.title('COMSOL Positive Electrode')
+    plt.savefig('comsol_compare.png')
 
     plt.show()
 
