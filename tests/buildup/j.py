@@ -49,13 +49,12 @@ def reaction_flux(sim_data, params, const):
     return j
 
 
-def calculate_j(time, data, params):
+def calculate_j(data, params):
     negdata = data.get_solution_in('neg')
     posdata = data.get_solution_in('pos')
-    time_ind = engine.find_ind(data.time_mesh, time)
 
-    jneg = reaction_flux(negdata.filter_time(time_ind).data, params.neg, params.const)
-    jpos = reaction_flux(posdata.filter_time(time_ind).data, params.pos, params.const)
+    jneg = reaction_flux(negdata.data, params.neg, params.const)
+    jpos = reaction_flux(posdata.data, params.pos, params.const)
 
     return jneg, jpos
 
@@ -94,16 +93,20 @@ def plot_j(time, data, params, jneg, jpos):
 
 def main():
     import timeit
-    time = [5, 10, 15, 20, 25]
+    time = [0, 5, 10, 15, 20]
     resources = '../reference/'
     params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
     d_comsol = comsol.load(resources + 'guwang.npz')
+    time_ind = engine.find_ind(d_comsol.time_mesh, time)
+    d_comsol = d_comsol.filter_time(time_ind)
     # d_comsol = comsol.ComsolData(resources + 'guwang.npz')
 
     st = timeit.default_timer()
-    jneg, jpos = calculate_j(time, d_comsol, params)
+    jneg, jpos = calculate_j(d_comsol, params)
     plot_j(time, d_comsol, params, jneg, jpos)
     print('Time: {}'.format(timeit.default_timer()-st))
+    print(engine.rmse(jneg, d_comsol.data.j[:, d_comsol.neg_ind]))
+    print(engine.rmse(jpos, d_comsol.data.j[:, d_comsol.pos_ind]))
 
     # jneg_orig = d_comsol.data.get_solution_in_neg().get_solution_at_time_index(list(map(lambda x: x*10, time))).j
     # jpos_orig = d_comsol.data.get_solution_in_pos().get_solution_at_time_index(list(map(lambda x: x*10, time))).j
