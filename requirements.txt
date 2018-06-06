@@ -1,7 +1,7 @@
 click==6.7
 matplotlib==2.2.2
 numexpr==2.6.5
-numpy==1.14.3
+numpy==1.14.4
 scipy==1.1.0
 xlrd==1.1.0
 munch==2.3.2
