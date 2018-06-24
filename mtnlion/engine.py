@@ -36,15 +36,25 @@ def fetch_params(filename: str) -> Union[Dict[str, Dict[str, float]], None, munc
     return munch.DefaultMunch.fromDict(params)
 
 
-def find_ind(data: np.ndarray, value: Union[List[int], List[float]]) -> Tuple[np.ndarray]:
+def find_ind(data: np.ndarray, value: Union[List[int], List[float]]) -> np.ndarray:
     """
     Find the indices of the values given in the data.
     :param data: data to find indices in
     :param value: values to find indices with
     :return: indices of value in data
     """
-    return np.nonzero(np.in1d(data, value))
+    return np.nonzero(np.in1d(data, value))[0]
 
+
+def find_ind_near(data: np.ndarray, value: Union[List[int], List[float]]) -> np.ndarray:
+    """
+    Find the indices of the closest values given in the data.
+    :param data: data to find indices in
+    :param value: values to find indices with
+    :return: indices of value in data
+    """
+
+    return np.array([(np.abs(data - v)).argmin() for v in value])
 
 # TODO: move subdomain logic here
 class Mountain:
