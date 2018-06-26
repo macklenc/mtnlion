@@ -90,25 +90,43 @@ def phis():
 
         # Define function space and basis functions
         V = fem.FunctionSpace(mesh, 'Lagrange', 1)
-        fem.TrialFunction(V)
         ce = fem.TrialFunction(V)
         v = fem.TestFunction(V)
 
         # Initialize Dirichlet BCs
         bc = [fem.DirichletBC(V, data.data.ce[i, 0], bm, 1), fem.DirichletBC(V, data.data.ce[i, -1], bm, 4)]
         jbar = fem.Function(V)
-        jbar.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double')
+        data.data.j[i_1, 21] = data.data.j[i_1, 20]
+        data.data.j[i_1, 49] = data.data.j[i_1, 50]
+        jbar.vector()[:] = data.data.j[i_1, fem.dof_to_vertex_map(V)].astype('double')
+        fem.plot(jbar)
+        plt.show()
         ce_1 = fem.Function(V)
         ce_1.vector()[:] = data.data.ce[i_1, fem.dof_to_vertex_map(V)].astype('double')
 
+        boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
+        boundary_markers.set_all(0)
+        b1 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=1)
+        b2 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=2)
+        b1.mark(boundary_markers, 2)
+        b2.mark(boundary_markers, 3)
+
+        n = fem.FacetNormal(mesh)
+
+        # Setup measures
+        dS = fem.Measure('dS', domain=mesh, subdomain_data=boundary_markers)
+
         # Setup Neumann BCs
-        neumann = 0*v*ds(1) + 0*v*ds(2) + 0*v*ds(3) + 0*v*ds(4)
+        neumann = dtc*de_eff('-')/Lc('-')*fem.inner(fem.grad(ce_1('-')), n('-'))*v('-')*dS(2) + \
+                  dtc*de_eff('+')/Lc('+')*fem.inner(fem.grad(ce_1('+')), n('+'))*v('+')*dS(2) + \
+                  dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_1('-')), n('-')) * v('-') * dS(3) + \
+                  dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_1('+')), n('+')) * v('+') * dS(3)
 
         # Setup equation
         a = Lc*eps_e*ce*v*dx
 
         L = Lc*eps_e*ce_1*v*dx - dtc*de_eff/Lc*fem.dot(fem.grad(ce_1), fem.grad(v))*dx + dtc*Lc*a_s*\
-            (fem.Constant(1) - t_plus)*jbar*v*dx
+            (fem.Constant(1) - t_plus)*jbar*v*dx + neumann
 
         # Solve
         ce = fem.Function(V)
