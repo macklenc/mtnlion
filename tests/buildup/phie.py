@@ -79,10 +79,11 @@ def phis():
 
     dfdc = sym.Symbol('dfdc')
     # dfdc = 0
-    kd = 2 * kp * R * T / F * (1 + dfdc) * (1 - params.const.t_plus)
-
-    # func = sym.lambdify(x, kd, 'numpy')
-    # plt.plot(np.arange(0, 3000, 1), func(np.arange(0, 3000, 1)))
+    kd = 2 * R * T / F * (1 + dfdc) * (1 - params.const.t_plus)
+    kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
+    # func = sym.lambdify(x, kp, 'numpy')
+    # plt.plot(np.arange(0, 3000.1, 0.1), func(np.arange(0, 3000.1, 0.1)))
+    # print(max( func(np.arange(0, 3000.1, 0.1))))
     # plt.grid()
     # plt.show()
 
@@ -109,13 +110,12 @@ def phis():
         ces = fem.project(ce*fem.Constant(0.001), V)
         kappa_ref = fem.Expression(sym.printing.ccode(kp), ce=ces, degree=1)
         kappa_eff = kappa_ref * eps_e
-        kappa_D = fem.Expression(sym.printing.ccode(kd), ce=ces, dfdc=0, degree=1)
-        kappa_Deff = kappa_D*eps_e
+        kappa_Deff = kappa_D*kappa_eff
 
         # Setup equation
         a = kappa_eff/Lc*fem.dot(fem.grad(phie), fem.grad(v))*dx
 
-        L = Lc*a_s*F*jbar*v*dx - kappa_Deff*fem.dot(fem.grad(ce)/ce, fem.grad(v))*dx
+        L = Lc*a_s*F*jbar*v*dx - kappa_Deff/(ce*Lc)*fem.dot(fem.grad(ce), fem.grad(v))*dx
 
         # Solve
         phie = fem.Function(V)
