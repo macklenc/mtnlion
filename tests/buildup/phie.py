@@ -59,7 +59,6 @@ def phis():
     time = [0, 5, 10, 15, 20]
 
     # Collect required data
-    # TODO: make sure refactored comsol works here
     comsol_data, params = gather_data()
     time_ind = engine.find_ind(comsol_data.time_mesh, time)
     data = comsol.get_standardized(comsol_data.filter_time(time_ind))
@@ -69,7 +68,7 @@ def phis():
     mesh, dx, ds, bm, dm = domain2.generate_domain(data.mesh)
 
     # Initialize parameters
-    F = fem.Constant(96487)
+    F = fem.Constant(96485)
     R = fem.Constant(8.314) # universal gas constant
     T = fem.Constant(298.15)
 
@@ -79,7 +78,7 @@ def phis():
 
     dfdc = sym.Symbol('dfdc')
     # dfdc = 0
-    kd = 2 * R * T / F * (1 + dfdc) * (1 - params.const.t_plus)
+    kd = fem.Constant(2) * R * T / F * (fem.Constant(1) + dfdc) * (fem.Constant(params.const.t_plus) - fem.Constant(1))
     kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
     # func = sym.lambdify(x, kp, 'numpy')
     # plt.plot(np.arange(0, 3000.1, 0.1), func(np.arange(0, 3000.1, 0.1)))
@@ -91,7 +90,8 @@ def phis():
     eps_e = mkparam(dm, params.neg.eps_e ** params.neg.brug_kappaD,
                     params.sep.eps_e ** params.sep.brug_kappaD,
                     params.pos.eps_e ** params.pos.brug_kappaD)
-    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / 8e-6)
+
+    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
 
     for i, j in enumerate(data.data.j):
         # Define function space and basis functions
@@ -107,15 +107,14 @@ def phis():
         ce.vector()[:] = data.data.ce[i, fem.dof_to_vertex_map(V)].astype('double')
 
         # calculate kappa
-        ces = fem.project(ce*fem.Constant(0.001), V)
-        kappa_ref = fem.Expression(sym.printing.ccode(kp), ce=ces, degree=1)
+        kappa_ref = fem.Expression(sym.printing.ccode(kp), ce=ce, degree=1)
         kappa_eff = kappa_ref * eps_e
-        kappa_Deff = kappa_D*kappa_eff
+        kappa_Deff = kappa_D*kappa_ref*eps_e
 
         # Setup equation
         a = kappa_eff/Lc*fem.dot(fem.grad(phie), fem.grad(v))*dx
 
-        L = Lc*a_s*F*jbar*v*dx - kappa_Deff/(ce*Lc)*fem.dot(fem.grad(ce), fem.grad(v))*dx
+        L = Lc*a_s*F*jbar*v*dx - kappa_Deff/(Lc)*fem.dot(fem.grad(fem.ln(ce)), fem.grad(v))*dx
 
         # Solve
         phie = fem.Function(V)
