@@ -79,7 +79,7 @@ def phis():
                      params.const.De_ref * params.pos.eps_e ** params.pos.brug_De)
     t_plus = fem.Constant(params.const.t_plus)
     Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
-    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / 8e-6)
+    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
 
     # plt.plot(data.mesh, data.data.ce[1])
     # plt.show()
