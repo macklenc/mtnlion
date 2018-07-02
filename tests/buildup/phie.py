@@ -1,65 +1,20 @@
-import domain2
 import fenics as fem
 import matplotlib.pyplot as plt
+import numpy as np
+import sympy as sym
+
+import domain2
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
-import sympy as sym
-import numpy as np
+import utilities
 
 
-def gather_data():
-    # Load required cell data
-    resources = '../reference/'
-    params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.load(resources + 'guwang.npz')
-    return d_comsol, params
-
-
-def mkparam(markers, k_1 = 0, k_2 = 0, k_3 = 0, k_4 = 0):
-    cppcode = """
-    class K : public Expression
-    {
-        public:
-            void eval(Array<double>& values,
-                      const Array<double>& x,
-                      const ufc::cell& cell) const
-            {
-                switch((*markers)[cell.index]){
-                case 1:
-                    values[0] = k_1;
-                    break;
-                case 2:
-                    values[0] = k_2;
-                    break;
-                case 3:
-                    values[0] = k_3;
-                    break;
-                case 4:
-                    values[0] = k_4;
-                    break;
-                default:
-                    values[0] = 0;
-                }
-            }
-
-        std::shared_ptr<MeshFunction<std::size_t>> markers;
-        double k_1, k_2, k_3, k_4;
-    };
-    """
-
-    var = fem.Expression(cppcode=cppcode, degree=0)
-    var.markers = markers
-    var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
-
-    return var
-
-
-def phis():
+def phie():
     # Times at which to run solver
     time = [0, 5, 10, 15, 20]
 
     # Collect required data
-    comsol_data, params = gather_data()
+    comsol_data, params = utilities.gather_data()
     time_ind = engine.find_ind(comsol_data.time_mesh, time)
     data = comsol.get_standardized(comsol_data.filter_time(time_ind))
 
@@ -86,12 +41,12 @@ def phis():
     # plt.grid()
     # plt.show()
 
-    Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
-    eps_e = mkparam(dm, params.neg.eps_e ** params.neg.brug_kappaD,
+    Lc = utilities.mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
+    eps_e = utilities.mkparam(dm, params.neg.eps_e ** params.neg.brug_kappaD,
                     params.sep.eps_e ** params.sep.brug_kappaD,
                     params.pos.eps_e ** params.pos.brug_kappaD)
 
-    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
+    a_s = utilities.mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
 
     for i, j in enumerate(data.data.j):
         # Define function space and basis functions
@@ -122,22 +77,10 @@ def phis():
         u_nodal_values = phie.vector()
         u_array[i, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(V)]
 
-    fig, ax = plt.subplots(figsize=(15, 9))
-    linestyles = ['-', '--']
-
-    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, u_array.T, linestyles[0])
-    plt.gca().set_prop_cycle(None)
-    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, data.data.phie.T, linestyles[1])
-    plt.grid(), plt.title('$\Phi_e$')
-
-    legend1 = plt.legend(['t = {}'.format(t) for t in time], title='Time', bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    ax.add_artist(legend1)
-
-    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
-    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3, borderaxespad=0.)
+    utilities.overlay_plt(data.mesh, time, '$\Phi_e$', u_array, data.data.phie)
 
     plt.savefig('comsol_compare_phie.png')
     plt.show()
 
 if __name__ == '__main__':
-    phis()
+    phie()
