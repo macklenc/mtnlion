@@ -117,23 +117,46 @@ def phis():
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
-    plt.figure(1, figsize=(15, 9))
+    fig, ax = plt.subplots(figsize=(15, 9))
+    linestyles = ['-', '--']
 
-    plt.subplot(221)
-    plt.plot(np.repeat([data.neg], len(time), axis=0).T, u_array[:, data.neg_ind].T)
-    plt.grid(), plt.title('FEniCS Negative Electrode')
-    plt.subplot(222)
-    plt.plot(np.repeat([data.neg], len(time), axis=0).T, data.data.phis[:, data.neg_ind].T)
-    plt.grid(), plt.title('COMSOL Negative Electrode')
-    plt.subplot(223)
-    plt.plot(np.repeat([data.pos], len(time), axis=0).T, u_array[:, data.pos_ind].T)
-    plt.grid(), plt.title('FEniCS Positive Electrode')
-    plt.subplot(224)
-    plt.plot(np.repeat([data.pos], len(time), axis=0).T, data.data.phis[:, data.pos_ind].T)
-    plt.grid(), plt.title('COMSOL Positive Electrode')
-    plt.savefig('comsol_compare.png')
+    plt.plot(np.repeat([data.neg], len(time), axis=0).T, u_array[:, data.neg_ind].T, linestyles[0])
+    plt.gca().set_prop_cycle(None)
+    plt.plot(np.repeat([data.neg], len(time), axis=0).T, data.data.phis[:, data.neg_ind].T, linestyles[1])
+    plt.grid(), plt.title('$\Phi_s^{neg}$')
 
+    legend1 = plt.legend(['t = {}'.format(t) for t in time], title='Time', bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    ax.add_artist(legend1)
+
+    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
+    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3, borderaxespad=0.)
+
+    plt.savefig('comsol_compare_phis_neg.png')
     plt.show()
+
+    #
+    #
+    #
+
+    fig, ax = plt.subplots(figsize=(15, 9))
+    linestyles = ['-', '--']
+
+    plt.plot(np.repeat([data.pos], len(time), axis=0).T, u_array[:, data.pos_ind].T, linestyles[0])
+    plt.gca().set_prop_cycle(None)
+    plt.plot(np.repeat([data.pos], len(time), axis=0).T, data.data.phis[:, data.pos_ind].T, linestyles[1])
+    plt.grid(), plt.title('$\Phi_s^{pos}$')
+
+    legend1 = plt.legend(['t = {}'.format(t) for t in time], title='Time', bbox_to_anchor=(1.01, 1), loc=2,
+                         borderaxespad=0.)
+    ax.add_artist(legend1)
+
+    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
+    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3,
+               borderaxespad=0.)
+
+    plt.savefig('comsol_compare_phis_pos.png')
+    plt.show()
+
 
 if __name__ == '__main__':
     phis()

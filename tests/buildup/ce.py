@@ -99,8 +99,8 @@ def phis():
         data.data.j[i_1, 21] = data.data.j[i_1, 20]
         data.data.j[i_1, 49] = data.data.j[i_1, 50]
         jbar.vector()[:] = data.data.j[i_1, fem.dof_to_vertex_map(V)].astype('double')
-        fem.plot(jbar)
-        plt.show()
+        # fem.plot(jbar)
+        # plt.show()
         ce_1 = fem.Function(V)
         ce_1.vector()[:] = data.data.ce[i_1, fem.dof_to_vertex_map(V)].astype('double')
 
@@ -146,14 +146,21 @@ def phis():
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
-    plt.figure(1, figsize=(15, 9))
+    fig, ax = plt.subplots(figsize=(15, 9))
+    linestyles = ['-', '--']
 
-    plt.subplot(211)
-    plt.plot(np.repeat([data.mesh], len(time_in), axis=0).T, u_array.T)
-    plt.grid(), plt.title('FEniCS'), plt.legend(['t = {}'.format(t) for t in time_in])
-    plt.subplot(212)
-    plt.plot(np.repeat([data.mesh], len(time_in), axis=0).T, data.data.ce[1::2].T)
-    plt.grid(), plt.title('COMSOL'), plt.legend(['t = {}'.format(t) for t in time_in])
+    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, u_array.T, linestyles[0])
+    plt.gca().set_prop_cycle(None)
+    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, data.data.ce[1::2].T, linestyles[1])
+    plt.grid(), plt.title('$c_e$')
+
+    legend1 = plt.legend(['t = {}'.format(t) for t in time_in], title='Time', bbox_to_anchor=(1.01, 1), loc=2,
+                         borderaxespad=0.)
+    ax.add_artist(legend1)
+
+    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
+    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3,
+               borderaxespad=0.)
 
     plt.savefig('comsol_compare_ce.png')
     plt.show()
