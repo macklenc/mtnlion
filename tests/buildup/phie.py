@@ -121,18 +121,20 @@ def phis():
         fem.solve(a == L, phie, bc)
         u_nodal_values = phie.vector()
         u_array[i, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(V)]
-    # plt.savefig('test.png', dpi=300)
-    # plt.grid()
-    # plt.show()
 
-    plt.figure(1, figsize=(15, 9))
+    fig, ax = plt.subplots(figsize=(15, 9))
+    linestyles = ['-', '--']
 
-    plt.subplot(211)
-    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, u_array.T)
-    plt.grid(), plt.title('FEniCS'), plt.legend(['t = {}'.format(t) for t in time])
-    plt.subplot(212)
-    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, data.data.phie.T)
-    plt.grid(), plt.title('COMSOL'), plt.legend(['t = {}'.format(t) for t in time])
+    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, u_array.T, linestyles[0])
+    plt.gca().set_prop_cycle(None)
+    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, data.data.phie.T, linestyles[1])
+    plt.grid(), plt.title('$\Phi_e$')
+
+    legend1 = plt.legend(['t = {}'.format(t) for t in time], title='Time', bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
+    ax.add_artist(legend1)
+
+    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
+    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3, borderaxespad=0.)
 
     plt.savefig('comsol_compare_phie.png')
     plt.show()
