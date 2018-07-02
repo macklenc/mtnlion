@@ -1,59 +1,14 @@
-import domain2
 import fenics as fem
 import matplotlib.pyplot as plt
-import mtnlion.comsol as comsol
-import mtnlion.engine as engine
 import numpy as np
 
-
-def gather_data():
-    # Load required cell data
-    resources = '../reference/'
-    params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.load(resources + 'guwang.npz')
-    return d_comsol, params
+import domain2
+import mtnlion.comsol as comsol
+import mtnlion.engine as engine
+import utilities
 
 
-def mkparam(markers, k_1 = 0, k_2 = 0, k_3 = 0, k_4 = 0):
-    cppcode = """
-    class K : public Expression
-    {
-        public:
-            void eval(Array<double>& values,
-                      const Array<double>& x,
-                      const ufc::cell& cell) const
-            {
-                switch((*markers)[cell.index]){
-                case 1:
-                    values[0] = k_1;
-                    break;
-                case 2:
-                    values[0] = k_2;
-                    break;
-                case 3:
-                    values[0] = k_3;
-                    break;
-                case 4:
-                    values[0] = k_4;
-                    break;
-                default:
-                    values[0] = 0;
-                }
-            }
-
-        std::shared_ptr<MeshFunction<std::size_t>> markers;
-        double k_1, k_2, k_3, k_4;
-    };
-    """
-
-    var = fem.Expression(cppcode=cppcode, degree=0)
-    var.markers = markers
-    var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
-
-    return var
-
-
-def phis():
+def ce():
     # Times at which to run solver
     time_in = [0.1, 5, 10, 15, 20]
     dt = 0.1
@@ -64,7 +19,7 @@ def phis():
 
     # Collect required data
     # TODO: make sure refactored comsol works here
-    comsol_data, params = gather_data()
+    comsol_data, params = utilities.gather_data()
     time_ind = engine.find_ind_near(comsol_data.time_mesh, time)
     data = comsol.get_standardized(comsol_data.filter_time(time_ind))
 
@@ -73,13 +28,13 @@ def phis():
     mesh, dx, ds, bm, dm = domain2.generate_domain(data.mesh)
 
     # Initialize parameters
-    eps_e = mkparam(dm, params.neg.eps_e, params.sep.eps_e, params.pos.eps_e)
-    de_eff = mkparam(dm, params.const.De_ref*params.neg.eps_e**params.neg.brug_De,
+    eps_e = utilities.mkparam(dm, params.neg.eps_e, params.sep.eps_e, params.pos.eps_e)
+    de_eff = utilities.mkparam(dm, params.const.De_ref * params.neg.eps_e ** params.neg.brug_De,
                      params.const.De_ref * params.sep.eps_e ** params.sep.brug_De,
                      params.const.De_ref * params.pos.eps_e ** params.pos.brug_De)
     t_plus = fem.Constant(params.const.t_plus)
-    Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
-    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
+    Lc = utilities.mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
+    a_s = utilities.mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / params.pos.Rs)
 
     # plt.plot(data.mesh, data.data.ce[1])
     # plt.show()
@@ -146,24 +101,10 @@ def phis():
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
-    fig, ax = plt.subplots(figsize=(15, 9))
-    linestyles = ['-', '--']
-
-    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, u_array.T, linestyles[0])
-    plt.gca().set_prop_cycle(None)
-    plt.plot(np.repeat([data.mesh], len(time), axis=0).T, data.data.ce[1::2].T, linestyles[1])
-    plt.grid(), plt.title('$c_e$')
-
-    legend1 = plt.legend(['t = {}'.format(t) for t in time_in], title='Time', bbox_to_anchor=(1.01, 1), loc=2,
-                         borderaxespad=0.)
-    ax.add_artist(legend1)
-
-    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
-    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3,
-               borderaxespad=0.)
+    utilities.overlay_plt(data.mesh, time_in, '$c_e$', u_array, data.data.ce[1::2])
 
     plt.savefig('comsol_compare_ce.png')
     plt.show()
 
 if __name__ == '__main__':
-    phis()
+    ce()

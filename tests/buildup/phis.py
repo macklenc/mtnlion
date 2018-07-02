@@ -1,56 +1,11 @@
-import domain2
 import fenics as fem
 import matplotlib.pyplot as plt
-import mtnlion.comsol as comsol
-import mtnlion.engine as engine
 import numpy as np
 
-
-def gather_data():
-    # Load required cell data
-    resources = '../reference/'
-    params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.load(resources + 'guwang.npz')
-    return d_comsol, params
-
-
-def mkparam(markers, k_1 = 0, k_2 = 0, k_3 = 0, k_4 = 0):
-    cppcode = """
-    class K : public Expression
-    {
-        public:
-            void eval(Array<double>& values,
-                      const Array<double>& x,
-                      const ufc::cell& cell) const
-            {
-                switch((*markers)[cell.index]){
-                case 1:
-                    values[0] = k_1;
-                    break;
-                case 2:
-                    values[0] = k_2;
-                    break;
-                case 3:
-                    values[0] = k_3;
-                    break;
-                case 4:
-                    values[0] = k_4;
-                    break;
-                default:
-                    values[0] = 0;
-                }
-            }
-
-        std::shared_ptr<MeshFunction<std::size_t>> markers;
-        double k_1, k_2, k_3, k_4;
-    };
-    """
-
-    var = fem.Expression(cppcode=cppcode, degree=0)
-    var.markers = markers
-    var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
-
-    return var
+import domain2
+import mtnlion.comsol as comsol
+import mtnlion.engine as engine
+import utilities
 
 
 def phis():
@@ -59,7 +14,7 @@ def phis():
 
     # Collect required data
     # TODO: make sure refactored comsol works here
-    comsol_data, params = gather_data()
+    comsol_data, params = utilities.gather_data()
     time_ind = engine.find_ind(comsol_data.time_mesh, time)
     data = comsol.get_standardized(comsol_data.filter_time(time_ind))
 
@@ -73,10 +28,10 @@ def phis():
     Iapp = [I_1C if 10 <= i <= 20 else -I_1C if 30 <= i <= 40 else fem.Constant(0) for i in time]
     Acell = fem.Constant(params.const.Acell)
 
-    Lc = mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
-    sigma_eff = mkparam(dm, params.neg.sigma_ref * params.neg.eps_s ** params.neg.brug_sigma, 0,
+    Lc = utilities.mkparam(dm, params.neg.L, params.sep.L, params.pos.L)
+    sigma_eff = utilities.mkparam(dm, params.neg.sigma_ref * params.neg.eps_s ** params.neg.brug_sigma, 0,
                         params.pos.sigma_ref * params.pos.eps_s ** params.pos.brug_sigma)
-    a_s = mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / 8e-6)
+    a_s = utilities.mkparam(dm, 3 * params.neg.eps_s / params.neg.Rs, 0, 3 * params.pos.eps_s / 8e-6)
 
     for i, j in enumerate(data.data.j):
         # Define function space and basis functions
@@ -106,9 +61,6 @@ def phis():
 
         u_nodal_values = phi.vector()
         u_array[i, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(V)]
-    plt.savefig('test.png', dpi=300)
-    plt.grid()
-    plt.show()
 
     print(engine.rmse(u_array[:, data.neg_ind], data.data.phis[:, data.neg_ind]))
     print(engine.rmse(u_array[:, data.pos_ind], data.data.phis[:, data.pos_ind]))
@@ -117,43 +69,11 @@ def phis():
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
-    fig, ax = plt.subplots(figsize=(15, 9))
-    linestyles = ['-', '--']
-
-    plt.plot(np.repeat([data.neg], len(time), axis=0).T, u_array[:, data.neg_ind].T, linestyles[0])
-    plt.gca().set_prop_cycle(None)
-    plt.plot(np.repeat([data.neg], len(time), axis=0).T, data.data.phis[:, data.neg_ind].T, linestyles[1])
-    plt.grid(), plt.title('$\Phi_s^{neg}$')
-
-    legend1 = plt.legend(['t = {}'.format(t) for t in time], title='Time', bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    ax.add_artist(legend1)
-
-    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
-    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3, borderaxespad=0.)
-
+    utilities.overlay_plt(data.neg, time, '$\Phi_s^{neg}$', u_array[:, data.neg_ind], data.data.phis[:, data.neg_ind])
     plt.savefig('comsol_compare_phis_neg.png')
     plt.show()
 
-    #
-    #
-    #
-
-    fig, ax = plt.subplots(figsize=(15, 9))
-    linestyles = ['-', '--']
-
-    plt.plot(np.repeat([data.pos], len(time), axis=0).T, u_array[:, data.pos_ind].T, linestyles[0])
-    plt.gca().set_prop_cycle(None)
-    plt.plot(np.repeat([data.pos], len(time), axis=0).T, data.data.phis[:, data.pos_ind].T, linestyles[1])
-    plt.grid(), plt.title('$\Phi_s^{pos}$')
-
-    legend1 = plt.legend(['t = {}'.format(t) for t in time], title='Time', bbox_to_anchor=(1.01, 1), loc=2,
-                         borderaxespad=0.)
-    ax.add_artist(legend1)
-
-    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
-    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3,
-               borderaxespad=0.)
-
+    utilities.overlay_plt(data.pos, time, '$\Phi_s^{pos}$', u_array[:, data.pos_ind], data.data.phis[:, data.pos_ind])
     plt.savefig('comsol_compare_phis_pos.png')
     plt.show()
 

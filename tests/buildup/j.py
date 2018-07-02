@@ -5,6 +5,7 @@ import numpy as np
 
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
+import utilities
 
 
 def nice_abs(number):
@@ -108,23 +109,9 @@ def main():
     print(engine.rmse(jneg, d_comsol.data.j[:, d_comsol.neg_ind]))
     print(engine.rmse(jpos, d_comsol.data.j[:, d_comsol.pos_ind]))
 
-    fig, ax = plt.subplots(figsize=(15, 9))
-    linestyles = ['-', '--']
-
     nan_ins = np.array([[0]*len(d_comsol.sep)])
     sep = np.repeat(nan_ins, len(jpos), axis=0)
-
-    plt.plot(np.repeat([d_comsol.mesh], len(time), axis=0).T, np.concatenate((jneg, sep, jpos), axis=1).T, linestyles[0])
-    plt.gca().set_prop_cycle(None)
-    plt.plot(np.repeat([d_comsol.mesh], len(time), axis=0).T, d_comsol.data.j.T, linestyles[1])
-    plt.grid(), plt.title('$j$')
-
-    legend1 = plt.legend(['t = {}'.format(t) for t in time], title='Time', bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
-    ax.add_artist(legend1)
-
-    h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
-    plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3, borderaxespad=0.)
-
+    utilities.overlay_plt(d_comsol.mesh, time, '$j$', np.concatenate((jneg, sep, jpos), axis=1), d_comsol.data.j)
     plt.savefig('comsol_compare_j.png')
     plt.show()
 
