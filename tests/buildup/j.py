@@ -1,106 +1,78 @@
 import sys
 
+import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
+import sympy as sym
 
-import mtnlion.comsol as comsol
+import common
 import mtnlion.engine as engine
 import utilities
 
 
-def nice_abs(number):
-    """Return the absolute of the given number multiplied by the step function.
-
-    :param number: Data to find absolute value
-    :type number: numpy.ndarray
-    :return: abs(number) if number > 0
-    :rtype: numpy.ndarray
-    """
-    return ((np.sign(number) + 1) / 2) * np.abs(number)
-
-
-def reaction_flux(sim_data, params, const):
-    """J
-
-    :param sim_data: Data used in calculating J
-    :type sim_data: SolutionData
-    :param params: Cell parameters
-    :type params: Dict[str, float]
-    :param const: Constants
-    :type const: Dict[str, float]
-    :return: Reaction flux
-    :rtype: numpy.ndarray
-    """
-
-    reaction_flux0 = params.k_norm_ref * \
-                     nice_abs((params.csmax - sim_data.cse) / params.csmax) ** \
-                     (1 - params.alpha) * \
-                     nice_abs(sim_data.cse / params.csmax) ** params.alpha * \
-                     nice_abs(sim_data.ce / const.ce0) ** (1 - params.alpha)
-
-    soc = sim_data.cse / params.csmax
-    # eta = phis-phie-params['eref'](soc)
-    eta = sim_data.phis - sim_data.phie - params.Uocp[0](soc)
-    f = 96487
-    r = 8.314
-    j = reaction_flux0 * (
-        np.exp((1 - params.alpha) * f * eta / (r * const.Tref)) -
-        np.exp(-params.alpha * f * eta / (r * const.Tref)))
-
-    return j
-
-
-def calculate_j(data, params):
-    negdata = data.get_solution_in('neg')
-    posdata = data.get_solution_in('pos')
-
-    jneg = reaction_flux(negdata.data, params.neg, params.const)
-    jpos = reaction_flux(posdata.data, params.pos, params.const)
-
-    return jneg, jpos
-
-
-def plot_j(time, data, params, jneg, jpos):
-    """
-
-    :param time:
-    :type time: List[int]
-    :param data:
-    :type data: SolutionData
-    :param params:
-    :type params: Dict[str, Dict[str, float]]
-    """
-
-    # Lneg = 100;
-    # Lsep = 52;
-    # Lpos = 183
-    neg = data.neg * params['neg']['L']
-    sep = ((data.sep - 1) * params['sep']['L'] + params['neg']['L'])
-    pos = ((data.pos - 2) * params['pos']['L'] + params['sep']['L'] + params['neg']['L'])
-
-    jsep = np.empty([1, len(sep)])[0]
-    jsep[:] = np.nan
-
-    x = np.concatenate((neg, sep, pos)) * 1e6
-    for t in range(0, len(time)):
-        j = np.concatenate((jneg[t], jsep, jpos[t]))
-        # plt.plot(neg, jneg[t, :], pos, jpos[t, :])
-        plt.plot(x, j)
-
-    plt.grid()
-    plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-    plt.show()
-
-
 def main():
     import timeit
+    # Times at which to run solver
     time = [0, 5, 10, 15, 20]
-    resources = '../reference/'
-    params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.load(resources + 'guwang.npz')
-    time_ind = engine.find_ind(d_comsol.time_mesh, time)
-    d_comsol = d_comsol.filter_time(time_ind)
-    # d_comsol = comsol.ComsolData(resources + 'guwang.npz')
+
+    # Collect common data
+    cmn = common.Common(time)
+
+    # initialize matrix to save solution results
+    u_array = np.empty((len(time), len(cmn.comsol_solution.mesh)))
+
+    number = sym.Symbol('n')
+    nabs = ((sym.sign(number) + 1) / 2) * sym.Abs(number)
+
+    csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis = sym.symbols('csmax cse ce ce0 alpha k_norm_ref phie phis')
+    s1 = nabs.subs(number, (csmax - cse) / csmax) ** (1 - alpha)
+    s2 = nabs.subs(number, cse / csmax) ** alpha
+    s3 = nabs.subs(number, ce / ce0) ** (1 - alpha)
+    sym_flux = k_norm_ref * s1 * s2 * s3
+    soc = cse / csmax
+
+    x, f, r, Tref = sym.symbols('x[0], F, R, Tref')
+    uocpneg = -0.16 + 1.32 * sym.exp(-3.0 * soc) + 10.0 * sym.exp(-2000.0 * soc)
+    uocppos = 4.19829 + 0.0565661 * sym.tanh(-14.5546 * soc + 8.60942) - 0.0275479 * (
+        1. / (0.998432 - soc) ** 0.492465 - 1.90111) - \
+              0.157123 * sym.exp(-0.04738 * soc ** 8) + 0.810239 * sym.exp(-40 * (soc - 0.133875))
+    uocp = sym.Piecewise((uocpneg, x <= 1 + fem.DOLFIN_EPS), (uocppos, x >= 2 - fem.DOLFIN_EPS), (0, True))
+    eta = phis - phie - uocp
+    fluix = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
+
+    # create local variables
+    comsol_sol = cmn.comsol_solution
+    mesh, dx, ds, bm, dm = cmn.mesh, cmn.dx, cmn.ds, cmn.bm, cmn.dm
+
+    k_norm_ref, csmax, alpha, ce0 = cmn.k_norm_ref, cmn.csmax, cmn.alpha, cmn.ce0
+    F, R, Tref = cmn.F, cmn.R, cmn.Tref
+
+    for i, j in enumerate(comsol_sol.data.j):
+        # Define function space and basis functions
+        V = fem.FunctionSpace(mesh, 'Lagrange', 1)
+
+        cse = fem.Function(V)
+        ce = fem.Function(V)
+        phis = fem.Function(V)
+        phie = fem.Function(V)
+        cse.vector()[:] = comsol_sol.data.cse[i, fem.dof_to_vertex_map(V)].astype('double')
+        ce.vector()[:] = comsol_sol.data.ce[i, fem.dof_to_vertex_map(V)].astype('double')
+        phie.vector()[:] = comsol_sol.data.phie[i, fem.dof_to_vertex_map(V)].astype('double')
+        phis.vector()[:] = comsol_sol.data.phis[i, fem.dof_to_vertex_map(V)].astype('double')
+
+        csmax = fem.interpolate(csmax, V)
+        alpha = fem.interpolate(alpha, V)
+
+        # flux = fem.Expression(sym.printing.ccode(sym_flux), csmax=csmax, cse=cse, ce=ce, ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, degree=1)
+        # eta2 = fem.Expression(sym.printing.ccode(eta), phie=phie, phis=phis, cse=cse, csmax=csmax, degree=1)
+        j = fem.Expression(sym.printing.ccode(fluix), csmax=csmax, cse=cse, ce=ce, ce0=ce0, alpha=alpha,
+                           k_norm_ref=k_norm_ref, phie=phie, phis=phis, R=R, F=F, Tref=Tref, degree=1)
+        u_array[i, :] = fem.interpolate(j, V).vector().get_local()[fem.vertex_to_dof_map(V)]
+
+    utilities.overlay_plt(comsol_sol.mesh, time, '$j$', u_array, comsol_sol.data.j)
+    plt.show()
+
+    exit(0)
 
     st = timeit.default_timer()
     jneg, jpos = calculate_j(d_comsol, params)

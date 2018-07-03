@@ -40,3 +40,9 @@ class Common:
         self.De_ref = fem.Constant(self.params.const.De_ref)
         self.de_eff = self.De_ref * self.eps_e ** self.brug_De
         self.t_plus = fem.Constant(self.params.const.t_plus)
+
+        self.k_norm_ref = utilities.mkparam(self.dm, self.params.neg.k_norm_ref, 0, self.params.pos.k_norm_ref)
+        self.csmax = utilities.mkparam(self.dm, self.params.neg.csmax, 0, self.params.pos.csmax)
+        self.alpha = utilities.mkparam(self.dm, self.params.neg.alpha, 0, self.params.pos.alpha)
+        self.ce0 = fem.Constant(self.params.const.ce0)
+        self.Tref = fem.Constant(self.params.const.Tref)
