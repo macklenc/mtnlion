@@ -1,11 +1,12 @@
 """Required modules"""
-import re
 import csv
+import re
 import sys
+
 import numpy as np
 import scipy.io as sio
+import sympy as sym
 import xlrd
-import numexpr as ne
 
 DATE = xlrd.XL_CELL_DATE
 TEXT = xlrd.XL_CELL_TEXT
@@ -207,8 +208,7 @@ def _fun_to_lambda(entry):
     # separate equations into different functions
     entry = re.sub('{|}', '', entry).split(',')
 
-    return list(lambda x, z=i: ne.evaluate(entry[z], local_dict={vari[z]: x})
-                for i in range(0, len(entry)))
+    return list(sym.sympify(entry[i]) for i in range(0, len(entry)))
 
 
 def load_params(sheet, rows=None, ncols=None, pcols=None, cols=None,

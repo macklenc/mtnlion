@@ -16,7 +16,6 @@ requirements = ['Click>=6.0',
                 'matplotlib',
                 'munch',
                 'scipy',
-                'numexpr',
                 'xlrd',
                 'sympy', ]
 
