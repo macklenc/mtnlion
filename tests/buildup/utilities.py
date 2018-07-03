@@ -46,7 +46,7 @@ def mkparam(markers, k_1=0, k_2=0, k_3=0, k_4=0):
     };
     """
 
-    var = fem.Expression(cppcode=cppcode, degree=0)
+    var = fem.Expression(cppcode=cppcode, degree=1)
     var.markers = markers
     var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
 
@@ -59,7 +59,10 @@ def overlay_plt(xdata, time, title, *ydata, figsize=(15, 9), linestyles=('-', '-
     new_x = np.repeat([xdata], len(time), axis=0).T
 
     for i, data in enumerate(ydata):
-        plt.plot(new_x, data.T, linestyles[i])
+        if i is 1:
+            plt.plot(new_x, data.T, linestyles[i], marker='o')
+        else:
+            plt.plot(new_x, data.T, linestyles[i])
         plt.gca().set_prop_cycle(None)
     plt.grid(), plt.title(title)
 
