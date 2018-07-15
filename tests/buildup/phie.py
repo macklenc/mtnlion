@@ -4,7 +4,6 @@ import numpy as np
 import sympy as sym
 
 import common
-import mtnlion.comsol as comsol
 import mtnlion.engine as engine
 import utilities
 
@@ -23,10 +22,11 @@ def phie():
     comsol_sol = cmn.comsol_solution
     mesh, dx, ds, bm, dm = cmn.mesh, cmn.dx, cmn.ds, cmn.bm, cmn.dm
     sigma_eff, Lc, a_s, F, eps_e, t_plus = cmn.sigma_eff, cmn.Lc, cmn.a_s, cmn.F, cmn.eps_e, cmn.t_plus
+    brug_kappa = cmn.brug_kappa
 
     x = sym.Symbol('ce')
-    kp = 100 * (4.1253e-4 + 5.007 * x * 1e-6 - 4.7212e3 * x ** 2 * 1e-12 +
-                1.5094e6 * x ** 3 * 1e-18 - 1.6018e8 * x ** 4 * 1e-24)
+    y = sym.Symbol('x')
+    kp = cmn.params.const.kappa_ref[0].subs(y, x)
 
     dfdc = sym.Symbol('dfdc')
     # dfdc = 0
@@ -53,7 +53,7 @@ def phie():
 
         # calculate kappa
         kappa_ref = fem.Expression(sym.printing.ccode(kp), ce=ce, degree=1)
-        kappa_eff = kappa_ref * eps_e
+        kappa_eff = kappa_ref * eps_e ** brug_kappa
         kappa_Deff = kappa_D*kappa_ref*eps_e
 
         boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
@@ -91,6 +91,7 @@ def phie():
         u_array[i, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(V)]
 
     utilities.overlay_plt(comsol_sol.mesh, time, '$\Phi_e$', u_array, comsol_sol.data.phie)
+    print(engine.rmse(u_array, comsol_sol.data.phie))
 
     plt.savefig('comsol_compare_phie.png')
     plt.show()

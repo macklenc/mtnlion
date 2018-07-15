@@ -46,3 +46,7 @@ class Common:
         self.alpha = utilities.mkparam(self.dm, self.params.neg.alpha, 0, self.params.pos.alpha)
         self.ce0 = fem.Constant(self.params.const.ce0)
         self.Tref = fem.Constant(self.params.const.Tref)
+
+        # self.cs0 = utilities.mkparam(self.dm, self.params.csmax*)
+        self.brug_kappa = utilities.mkparam(self.dm, self.params.neg.brug_kappa, self.params.sep.brug_kappa,
+                                            self.params.pos.brug_kappa)
