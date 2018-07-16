@@ -1,9 +1,10 @@
-import dolfin as fin
 import fenics as fem
 import common
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sym
+import mtnlion.engine as engine
+import mtnlion.loader as loader
 
 def c_e():
     # Times at which to run solver
@@ -15,10 +16,30 @@ def c_e():
     time[1::2] = time_in
 
     # Collect common data
-    mesh = fem.Mesh('cs.xml')
+    mesh = fem.Mesh('../reference/comsol_solution/cs.xml')
+    file_data = loader.collect_files(['../reference/comsol_solution/cs.csv'], loader=loader.load_csv_file)
+    V = fem.FunctionSpace(mesh, 'Lagrange', 1)
+
+    transform = []
+    for i in file_data['cs']:
+        ind1 = np.where(np.abs(mesh.coordinates()[:][:, 0] - i[0]) <= 1e-5)
+        ind2 = np.where(np.abs(mesh.coordinates()[:][:, 1] - i[1]) <= 1e-5)
+
+        if len(ind1[0]) > 0 and len(ind2[0]) > 0:
+            transform.append(np.intersect1d(ind1, ind2)[0])
+            if len(np.intersect1d(ind1, ind2)) > 1:
+                raise ValueError('Too many matching indices')
+        else:
+            raise ValueError('Missing indices, check tolerances')
+
+    cs_data = file_data['cs'][transform, 2:]
+
+    # print(fem.vertex_to_dof_map(V))
+    # print(mesh.coordinates()[:])
     cmn1d = common.Common(time)
     cmn = common.Common2(time, mesh)
 
+    cs_data = np.array(cs_data[:, cmn.time_ind]).T
     # initialize matrix to save solution results
     u_array = np.empty((len(time_in), len(cmn.comsol_solution.mesh)))
 
@@ -31,6 +52,7 @@ def c_e():
     j, y, eps = sym.symbols('j x[1] DOLFIN_EPS')
     sym_j = sym.Piecewise((j, (y-eps) >= 1), (0, True))
     rbar_e = fem.Expression('x[1]', degree=1)
+    # cse = fem.Expression('')
 
     k = 0
     for i, j in enumerate(comsol_sol.data.j[1::2]):
@@ -44,7 +66,10 @@ def c_e():
         v = fem.TestFunction(V)
 
         # Initialize Dirichlet BCs
-        bc = [fem.DirichletBC(W, comsol_sol.data.cs[i, 0], bm, 1), fem.DirichletBC(V, comsol_sol.data.ce[i, -1], bm, 4)]
+        cs_bc = fem.Function(V)
+        cs_bc.vector()[:] = cs_data[i, fem.dof_to_vertex_map(V)]
+
+        bc = [fem.DirichletBC(V, cs_bc[:, -1], bm, 5)]
         jbar1 = fem.Function(W)
         jbar1.vector()[:] = comsol_sol.data.j[i_1, fem.dof_to_vertex_map(W)].astype('double')
         jbar = fem.Expression(sym.printing.ccode(sym_j), j=jbar1, degree=1)
