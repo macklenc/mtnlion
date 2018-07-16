@@ -8,7 +8,7 @@ import mtnlion.engine as engine
 import utilities
 
 
-def phie():
+def phi_e():
     # Times at which to run solver
     time = [0, 5, 10, 15, 20]
 
@@ -63,26 +63,24 @@ def phie():
         b1.mark(boundary_markers, 2)
         b2.mark(boundary_markers, 3)
 
-        n = fem.FacetNormal(mesh)
-
         # Setup measures
-        dS = fem.Measure('dS', domain=mesh, subdomain_data=boundary_markers)
+        # dS = fem.Measure('dS', domain=mesh, subdomain_data=boundary_markers)
 
         # Setup Neumann BCs
         # neumann = -cmn.Iapp[i]/cmn.Acell*fem.avg(v)*dS(2)-cmn.Iapp[i]/cmn.Acell*fem.avg(v)*dS(3)
-        neumann = ((-cmn.Iapp[i] / cmn.Acell * v('-') - cmn.Iapp[i] / cmn.Acell * v('+')) * dS(2)
-                   + (-cmn.Iapp[i] / cmn.Acell * v('-') - cmn.Iapp[i] / cmn.Acell * v('+')) * dS(3))
+        # neumann = ((-cmn.Iapp[i] / cmn.Acell * v('-') - cmn.Iapp[i] / cmn.Acell * v('+')) * dS(2)
+        #            + (-cmn.Iapp[i] / cmn.Acell * v('-') - cmn.Iapp[i] / cmn.Acell * v('+')) * dS(3))
 
         # neumann = -cmn.Iapp[i]/cmn.Acell*v/Lc*ds(2)-cmn.Iapp[i]/cmn.Acell*v/Lc*ds(3)
         # (-cmn.Iapp[i]/cmn.Acell*v('-')+cmn.Iapp[i]/cmn.Acell*v('+'))*dS(2)\
         #       +cmn.Iapp[i]/cmn.Acell*v('-')*dS(3)-cmn.Iapp[i]/cmn.Acell*v('+')*dS(3)
 
-        mod = utilities.mkparam(dm, 0.6, 0.85, 0.67)
+        # mod = utilities.mkparam(dm, 0.6, 0.85, 0.67)
         # Setup equation
         a = kappa_eff/Lc*fem.dot(fem.grad(phie), fem.grad(v))*dx
 
-        L = Lc * a_s * F * jbar * v * dx - kappa_Deff / (Lc) * fem.dot(fem.grad(fem.ln(ce)),
-                                                                       fem.grad(v)) * dx  # + neumann
+        L = Lc * a_s * F * jbar * v * dx - kappa_Deff / Lc * \
+            fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx  # + neumann
 
         # Solve
         phie = fem.Function(V)
@@ -97,4 +95,4 @@ def phie():
     plt.show()
 
 if __name__ == '__main__':
-    phie()
+    phi_e()
