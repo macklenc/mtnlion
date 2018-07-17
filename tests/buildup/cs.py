@@ -7,11 +7,12 @@ import common
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
 import mtnlion.loader as loader
+import utilities
 
 
 def c_e():
     # Times at which to run solver
-    time_in = [5, 10, 15, 20]
+    time_in = [0.1, 5, 10, 15, 20]
     dt = 0.1
     dtc = fem.Constant(dt)
     time = [None]*(len(time_in)*2)
@@ -23,11 +24,12 @@ def c_e():
     file_data = loader.collect_files(['../reference/comsol_solution/cs.csv.bz2'], format_key=comsol.format_name, loader=loader.load_csv_file)
     V = fem.FunctionSpace(mesh, 'Lagrange', 1)
     dofs = V.tabulate_dof_coordinates().reshape(-1, 2)
-
+    fem.plot(mesh)
+    plt.show()
     transform = []
-    for i in file_data['cs']:
-        ind1 = np.where(np.abs(dofs[:, 0] - i[0]) <= 1e-5)
-        ind2 = np.where(np.abs(dofs[:, 1] - i[1]) <= 1e-5)
+    for i in dofs:
+        ind1 = np.where(np.abs(file_data['cs'][:, 0] - i[0]) <= 1e-5)
+        ind2 = np.where(np.abs(file_data['cs'][:, 1] - i[1]) <= 1e-5)
 
         if len(ind1[0]) > 0 and len(ind2[0]) > 0:
             transform.append(np.intersect1d(ind1, ind2)[0])
@@ -36,20 +38,33 @@ def c_e():
         else:
             raise ValueError('Missing indices, check tolerances')
 
-    cs_data = file_data['cs'][transform, 2:]
+    cs_data1 = file_data['cs'][transform]
+    cs_data = cs_data1[:, 2:]
 
     # print(fem.vertex_to_dof_map(V))
     # print(mesh.coordinates()[:])
     cmn1d = common.Common(time)
     cmn = common.Common2(time, mesh)
 
+    cs_data1 = np.array(cs_data1[:, np.append([0, 1], cmn.time_ind + 2)])
     cs_data = np.array(cs_data[:, cmn.time_ind]).T
 
+    t1e = fem.Expression('x[0]', degree=1)
+    t1 = fem.interpolate(t1e, V)
+    values = t1.vector().get_local()
+    t1.vector()[:] = values
+    fem.plot(t1)
+    plt.show()
+    # exit(0)
+
+    # mgx, mgy = np.mgrid(cs_data1[:, 0], cs_data1[:, 1])
+    # plt.pcolormesh(mgx, mgy, cs_data[-1])
+
     cs_1 = fem.Function(V)
-    cs_1.vector()[:] = cs_data[-1, :][fem.dof_to_vertex_map(V)].astype('double')
+    cs_1.vector()[:] = cs_data[-1, :].astype('double')
     fem.plot(cs_1)
     plt.show()
-
+    # exit()
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time_in), len(mesh.coordinates()[:])))
@@ -101,10 +116,10 @@ def c_e():
         jbar1 = fem.Function(W)
         jbar2 = fem.Function(X)
         tmpj = np.append(comsol_sol.data.j[i_1, comsol_sol.neg_ind], comsol_sol.data.j[i_1, comsol_sol.pos_ind])
-        plt.plot(tmpj)
-        plt.show()
-        plt.plot(comsol_sol.data.j[i_1])
-        plt.show()
+        # plt.plot(tmpj)
+        # plt.show()
+        # plt.plot(comsol_sol.data.j[i_1])
+        # plt.show()
         jbar1.vector()[:] = comsol_sol.data.j[i_1, fem.dof_to_vertex_map(W)].astype('double')
         jbar2.vector()[:] = tmpj[fem.dof_to_vertex_map(X)].astype('double')
 
@@ -129,27 +144,27 @@ def c_e():
         #     print('from {}, {}'.format(from_dof_coords[mesh_dof], jbar1.vector().get_local()[mesh_dof]))
         #     print('to {}, {}'.format(to_dof_coords[bnd_dof], jbar2.vector().get_local()[bnd_dof]))
         # jbar2 = fem.interpolate(jbar1, V)
-        plt.plot(comsol_sol.mesh, comsol_sol.data.j[i_1])
-        plt.title('comsol')
-        plt.show()
-        plt.plot(np.sort(W.tabulate_dof_coordinates()), jbar1.vector().get_local()[fem.vertex_to_dof_map(W)])
-        plt.title('mesh')
-        plt.show()
-        plt.plot(np.sort(X.tabulate_dof_coordinates().reshape(-1, 2)[:, 0]),
-                 jbar2.vector().get_local()[fem.vertex_to_dof_map(X)])
-        plt.title('pseudo')
-        plt.show()
+        # plt.plot(comsol_sol.mesh, comsol_sol.data.j[i_1])
+        # plt.title('comsol')
+        # plt.show()
+        # plt.plot(np.sort(W.tabulate_dof_coordinates()), jbar1.vector().get_local()[fem.vertex_to_dof_map(W)])
+        # plt.title('mesh')
+        # plt.show()
+        # plt.plot(np.sort(X.tabulate_dof_coordinates().reshape(-1, 2)[:, 0]),
+        #          jbar2.vector().get_local()[fem.vertex_to_dof_map(X)])
+        # plt.title('pseudo')
+        # plt.show()
         jbar2.set_allow_extrapolation(True)
         jbar2 = fem.interpolate(jbar2, V)
         print(jbar2.vector().get_local())
         jbar = fem.Expression(sym.printing.ccode(sym_j), j=jbar2, degree=1)
-        fem.plot(fem.interpolate(jbar, V))
-        plt.show()
+        # fem.plot(fem.interpolate(jbar, V))
+        # plt.show()
 
         # fem.plot(jbar)
         # plt.show()
         cs_1 = fem.Function(V)
-        cs_1.vector()[:] = cs_data[i_1, fem.dof_to_vertex_map(V)].astype('double')
+        cs_1.vector()[:] = cs_data[i_1].astype('double')
         # cs_d = fem.Function(V)
         # cs_d.vector()[:] = cs_data[i, fem.dof_to_vertex_map(V)].astype('double')
         # Initialize Dirichlet BCs
@@ -159,9 +174,9 @@ def c_e():
         # cs_bcr.vector()[:] = fem.interpolate(cse_eq, X)
         cse_eq = fem.Expression('x[1] >= 1 - DOLFIN_EPS ? cs : 0', cs=cs_1, degree=1)
         # cse_eq2 = fem.Expression('x[1] >= 1 - DOLFIN_EPS ? cs : 0', cs=cs_d, degree=1)
-        # bc = [fem.DirichletBC(V, cse_eq2, bm, 5)]
+        bc = [fem.DirichletBC(V, cse_eq, bm, 5)]
         fem.plot(cs_1)
-        plt.title('1')
+        plt.title('COMSOL')
         plt.show()
 
         # Setup Neumann BCs
@@ -179,7 +194,7 @@ def c_e():
         # fem.solve(a == L, cs, bc)
         # u_array2[k, :] = fem.interpolate(cs, X).vector().get_local()[fem.vertex_to_dof_map(X)]
         fem.plot(cs)
-        plt.title('2')
+        plt.title('FEniCS')
         plt.show()
         cse = fem.interpolate(cs, X)
 
@@ -216,7 +231,7 @@ def c_e():
         # plt.plot(cset.vector().get_local())
 
         # plt.show()
-        u_array2[k, :] = cse.vector().get_local()[fem.vertex_to_dof_map(X)]
+        u_array2[k, :] = cse.vector().get_local()
             # u_array2[k, mesh_dof] = cse.vector().get_local()[fem.vertex_to_dof_map(X)][bnd_dof]
 
         u_nodal_values = cs.vector()
@@ -229,20 +244,32 @@ def c_e():
     print(engine.rmse(u_array, cs_data[1::2]))
     print(np.average(np.subtract(u_array, cs_data[1::2]), axis=1))
 
+    data = np.append(cs_data1[:, 0:2], cs_data1[:, 3::2], axis=1)
+    indices = np.where(np.abs(data[:, 1] - 1.0) <= 1e-5)[0]
+    data = data[indices]
+    data = data[data[:, 0].argsort()]
+    xcoor = data[:, 0]
+    cse = data[:, 2:]
 
-    coor = mesh.coordinates()
+    print(engine.rmse(u_array2, cse.T))
+
+    # plt.plot(np.repeat([np.sort(X.tabulate_dof_coordinates().reshape(-1, 2)[:, 0])], len(time_in), axis=0).T,
+    #          u_array2.T)
+    # plt.show()
+    # plt.plot(np.repeat([xcoor], len(time_in), axis=0).T, cse)
+    # plt.show()
+
+    utilities.overlay_plt(xcoor, time_in, '$c_s$', u_array2, cse.T)
+
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
     # utilities.overlay_plt(comsol_sol.mesh, time_in, '$c_s$', u_array2, comsol_sol.data.cse[1::2])
     # utilities.overlay_plt(comsol_sol.mesh, time_in, '$c_s$', u_array2, comsol_sol.data.cse[1::2])
-    plt.plot(np.sort(X.tabulate_dof_coordinates().reshape(-1, 2)[:, 0]), u_array2.T, marker='o')
+    # plt.plot(np.sort(X.tabulate_dof_coordinates().reshape(-1, 2)[:, 0]), u_array2.T, marker='o')
 
     plt.savefig('comsol_compare_cs.png')
     plt.show()
-    plt.plot(np.sort(X.tabulate_dof_coordinates().reshape(-1, 2)[:, 0]), cs_data[1::2].T, marker='o')
-    plt.show()
-
     plt.plot(np.repeat([cmn1d.comsol_solution.mesh], len(time_in), axis=0).T, cmn1d.comsol_solution.data.cse[1::2].T)
     plt.show()
 
