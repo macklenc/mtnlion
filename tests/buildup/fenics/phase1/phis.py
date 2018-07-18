@@ -34,14 +34,11 @@ def phis():
         jbar.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double')
 
         # Setup Neumann BCs
-        neumann = 0*v*ds(1) + 0*v*ds(2) + 0*v*ds(3) + Iapp[i]/Acell*v*ds(4)
+        neumann = Iapp[i]/Acell*v*ds(4)
 
         # Setup equation
-        a1 = -sigma_eff/Lc * fem.dot(fem.grad(phi), fem.grad(v))
-        a = a1*dx(1) + 0*v*dx(2) + a1*dx(3)
-
-        L1 = Lc*a_s*F*jbar*v
-        L = L1*dx(1) + 0*v*dx(2) + L1*dx(3) + neumann
+        a = -sigma_eff/Lc * fem.dot(fem.grad(phi), fem.grad(v))*dx
+        L = Lc*a_s*F*jbar*v*dx + neumann
 
         # Solve
         phi = fem.Function(V)
