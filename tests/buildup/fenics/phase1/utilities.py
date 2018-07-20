@@ -73,3 +73,16 @@ def overlay_plt(xdata, time, title, *ydata, figsize=(15, 9), linestyles=('-', '-
     h = [plt.plot([], [], color="gray", ls=linestyles[i])[0] for i in range(len(linestyles))]
     plt.legend(handles=h, labels=["FEniCS", "COMSOL"], title="Solver", bbox_to_anchor=(1.01, 0), loc=3,
                borderaxespad=0.)
+
+
+def norm_rmse(estimated, true):
+    return engine.rmse(estimated, true) / (np.max(true) - np.min(true))
+
+
+def report(mesh, time, estimated, true, name):
+    rmse = norm_rmse(estimated, true)
+    print('{name} normalized RMSE%:'.format(name=name))
+    for i, t in enumerate(time):
+        print('\tt = {time:3}: {rmse:.3%}'.format(time=t, rmse=rmse[i]))
+
+    overlay_plt(mesh, time, name, estimated, true)
