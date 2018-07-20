@@ -4,7 +4,6 @@ import numpy as np
 import sympy as sym
 
 import common
-import mtnlion.engine as engine
 import utilities
 
 
@@ -88,8 +87,9 @@ def phi_e():
         u_nodal_values = phie.vector()
         u_array[i, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(V)]
 
-    utilities.overlay_plt(comsol_sol.mesh, time, '$\Phi_e$', u_array, comsol_sol.data.phie)
-    print(engine.rmse(u_array, comsol_sol.data.phie))
+    # utilities.overlay_plt(comsol_sol.mesh, time, '$\Phi_e$', u_array, comsol_sol.data.phie)
+    # print(engine.rmse(u_array, comsol_sol.data.phie))
+    utilities.report(comsol_sol.mesh, time, u_array, comsol_sol.data.phie, '$\Phi_e$')
 
     plt.savefig('comsol_compare_phie.png')
     plt.show()

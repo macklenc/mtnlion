@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import common
-import mtnlion.engine as engine
 import utilities
 
 
@@ -94,7 +93,8 @@ def ce():
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))
 
-    utilities.overlay_plt(comsol_sol.mesh, time_in, '$c_e$', u_array, comsol_sol.data.ce[1::2])
+    # utilities.overlay_plt(comsol_sol.mesh, time_in, '$c_e$', u_array, comsol_sol.data.ce[1::2])
+    utilities.report(comsol_sol.mesh, time_in, u_array, comsol_sol.data.ce[1::2], '$c_e$')
 
     plt.savefig('comsol_compare_ce.png')
     plt.show()
