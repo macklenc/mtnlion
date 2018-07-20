@@ -68,7 +68,11 @@ def main():
                            k_norm_ref=k_norm_ref, phie=phie, phis=phis, R=R, F=F, Tref=Tref, degree=1)
         u_array[i, :] = fem.interpolate(j, V).vector().get_local()[fem.vertex_to_dof_map(V)]
 
-    utilities.overlay_plt(comsol_sol.mesh, time, '$j$', u_array, comsol_sol.data.j)
+    # utilities.overlay_plt(comsol_sol.mesh, time, '$j$', u_array, comsol_sol.data.j)
+    utilities.report(comsol_sol.mesh[comsol_sol.neg_ind][:-1], time, u_array[:, comsol_sol.neg_ind][:, :-1],
+                     comsol_sol.data.j[:, comsol_sol.neg_ind][:, :-1], '$j_neg$')
+    utilities.report(comsol_sol.mesh[comsol_sol.pos_ind], time, u_array[:, comsol_sol.pos_ind],
+                     comsol_sol.data.j[:, comsol_sol.pos_ind], '$j_pos$')
     plt.savefig('comsol_compare_j.png')
     plt.show()
 
