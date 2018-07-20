@@ -6,6 +6,15 @@ import mtnlion.engine as engine
 import utilities
 
 
+class Domain():
+    def __init__(self, V, dx, ds, boundary_markers, domain_markers):
+        self.V = V
+        self.dx = dx
+        self.ds = ds
+        self.boundary_markers = boundary_markers
+        self.domain_markers = domain_markers
+
+
 class Common:
     def __init__(self, time):
         self.time = time
@@ -50,6 +59,9 @@ class Common:
         # self.cs0 = utilities.mkparam(self.dm, self.params.csmax*)
         self.brug_kappa = utilities.mkparam(self.dm, self.params.neg.brug_kappa, self.params.sep.brug_kappa,
                                             self.params.pos.brug_kappa)
+
+        self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
+        self.domain = Domain(self.V, self.dx, self.ds, self.bm, self.dm)
 
 
 class Common2:
