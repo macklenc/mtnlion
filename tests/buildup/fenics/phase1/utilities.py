@@ -1,3 +1,5 @@
+import time
+
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
@@ -83,6 +85,16 @@ def report(mesh, time, estimated, true, name):
     rmse = norm_rmse(estimated, true)
     print('{name} normalized RMSE%:'.format(name=name))
     for i, t in enumerate(time):
-        print('\tt = {time:3}: {rmse:.3%}'.format(time=t, rmse=rmse[i]))
+        print('\tt = {time:3.1f}: {rmse:.3%}'.format(time=t, rmse=rmse[i]))
 
     overlay_plt(mesh, time, name, estimated, true)
+
+
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
