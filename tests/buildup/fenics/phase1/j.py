@@ -42,7 +42,7 @@ class J():
         Uocp_neg = Uocp_neg.subs(tmpx, soc)
         Uocp_pos = Uocp_pos.subs(tmpx, soc)
 
-        uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
+        uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS + 0.1), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
 
         eta = phis - phie - uocp
         sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
