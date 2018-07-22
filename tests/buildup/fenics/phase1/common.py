@@ -1,4 +1,5 @@
 import fenics as fem
+import numpy as np
 
 import domain2
 import mtnlion.comsol as comsol
@@ -23,6 +24,8 @@ class Common:
         self.comsol_data, self.params = utilities.gather_data()
         self.time_ind = engine.find_ind_near(self.comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(self.comsol_data.filter_time(self.time_ind))
+        self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
+        self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
         self.mesh, self.dx, self.ds, self.bm, self.dm = domain2.generate_domain(self.comsol_solution.mesh)
 
@@ -51,7 +54,7 @@ class Common:
         self.t_plus = fem.Constant(self.params.const.t_plus)
 
         self.k_norm_ref = utilities.mkparam(self.dm, self.params.neg.k_norm_ref, 0, self.params.pos.k_norm_ref)
-        self.csmax = utilities.mkparam(self.dm, self.params.neg.csmax, 0, self.params.pos.csmax)
+        self.csmax = utilities.mkparam(self.dm, self.params.neg.csmax, 0.000001, self.params.pos.csmax)
         self.alpha = utilities.mkparam(self.dm, self.params.neg.alpha, 0, self.params.pos.alpha)
         self.ce0 = fem.Constant(self.params.const.ce0)
         self.Tref = fem.Constant(self.params.const.Tref)
@@ -72,6 +75,8 @@ class Common2:
         self.comsol_data, self.params = utilities.gather_data()
         self.time_ind = engine.find_ind_near(self.comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(self.comsol_data.filter_time(self.time_ind))
+        self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
+        self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
         self.mesh, self.dx, self.ds, self.bm, self.dm = domain2.generate_domain2(mesh)
 

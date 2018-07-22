@@ -28,6 +28,9 @@
           <option value="fenics.dof_to_vertex_map" />
           <option value="fenics.vertex_to_dof_map" />
           <option value="_pytest.tmpdir" />
+          <option value="fenics.BoundaryMesh" />
+          <option value="fenics.MeshFunction" />
+          <option value="fenics.SubMesh" />
         </list>
       </option>
     </inspection_tool>
