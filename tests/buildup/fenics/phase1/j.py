@@ -37,11 +37,7 @@ class J():
         soc = cse / csmax
 
         tmpx = sym.Symbol('x')
-        Uocp_pos = Uocp_pos * 1.00025  #########################################FIX ME!!!!!!!!!!!!!!!!!!*1.00025
-        # f=sym.lambdify(tmpx, Uocp_pos, 'numpy')
-        # xpos = np.arange(0.175, 0.995+0.02, 0.02)
-        #
-        # print(f(xpos))
+        # Uocp_pos = Uocp_pos * 1.00025  #########################################FIX ME!!!!!!!!!!!!!!!!!!*1.00025
 
         Uocp_neg = Uocp_neg.subs(tmpx, soc)
         Uocp_pos = Uocp_pos.subs(tmpx, soc)
@@ -70,6 +66,7 @@ def solve(time, domain, csmax, ce0, alpha, k_norm_ref, F, R, T, Uocp_neg, Uocp_p
     alpha = fem.interpolate(alpha, V)
 
     jbar = J(Uocp_neg, Uocp_pos, V)
+
     for i, j in enumerate(comsol.data.j):
         # Turn COMSOL solutions into FEniCS functions
         cse.vector()[:] = comsol.data.cse[i, fem.dof_to_vertex_map(V)].astype('double')
@@ -96,8 +93,8 @@ def main():
     fenics = solve(time, domain, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
                    cmn.params.neg.Uocp[0], cmn.params.pos.Uocp[0], comsol)
 
-    utilities.report(comsol.mesh[comsol.neg_ind][:-1], time, fenics[:, comsol.neg_ind][:, :-1],
-                     comsol.data.j[:, comsol.neg_ind][:, :-1], '$j_{neg}$')
+    utilities.report(comsol.mesh[comsol.neg_ind], time, fenics[:, comsol.neg_ind],
+                     comsol.data.j[:, comsol.neg_ind], '$j_{neg}$')
     plt.savefig('comsol_compare_j_neg.png')
     plt.show()
     utilities.report(comsol.mesh[comsol.pos_ind], time, fenics[:, comsol.pos_ind],
