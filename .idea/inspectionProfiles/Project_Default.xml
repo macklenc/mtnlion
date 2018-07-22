@@ -31,6 +31,7 @@
           <option value="fenics.BoundaryMesh" />
           <option value="fenics.MeshFunction" />
           <option value="fenics.SubMesh" />
+          <option value="fenics.IntervalMesh" />
         </list>
       </option>
     </inspection_tool>
