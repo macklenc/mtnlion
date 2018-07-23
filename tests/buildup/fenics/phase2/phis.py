@@ -7,26 +7,28 @@ import utilities
 
 
 class Phis():
-    def __init__(self, domain, Acell, sigma_eff, L, a_s, F):
-        self.phi = fem.TrialFunction(domain.V)
-        self.v = fem.TestFunction(domain.V)
-        self.domain = domain
+    def __init__(self, Acell, sigma_eff, L, a_s, F, phis, v, dx, ds):
+        self.phis, self.v = phis, v
         self.L, self.a_s, self.F = L, a_s, F
         self.Acell, self.sigma_eff = Acell, sigma_eff
+        self.dx, self.ds = dx, ds
 
-        self.a = -self.sigma_eff / self.L * fem.dot(fem.grad(self.phi), fem.grad(self.v)) * self.domain.dx
+        self.a = (-self.sigma_eff / self.L * fem.dot(fem.grad(self.phis), fem.grad(self.v))) * dx
 
     def get(self, jbar, neumann):
-        neumann = neumann * self.v * self.domain.ds(4)
+        neumann = neumann * self.v * self.ds
+        lin = (self.L * self.a_s * self.F * jbar * self.v) * self.dx + neumann
 
-        lin = self.L * self.a_s * self.F * jbar * self.v * self.domain.dx + neumann
-        return self.a, lin
+        return self.a - lin
 
 
 def solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, true_sol):
     # initialize matrix to save solution results
     u_array = np.empty((len(time), len(true_sol.mesh)))
-    phi_s = Phis(domain, Acell, sigma_eff, L, a_s, F)
+    phis = fem.TrialFunction(domain.V)
+    v = fem.TestFunction(domain.V)
+    dx = (domain.dx(1) + domain.dx(3))
+    phi_s = Phis(Acell, sigma_eff, L, a_s, F, phis, v, dx, domain.ds(4))
     bm = domain.boundary_markers
     V = domain.V
 
@@ -38,7 +40,8 @@ def solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, true_sol):
         jbar.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double')
         bc[1] = fem.DirichletBC(V, true_sol.data.phis[i, -1], bm, 4)
 
-        a, lin = phi_s.get(jbar, fem.Constant(Iapp[i]) / Acell)
+        F = phi_s.get(jbar, fem.Constant(Iapp[i]) / Acell)
+        a, lin = fem.lhs(F), fem.rhs(F)
 
         # Solve
         fem.solve(a == lin, phis, bc)

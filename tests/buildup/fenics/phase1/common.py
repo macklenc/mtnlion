@@ -12,6 +12,7 @@ class Domain():
         self.V = V
         self.dx = dx
         self.ds = ds
+        self.neg_marker, self.sep_marker, self.pos_marker = (1, 2, 3)
         self.boundary_markers = boundary_markers
         self.domain_markers = domain_markers
 
@@ -54,7 +55,7 @@ class Common:
         self.t_plus = fem.Constant(self.params.const.t_plus)
 
         self.k_norm_ref = utilities.mkparam(self.dm, self.params.neg.k_norm_ref, 0, self.params.pos.k_norm_ref)
-        self.csmax = utilities.mkparam(self.dm, self.params.neg.csmax, 0.000001, self.params.pos.csmax)
+        self.csmax = utilities.mkparam(self.dm, self.params.neg.csmax, 0, self.params.pos.csmax)
         self.alpha = utilities.mkparam(self.dm, self.params.neg.alpha, 0, self.params.pos.alpha)
         self.ce0 = fem.Constant(self.params.const.ce0)
         self.Tref = fem.Constant(self.params.const.Tref)

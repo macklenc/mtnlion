@@ -46,8 +46,9 @@ class J():
 
         eta = phis - phie - uocp
         sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
+        sym_j_domain = sym.Piecewise((sym_j, x <= 1), (sym_j, x >= 2), (0, True))
 
-        return sym_j
+        return sym_j_domain
 
 
 def solve(time, domain, csmax, ce0, alpha, k_norm_ref, F, R, T, Uocp_neg, Uocp_pos, comsol):
