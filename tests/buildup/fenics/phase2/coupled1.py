@@ -42,7 +42,7 @@ def main():
 
     dx = (domain.dx(1) + domain.dx(3))
     u = fem.TrialFunction(V)
-    phis_e = phiseq.Phis(Acell, sigma_eff, L, a_s, F, u, v, dx, domain.ds(4))
+    phis_e = phiseq.Phis(Acell, sigma_eff, L, a_s, F, phis_f, v, dx, domain.ds(4))
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time), len(comsol.mesh)))
@@ -68,8 +68,24 @@ def main():
         phis = fem.Function(V)
         u_ = phis_f
 
-        j = j_e.get(csmax, cse_f, ce_f, ce0, alpha, k_norm_ref, phie_f, u_, F, R, Tref)
+        j = j_e.get(csmax, cse_f, ce_f, ce0, alpha, k_norm_ref, phie_f, phis_f, F, R, Tref)
         Feq = phis_e.get(j, fem.Constant(Iapp[i]) / Acell)
+        J = fem.derivative(Feq, phis_f, du)
+
+        problem = fem.NonlinearVariationalProblem(Feq, phis_f, bc, J)
+        solver = fem.NonlinearVariationalSolver(problem)
+
+        prm = solver.parameters
+        prm['newton_solver']['absolute_tolerance'] = 1E-8
+        prm['newton_solver']['relative_tolerance'] = 1E-7
+        prm['newton_solver']['maximum_iterations'] = 25
+        prm['newton_solver']['relaxation_parameter'] = 1.0
+
+        # fem.solve(Feq == 0, phis, bc, J=J)
+        solver.solve()
+        u_array[i, :] = phis_f.vector().get_local()[fem.vertex_to_dof_map(domain.V)]
+        u_array2[i, :] = fem.interpolate(j, V).vector().get_local()[fem.vertex_to_dof_map(domain.V)]
+        continue
 
         a = fem.lhs(Feq)
         lin = fem.rhs(Feq)
