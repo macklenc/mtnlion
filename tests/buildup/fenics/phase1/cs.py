@@ -245,6 +245,9 @@ def c_e():
     print(utilities.norm_rmse(u_array, cs_data[1::2]))
     # print(engine.rmse(u_array, cs_data[1::2])/np.sqrt(np.average(cs_data[1::2]**2))*100)
     # print(np.average(np.subtract(u_array, cs_data[1::2]), axis=1))
+    print(engine.rmse(u_array, cs_data[1::2]) / (np.max(cs_data[1::2]) - np.min(cs_data[1::2])) * 100)
+    print(
+        np.average(np.subtract(u_array, cs_data[1::2]), axis=1) / (np.max(cs_data[1::2]) - np.min(cs_data[1::2])) * 100)
 
     data = np.append(cs_data1[:, 0:2], cs_data1[:, 3::2], axis=1)
     indices = np.where(np.abs(data[:, 1] - 1.0) <= 1e-5)[0]
@@ -274,7 +277,6 @@ def c_e():
 
     plt.savefig('comsol_compare_cs.png')
     plt.show()
-    exit()
     plt.plot(np.repeat([cmn1d.comsol_solution.mesh], len(time_in), axis=0).T, cmn1d.comsol_solution.data.cse[1::2].T)
     plt.show()
 

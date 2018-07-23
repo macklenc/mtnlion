@@ -3,7 +3,7 @@ import numpy as np
 
 
 def generate_domain(raw_mesh):
-    boundaries = range(4)
+    boundaries = np.arange(4)
 
     # Create 1D mesh
     mesh = fem.IntervalMesh(len(raw_mesh) - 1, 0, 3)
@@ -11,17 +11,17 @@ def generate_domain(raw_mesh):
 
     # Setup subdomain markers
     neg_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[0], b2=boundaries[1])
+                                       b1=boundaries[0].astype(np.double), b2=boundaries[1].astype(np.double))
     sep_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[1], b2=boundaries[2])
+                                       b1=boundaries[1].astype(np.double), b2=boundaries[2].astype(np.double))
     pos_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[2], b2=boundaries[3])
+                                       b1=boundaries[2].astype(np.double), b2=boundaries[3].astype(np.double))
 
     # Setup boundary markers
-    b0 = fem.CompiledSubDomain('on_boundary && near(x[0], b, DOLFIN_EPS)', b=boundaries[0])
-    b1 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=boundaries[1])
-    b2 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=boundaries[2])
-    b3 = fem.CompiledSubDomain('on_boundary && near(x[0], b, DOLFIN_EPS)', b=boundaries[3])
+    b0 = fem.CompiledSubDomain('on_boundary && near(x[0], b, DOLFIN_EPS)', b=boundaries[0].astype(np.double))
+    b1 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=boundaries[1].astype(np.double))
+    b2 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=boundaries[2].astype(np.double))
+    b3 = fem.CompiledSubDomain('on_boundary && near(x[0], b, DOLFIN_EPS)', b=boundaries[3].astype(np.double))
 
     # Mark the subdomains
     domain_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim())
