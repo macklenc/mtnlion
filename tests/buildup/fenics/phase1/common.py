@@ -1,4 +1,5 @@
 import fenics as fem
+import numpy as np
 
 import domain2
 import mtnlion.comsol as comsol
@@ -11,6 +12,7 @@ class Domain():
         self.V = V
         self.dx = dx
         self.ds = ds
+        self.neg_marker, self.sep_marker, self.pos_marker = (1, 2, 3)
         self.boundary_markers = boundary_markers
         self.domain_markers = domain_markers
 
@@ -23,6 +25,8 @@ class Common:
         self.comsol_data, self.params = utilities.gather_data()
         self.time_ind = engine.find_ind_near(self.comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(self.comsol_data.filter_time(self.time_ind))
+        self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
+        self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
         self.mesh, self.dx, self.ds, self.bm, self.dm = domain2.generate_domain(self.comsol_solution.mesh)
 
@@ -72,6 +76,8 @@ class Common2:
         self.comsol_data, self.params = utilities.gather_data()
         self.time_ind = engine.find_ind_near(self.comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(self.comsol_data.filter_time(self.time_ind))
+        self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
+        self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
         self.mesh, self.dx, self.ds, self.bm, self.dm = domain2.generate_domain2(mesh)
 
