@@ -36,14 +36,13 @@ def main():
     cmn = common.Common(time)
     domain = cmn.domain
     comsol = cmn.comsol_solution
-    k_norm_ref, csmax, alpha, ce0 = cmn.k_norm_ref, cmn.csmax, cmn.alpha, cmn.ce0
-    F, R, Tref = cmn.F, cmn.R, cmn.Tref
+    k_norm_ref, csmax, alpha, L, a_s, sigma_eff = \
+        common.collect(cmn.params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
+    F, R, Tref, ce0, Acell = common.collect(cmn.const, 'F', 'R', 'Tref', 'ce0', 'Acell')
     V = domain.V
     v = fem.TestFunction(V)
     u = fem.TrialFunction(V)
     bc = [fem.DirichletBC(V, 0.0, domain.boundary_markers, 1), 0]
-
-    Acell, sigma_eff, L, a_s, F = cmn.Acell, cmn.sigma_eff, cmn.Lc, cmn.a_s, F
 
     cse_f = fem.Function(V)
     ce_f = fem.Function(V)
@@ -51,9 +50,9 @@ def main():
     phie_f = fem.Function(V)
     phis = fem.Function(V)  # current solution
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref, cmn.params.neg.Uocp[0],
-                    cmn.params.pos.Uocp[0])
-    phis_form = partial(equations.phis, j, a_s, F, sigma_eff, L, u, v, domain.dx((1, 3)), domain.ds(4), nonlin=True)
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref, cmn.params.Uocp[0][0],
+                    cmn.params.Uocp[2][0])
+    phis_form = partial(equations.phis, j, a_s, F, sigma_eff, L, u, v, domain.dx((0, 2)), domain.ds(4), nonlin=True)
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time), len(comsol.mesh)))

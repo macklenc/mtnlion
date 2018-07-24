@@ -25,10 +25,10 @@ def generate_domain(raw_mesh):
 
     # Mark the subdomains
     domain_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim())
-    domain_markers.set_all(0)
-    sep_domain.mark(domain_markers, 2)
-    neg_domain.mark(domain_markers, 1)
-    pos_domain.mark(domain_markers, 3)
+    domain_markers.set_all(99)
+    sep_domain.mark(domain_markers, 1)
+    neg_domain.mark(domain_markers, 0)
+    pos_domain.mark(domain_markers, 2)
 
     # Mark the boundaries
     boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)

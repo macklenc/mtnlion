@@ -241,7 +241,6 @@ def c_e():
     # plt.savefig('test.png', dpi=300)
     # plt.grid()
     # plt.show()
-
     print(utilities.norm_rmse(u_array, cs_data[1::2]))
     # print(engine.rmse(u_array, cs_data[1::2])/np.sqrt(np.average(cs_data[1::2]**2))*100)
     # print(np.average(np.subtract(u_array, cs_data[1::2]), axis=1))
@@ -254,6 +253,8 @@ def c_e():
     data = data[indices]
     data = data[data[:, 0].argsort()]
     xcoor = data[:, 0]
+    neg_ind = np.where(xcoor <= 1)[0]
+    pos_ind = np.where(xcoor >= 1.5)[0]
     cse = data[:, 2:]
 
     print(engine.rmse(u_array2, cse.T) / np.sqrt(np.average(cse.T ** 2)) * 100)
@@ -266,7 +267,11 @@ def c_e():
 
     # utilities.overlay_plt(xcoor, time_in, '$c_s$', u_array2, cse.T)
 
-    utilities.report(xcoor, time_in, u_array2, cse.T, '$c_s$')
+    utilities.report(xcoor[neg_ind], time_in, u_array2[:, neg_ind],
+                     cse.T[:, neg_ind], '$c_{s,e}^{neg}$')
+    plt.show()
+    utilities.report(xcoor[pos_ind], time_in, u_array2[:, pos_ind],
+                     cse.T[:, pos_ind], '$c_{s,e}^{pos}$')
 
     # for i in range(len(u_array)):
     #     print('u(%8g) = %g' % (coor[i], u_array[len(u_array)-1-i]))

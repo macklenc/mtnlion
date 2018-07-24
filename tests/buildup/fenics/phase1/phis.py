@@ -64,9 +64,12 @@ def main():
     cmn = common.Common(time)
     domain = cmn.domain
 
+    L, a_s, sigma_eff = common.collect(cmn.params, 'L', 'a_s', 'sigma_eff')
+    F, Acell = common.collect(cmn.const, 'F', 'Acell')
+
     with utilities.Timer() as t:
-        fenics, comsol = solve(time, domain, cmn.Acell, cmn.sigma_eff, cmn.Lc,
-                               cmn.a_s, cmn.F, Iapp, cmn.comsol_solution)
+        fenics, comsol = solve(time, domain, Acell, sigma_eff, L,
+                               a_s, F, Iapp, cmn.comsol_solution)
 
     print('Runtime: {}s'.format(t.interval))
     utilities.report(comsol.neg, time, fenics[:, comsol.neg_ind], comsol.data.phis[:, comsol.neg_ind], '$\Phi_s^{neg}$')

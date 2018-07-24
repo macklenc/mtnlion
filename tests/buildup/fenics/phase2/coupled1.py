@@ -21,14 +21,13 @@ def main():
     cmn = common.Common(time)
     domain = cmn.domain
     comsol = cmn.comsol_solution
-    k_norm_ref, csmax, alpha, ce0 = cmn.k_norm_ref, cmn.csmax, cmn.alpha, cmn.ce0
-    F, R, Tref = cmn.F, cmn.R, cmn.Tref
+    k_norm_ref, csmax, alpha, L, a_s, sigma_eff = \
+        common.collect(cmn.params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
+    F, R, Tref, ce0, Acell = common.collect(cmn.const, 'F', 'R', 'Tref', 'ce0', 'Acell')
     V = domain.V
     v = fem.TestFunction(V)
     du = fem.TrialFunction(V)
     bc = [fem.DirichletBC(V, 0.0, domain.boundary_markers, 1), 0]
-
-    Acell, sigma_eff, L, a_s, F = cmn.Acell, cmn.sigma_eff, cmn.Lc, cmn.a_s, F
 
     cse_f = fem.Function(V)
     ce_f = fem.Function(V)
@@ -37,9 +36,9 @@ def main():
     j_f = fem.Function(V)
     phis = fem.Function(V)  # current solution
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref, cmn.params.neg.Uocp[0],
-                    cmn.params.pos.Uocp[0])
-    phis_form = partial(equations.phis, j, a_s, F, sigma_eff, L, phis_f, v, domain.dx((1, 3)), domain.ds(4),
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref, cmn.params.Uocp[0][0],
+                    cmn.params.Uocp[2][0])
+    phis_form = partial(equations.phis, j, a_s, F, sigma_eff, L, phis_f, v, domain.dx((0, 2)), domain.ds(4),
                         nonlin=True)
 
     # initialize matrix to save solution results
@@ -77,7 +76,9 @@ def main():
         # u_array2[i, -len(j_pos):] = j_pos
         # comp = np.array([u_array2[i], jout])
         u_array2[i, :] = fem.interpolate(j, V).vector().get_local()[fem.vertex_to_dof_map(V)]
-        u_array2[i, 20] = j(1)
+        # u_array2[i+1, :] = np.array([fem.interpolate(j, V)(x) for x in cmn.mesh.coordinates()])
+        # u_array2[i, 20] = j(1)
+
 
     utilities.report(comsol.neg, time, u_array[:, comsol.neg_ind],
                      comsol.data.phis[:, comsol.neg_ind], '$\Phi_s^{neg}$')
