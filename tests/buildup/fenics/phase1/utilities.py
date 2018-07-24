@@ -3,6 +3,7 @@ import time
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
+import sympy as sym
 
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
@@ -16,7 +17,16 @@ def gather_data():
     return d_comsol, params
 
 
-import sympy as sym
+def piecewise(mesh, subdomain, *values):
+    V0 = fem.FunctionSpace(mesh, 'DG', 0)
+    k = fem.Function(V0)
+    for cell in range(len(subdomain.array())):
+        marker = subdomain.array()[cell]
+        k.vector()[cell] = values[marker]
+
+    return k
+
+
 def mkparam(markers, k_1=0, k_2=0, k_3=0, k_4=0):
     x = sym.Symbol('x[0]')
     asdf = sym.Piecewise((k_1, x <= 1.0 + fem.DOLFIN_EPS), (k_2, sym.And(x > 1.0, x < 2.0)),
@@ -52,10 +62,10 @@ def mkparam(markers, k_1=0, k_2=0, k_3=0, k_4=0):
     };
     """
 
-    # var = fem.Expression(cppcode=cppcode, degree=1)
-    # var.markers = markers
-    # var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
-    var = fem.Expression(sym.ccode(asdf), degree=1)
+    var = fem.Expression(cppcode=cppcode, degree=1)
+    var.markers = markers
+    var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
+    # var = fem.Expression(sym.ccode(asdf), degree=1)
     return var
 
 

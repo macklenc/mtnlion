@@ -20,16 +20,17 @@ def phi_e():
     # create local variables
     comsol_sol = cmn.comsol_solution
     mesh, dx, ds, bm, dm = cmn.mesh, cmn.dx, cmn.ds, cmn.bm, cmn.dm
-    sigma_eff, Lc, a_s, F, eps_e, t_plus = cmn.sigma_eff, cmn.Lc, cmn.a_s, cmn.F, cmn.eps_e, cmn.t_plus
-    brug_kappa = cmn.brug_kappa
+    # sigma_eff, Lc, a_s, F, eps_e, t_plus = cmn.sigma_eff, cmn.Lc, cmn.a_s, cmn.F, cmn.eps_e, cmn.t_plus
+    Lc, a_s, eps_e, sigma_eff, brug_kappa = common.collect(cmn.params, 'L', 'a_s', 'eps_e', 'sigma_eff', 'brug_kappa')
+    F, t_plus, R, T = common.collect(cmn.const, 'F', 't_plus', 'R', 'Tref')
 
     x = sym.Symbol('ce')
     y = sym.Symbol('x')
-    kp = cmn.params.const.kappa_ref[0].subs(y, x)
+    kp = cmn.const.kappa_ref[0].subs(y, x)
 
     dfdc = sym.Symbol('dfdc')
     # dfdc = 0
-    kd = fem.Constant(2) * cmn.R * cmn.T / cmn.F * (fem.Constant(1) + dfdc) * (t_plus - fem.Constant(1))
+    kd = fem.Constant(2) * R * T / F * (fem.Constant(1) + dfdc) * (t_plus - fem.Constant(1))
     kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
     # func = sym.lambdify(x, kp, 'numpy')
     # plt.plot(np.arange(0, 3000.1, 0.1), func(np.arange(0, 3000.1, 0.1)))

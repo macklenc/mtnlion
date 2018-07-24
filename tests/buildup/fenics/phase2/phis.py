@@ -14,7 +14,7 @@ def solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, true_sol):
     u_array = np.empty((len(time), len(true_sol.mesh)))
     phis_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
-    dx = (domain.dx(1) + domain.dx(3))
+    dx = (domain.dx(0) + domain.dx(2))
     # phi_s = Phis(Acell, sigma_eff, L, a_s, F, phis, v, dx, domain.ds(4))
 
     bm = domain.boundary_markers
@@ -47,8 +47,10 @@ def main():
 
     cmn = common.Common(time)
     domain = cmn.domain
+    L, a_s, sigma_eff = common.collect(cmn.params, 'L', 'a_s', 'sigma_eff')
+    F, Acell = common.collect(cmn.const, 'F', 'Acell')
 
-    fenics, comsol = solve(time, domain, cmn.Acell, cmn.sigma_eff, cmn.Lc, cmn.a_s, cmn.F, Iapp, cmn.comsol_solution)
+    fenics, comsol = solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, cmn.comsol_solution)
     utilities.report(comsol.neg, time, fenics[:, comsol.neg_ind], comsol.data.phis[:, comsol.neg_ind], '$\Phi_s^{neg}$')
     plt.savefig('comsol_compare_phis_neg.png')
     plt.show()

@@ -28,7 +28,8 @@ def ce():
     # create local variables
     comsol_sol = cmn.comsol_solution
     mesh, dx, ds, bm, dm = cmn.mesh, cmn.dx, cmn.ds, cmn.bm, cmn.dm
-    eps_e, de_eff, t_plus, Lc, a_s = cmn.eps_e, cmn.de_eff, cmn.t_plus, cmn.Lc, cmn.a_s
+    eps_e, de_eff, Lc, a_s = common.collect(cmn.params, 'eps_e', 'De_eff', 'L', 'a_s')
+    t_plus = cmn.const.t_plus
 
     # create function space and basis functions
     V = fem.FunctionSpace(mesh, 'Lagrange', 1)
