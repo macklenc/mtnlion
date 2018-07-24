@@ -86,46 +86,11 @@ class Common:
         self.const['R'] = fem.Constant(8.314)  # universal gas constant
 
         self.params = collect_params(raw_params, self.mesh, self.dm)
-        # fem.Constant(3) * utilities.mkparam(self.dm, self.params.neg.eps_s / self.params.neg.Rs, 0,
-        # self.params.pos.eps_s / self.params.pos.Rs)
         self.params['a_s'] = fem.Constant(3) * utilities.piecewise(self.mesh, self.dm,
                                                                    raw_params.neg.eps_s / raw_params.neg.Rs, 0,
                                                                    raw_params.pos.eps_s / raw_params.pos.Rs)
         self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
         self.params['De_eff'] = self.const.De_ref * self.params.eps_e ** self.params.brug_De
-
-        # self.T = fem.Constant(298.15)
-        self.I_1C = fem.Constant(20.5)
-        self.Iapp = [self.I_1C if 10 <= i <= 20 else -self.I_1C if 30 <= i <= 40 else fem.Constant(0) for i in time]
-
-        self.Acell = fem.Constant(raw_params.const.Acell)
-        self.Lc = utilities.mkparam(self.dm, raw_params.neg.L, raw_params.sep.L, raw_params.pos.L)
-        # self.L = utilities.piecewise(self.mesh, self.dm, [raw_params.neg.L, raw_params.sep.L, raw_params.pos.L])
-        self.sigma_ref = utilities.mkparam(self.dm, raw_params.neg.sigma_ref, 0, raw_params.pos.sigma_ref)
-        self.eps_s = utilities.mkparam(self.dm, raw_params.neg.eps_s, 0, raw_params.pos.eps_s)
-        self.brug_sigma = utilities.mkparam(self.dm, raw_params.neg.brug_sigma, 0, raw_params.pos.brug_sigma)
-        self.sigma_eff = self.sigma_ref * self.eps_s ** self.brug_sigma
-        self.Rs = utilities.mkparam(self.dm, raw_params.neg.Rs, 0, raw_params.pos.Rs)
-        self.a_s = fem.Constant(3) * utilities.mkparam(self.dm, raw_params.neg.eps_s / raw_params.neg.Rs, 0,
-                                                       raw_params.pos.eps_s / raw_params.pos.Rs)
-
-        self.eps_e = utilities.mkparam(self.dm, raw_params.neg.eps_e, raw_params.sep.eps_e, raw_params.pos.eps_e)
-        self.brug_De = utilities.mkparam(self.dm, raw_params.neg.brug_De,
-                                         raw_params.sep.brug_De, raw_params.pos.brug_De)
-        self.De_ref = fem.Constant(raw_params.const.De_ref)
-        self.de_eff = self.De_ref * self.eps_e ** self.brug_De
-        self.t_plus = fem.Constant(raw_params.const.t_plus)
-
-        self.k_norm_ref = utilities.mkparam(self.dm, raw_params.neg.k_norm_ref, 0, raw_params.pos.k_norm_ref)
-        self.csmax = utilities.mkparam(self.dm, raw_params.neg.csmax, 0, raw_params.pos.csmax)
-        # self.csmax = utilities.piecewise(self.mesh, self.dm, [raw_params.neg.csmax, 0, raw_params.pos.csmax])
-        self.alpha = utilities.mkparam(self.dm, raw_params.neg.alpha, 0, raw_params.pos.alpha)
-        self.ce0 = fem.Constant(raw_params.const.ce0)
-        self.Tref = fem.Constant(raw_params.const.Tref)
-
-        # self.cs0 = utilities.mkparam(self.dm, raw_params.csmax*)
-        self.brug_kappa = utilities.mkparam(self.dm, raw_params.neg.brug_kappa, raw_params.sep.brug_kappa,
-                                            raw_params.pos.brug_kappa)
 
         self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
         # self.neg_V = fem.FunctionSpace(self.neg_submesh, 'Lagrange', 1)
