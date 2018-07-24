@@ -1,50 +1,39 @@
+from functools import partial
+
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
 
 import common
 import utilities
-
-
-class Phis():
-    def __init__(self, Acell, sigma_eff, L, a_s, F, phis, v, dx, ds):
-        self.phis, self.v = phis, v
-        self.L, self.a_s, self.F = L, a_s, F
-        self.Acell, self.sigma_eff = Acell, sigma_eff
-        self.dx, self.ds = dx, ds
-
-        self.a = (-self.sigma_eff / self.L * fem.dot(fem.grad(self.phis), fem.grad(self.v))) * dx
-
-    def get(self, jbar, neumann):
-        neumann = neumann * self.v * self.ds
-        lin = (self.L * self.a_s * self.F * jbar * self.v) * self.dx + neumann
-
-        return self.a - lin
+from mtnlion.newman import equations
 
 
 def solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, true_sol):
     # initialize matrix to save solution results
     u_array = np.empty((len(time), len(true_sol.mesh)))
-    phis = fem.TrialFunction(domain.V)
+    phis_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
     dx = (domain.dx(1) + domain.dx(3))
-    phi_s = Phis(Acell, sigma_eff, L, a_s, F, phis, v, dx, domain.ds(4))
+    # phi_s = Phis(Acell, sigma_eff, L, a_s, F, phis, v, dx, domain.ds(4))
+
     bm = domain.boundary_markers
     V = domain.V
 
     jbar = fem.Function(domain.V)
     phis = fem.Function(domain.V)
 
+    phis_eq = partial(equations.phis, jbar, a_s, F, sigma_eff, L, phis_u, v, dx, domain.ds(4), nonlin=False)
+
     bc = [fem.DirichletBC(V, 0.0, bm, 1), 0]
     for i, j in enumerate(true_sol.data.j):
         jbar.vector()[:] = j[fem.dof_to_vertex_map(V)].astype('double')
         bc[1] = fem.DirichletBC(V, true_sol.data.phis[i, -1], bm, 4)
 
-        F = phi_s.get(jbar, fem.Constant(Iapp[i]) / Acell)
-        a, lin = fem.lhs(F), fem.rhs(F)
+        a, Lin = phis_eq(neumann=fem.Constant(Iapp[i]) / Acell)
 
         # Solve
-        fem.solve(a == lin, phis, bc)
+        fem.solve(a == Lin, phis, bc)
         u_array[i, :] = phis.vector().get_local()[fem.vertex_to_dof_map(domain.V)]
 
     return u_array, true_sol
@@ -70,4 +59,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    exit(0)

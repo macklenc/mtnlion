@@ -10,7 +10,7 @@ def generate_domain(raw_mesh):
     mesh.coordinates()[:] = np.array([raw_mesh]).transpose()
 
     # Setup subdomain markers
-    neg_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
+    neg_domain = fem.CompiledSubDomain('(x[0] >= (b1 - DOLFIN_EPS)) && (x[0] <= (b2 + DOLFIN_EPS))',
                                        b1=boundaries[0].astype(np.double), b2=boundaries[1].astype(np.double))
     sep_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
                                        b1=boundaries[1].astype(np.double), b2=boundaries[2].astype(np.double))
@@ -26,8 +26,8 @@ def generate_domain(raw_mesh):
     # Mark the subdomains
     domain_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim())
     domain_markers.set_all(0)
-    neg_domain.mark(domain_markers, 1)
     sep_domain.mark(domain_markers, 2)
+    neg_domain.mark(domain_markers, 1)
     pos_domain.mark(domain_markers, 3)
 
     # Mark the boundaries
