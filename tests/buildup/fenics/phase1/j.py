@@ -42,7 +42,7 @@ class J():
         Uocp_neg = Uocp_neg.subs(tmpx, soc)
         Uocp_pos = Uocp_pos.subs(tmpx, soc)
 
-        uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS + 0.1), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
+        uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
 
         eta = phis - phie - uocp
         sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
@@ -51,20 +51,15 @@ class J():
         return sym_j_domain
 
 
-def solve(time, domain, csmax, ce0, alpha, k_norm_ref, F, R, T, Uocp_neg, Uocp_pos, comsol):
+def solve(time, V, csmax, ce0, alpha, k_norm_ref, F, R, T, Uocp_neg, Uocp_pos, comsol):
     # initialize matrix to save solution results
     u_array = np.empty((len(time), len(comsol.mesh)))
 
     # Define function space and basis functions
-    V = domain.V
     cse = fem.Function(V)
     ce = fem.Function(V)
     phis = fem.Function(V)
     phie = fem.Function(V)
-
-    # Evaluate expressions
-    csmax = fem.interpolate(csmax, V)
-    alpha = fem.interpolate(alpha, V)
 
     jbar = J(Uocp_neg, Uocp_pos, V)
 
@@ -91,7 +86,7 @@ def main():
     k_norm_ref, csmax, alpha, ce0 = cmn.k_norm_ref, cmn.csmax, cmn.alpha, cmn.ce0
     F, R, Tref = cmn.F, cmn.R, cmn.Tref
 
-    fenics = solve(time, domain, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
+    fenics = solve(time, domain.V, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
                    cmn.params.neg.Uocp[0], cmn.params.pos.Uocp[0], comsol)
 
     utilities.report(comsol.mesh[comsol.neg_ind], time, fenics[:, comsol.neg_ind],

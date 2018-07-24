@@ -1,0 +1,56 @@
+import fenics as fem
+import sympy as sym
+
+
+def phis(jbar, a_s, F, sigma_eff, L, phis, v, dx, ds=0, neumann=0, nonlin=False):
+    a = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v)) * dx
+    Lin = L * a_s * F * jbar * v * dx + neumann * v * ds
+
+    if nonlin:
+        return a - Lin
+    else:
+        return a, Lin
+
+
+def phie(jbar, ce, L, a_s, F, kappa_eff, kappa_Deff, phie, v, dx, ds=0, neumann=0, nonlin=False):
+    a = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v)) * dx
+    Lin = L * a_s * F * jbar * v * dx - kappa_Deff / L * \
+          fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
+
+    if nonlin:
+        return a - Lin
+    else:
+        return a, Lin
+
+
+def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, T, Uocp_neg, Uocp_pos, degree=1):
+    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)),
+                          ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
+                          ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
+                          R=R, Tref=T, degree=degree)
+
+
+def _sym_j(Uocp_neg, Uocp_pos):
+    number = sym.Symbol('n')
+    csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis = sym.symbols('csmax cse ce ce0 alpha k_norm_ref phie phis')
+    x, f, r, Tref = sym.symbols('x[0], F, R, Tref')
+
+    nabs = ((sym.sign(number) + 1) / 2) * sym.Abs(number)
+    s1 = nabs.subs(number, ((csmax - cse) / csmax) * (ce / ce0)) ** (1 - alpha)
+    s2 = nabs.subs(number, cse / csmax) ** alpha
+    sym_flux = k_norm_ref * s1 * s2
+    soc = cse / csmax
+
+    tmpx = sym.Symbol('x')
+    # Uocp_pos = Uocp_pos * 1.00025  #########################################FIX ME!!!!!!!!!!!!!!!!!!*1.00025
+
+    Uocp_neg = Uocp_neg.subs(tmpx, soc)
+    Uocp_pos = Uocp_pos.subs(tmpx, soc)
+
+    uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
+
+    eta = phis - phie - uocp
+    sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
+    sym_j_domain = sym.Piecewise((sym_j, x <= 1), (sym_j, x >= 2), (0, True))
+
+    return sym_j_domain

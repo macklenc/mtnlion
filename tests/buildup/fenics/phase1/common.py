@@ -29,6 +29,9 @@ class Common:
         self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
         self.mesh, self.dx, self.ds, self.bm, self.dm = domain2.generate_domain(self.comsol_solution.mesh)
+        self.neg_submesh = fem.SubMesh(self.mesh, self.dm, 1)
+        self.sep_submesh = fem.SubMesh(self.mesh, self.dm, 2)
+        self.pos_submesh = fem.SubMesh(self.mesh, self.dm, 3)
 
         # Initialize parameters
         self.F = fem.Constant(96487)
@@ -65,6 +68,9 @@ class Common:
                                             self.params.pos.brug_kappa)
 
         self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
+        self.neg_V = fem.FunctionSpace(self.neg_submesh, 'Lagrange', 1)
+        self.sep_V = fem.FunctionSpace(self.sep_submesh, 'Lagrange', 1)
+        self.pos_V = fem.FunctionSpace(self.pos_submesh, 'Lagrange', 1)
         self.domain = Domain(self.V, self.dx, self.ds, self.bm, self.dm)
 
 
