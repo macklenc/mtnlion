@@ -2,7 +2,7 @@ import fenics as fem
 import sympy as sym
 
 
-def phis(jbar, a_s, F, sigma_eff, L, phis, v, dx, ds=0, neumann=0, nonlin=False):
+def phis(jbar, phis, v, dx, a_s, F, sigma_eff, L, ds=0, neumann=0, nonlin=False, **kwargs):
     a = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v)) * dx
     Lin = L * a_s * F * jbar * v * dx + neumann * v * ds
 
@@ -12,7 +12,7 @@ def phis(jbar, a_s, F, sigma_eff, L, phis, v, dx, ds=0, neumann=0, nonlin=False)
         return a, Lin
 
 
-def phie(jbar, ce, L, a_s, F, kappa_eff, kappa_Deff, phie, v, dx, ds=0, neumann=0, nonlin=False):
+def phie(jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds=0, neumann=0, nonlin=False, **kwargs):
     a = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v)) * dx
     Lin = L * a_s * F * jbar * v * dx - kappa_Deff / L * \
           fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
@@ -23,11 +23,11 @@ def phie(jbar, ce, L, a_s, F, kappa_eff, kappa_Deff, phie, v, dx, ds=0, neumann=
         return a, Lin
 
 
-def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, T, Uocp_neg, Uocp_pos, degree=1):
+def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, **kwargs):
     return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
                           ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
-                          R=R, Tref=T, degree=degree)
+                          R=R, Tref=Tref, degree=degree)
 
 
 def _sym_j(Uocp_neg, Uocp_pos):
