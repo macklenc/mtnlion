@@ -32,6 +32,7 @@
           <option value="fenics.MeshFunction" />
           <option value="fenics.SubMesh" />
           <option value="fenics.IntervalMesh" />
+          <option value="fenics.FunctionAssigner" />
         </list>
       </option>
     </inspection_tool>
