@@ -91,6 +91,8 @@ class Common:
                                                                    raw_params.pos.eps_s / raw_params.pos.Rs)
         self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
         self.params['De_eff'] = self.const.De_ref * self.params.eps_e ** self.params.brug_De
+        self.params['Uocp_neg'] = self.params.Uocp[0][0]
+        self.params['Uocp_pos'] = self.params.Uocp[2][0]
 
         self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
         # self.neg_V = fem.FunctionSpace(self.neg_submesh, 'Lagrange', 1)
