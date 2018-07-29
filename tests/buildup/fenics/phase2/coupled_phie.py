@@ -1,13 +1,32 @@
 import sys
-from functools import partial
 
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
+import sympy as sym
 
 import common
 import utilities
 from mtnlion.newman import equations
+
+
+def picard_solver(a, lin, estimated, previous, bc):
+    eps = 1.0
+    tol = 1e-5
+    iter = 0
+    maxiter = 25
+    while eps > tol and iter < maxiter:
+        fem.solve(a == lin, estimated, bc)
+
+        # calculate norm
+        diff = estimated.vector().get_local() - previous.vector().get_local()
+        eps = np.linalg.norm(diff, ord=np.Inf)
+
+        print('iter={}, norm={}'.format(iter, eps))
+
+        # set previous solution
+        previous.assign(estimated)
+        iter += 1
 
 
 def main():
@@ -29,20 +48,41 @@ def main():
     k_norm_ref, csmax, alpha, L, a_s, sigma_eff = \
         common.collect(cmn.params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
     F, R, Tref, ce0, Acell = common.collect(cmn.const, 'F', 'R', 'Tref', 'ce0', 'Acell')
+    Lc, a_s, eps_e, sigma_eff, brug_kappa = common.collect(cmn.params, 'L', 'a_s', 'eps_e', 'sigma_eff', 'brug_kappa')
+    F, t_plus, R, T = common.collect(cmn.const, 'F', 't_plus', 'R', 'Tref')
+
+    x = sym.Symbol('ce')
+    y = sym.Symbol('x')
+    kp = cmn.const.kappa_ref[0].subs(y, x)
+
+    dfdc = sym.Symbol('dfdc')
+    # dfdc = 0
+    kd = fem.Constant(2) * R * T / F * (fem.Constant(1) + dfdc) * (t_plus - fem.Constant(1))
+    kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
+
     V = domain.V
     v = fem.TestFunction(V)
     du = fem.TrialFunction(V)
-    bc = [fem.DirichletBC(V, 0.0, domain.boundary_markers, 1), 0]
 
     cse_f = fem.Function(V)
     ce_f = fem.Function(V)
-    phis_f = fem.Function(V)  # "previous solution"
-    phie_f = fem.Function(V)
+    phis_f = fem.Function(V)
+    jbar = fem.Function(V)
+    phie_f = fem.Function(V)  # "previous solution"
+    phie = fem.Function(V)  # "previous solution"
+
+    kappa_ref = fem.Expression(sym.printing.ccode(kp), ce=ce_f, degree=1)
+    kappa_eff = kappa_ref * eps_e ** brug_kappa
+    kappa_Deff = kappa_D * kappa_ref * eps_e
 
     j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref, cmn.params.Uocp[0][0],
                     cmn.params.Uocp[2][0], dm=domain.domain_markers)
-    phis_form = partial(equations.phis, j, phis_f, v, domain.dx((0, 2)),
-                        **cmn.params, **cmn.const, ds=domain.ds(4), nonlin=True)
+    # phie(jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds=0, neumann=0, nonlin=False, **kwargs):
+
+    u = fem.TrialFunction(V)
+    v = fem.TestFunction(V)
+    phie_form = equations.phie(j, ce_f, u, v, domain.dx, kappa_eff=kappa_eff, kappa_Deff=kappa_Deff,
+                               **cmn.params, **cmn.const, nonlin=True)
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time_in), len(comsol.mesh)))
@@ -56,23 +96,28 @@ def main():
         cse_f.vector()[:] = comsol.data.cse[i][fem.dof_to_vertex_map(V)].astype('double')
         ce_f.vector()[:] = comsol.data.ce[i][fem.dof_to_vertex_map(V)].astype('double')
         phie_f.vector()[:] = comsol.data.phie[i][fem.dof_to_vertex_map(V)].astype('double')
-        phis_f.vector()[:] = comsol.data.phis[i_1][fem.dof_to_vertex_map(V)].astype('double')
+        phis_f.vector()[:] = comsol.data.phis[i][fem.dof_to_vertex_map(V)].astype('double')
+        jbar.vector()[:] = comsol.data.j[i][fem.dof_to_vertex_map(V)].astype('double')
 
-        bc[1] = fem.DirichletBC(V, comsol.data.phis[i][-1], domain.boundary_markers, 4)
-        Feq = phis_form(neumann=fem.Constant(Iapp[i]) / Acell) + fem.inner(phis_f, v) * domain.dx(1)
+        bc = [fem.DirichletBC(V, comsol.data.phie[i, 0], domain.boundary_markers, 1)]
+        Feq = phie_form
 
-        J = fem.derivative(Feq, phis_f, du)
-        problem = fem.NonlinearVariationalProblem(Feq, phis_f, bc, J)
-        solver = fem.NonlinearVariationalSolver(problem)
+        # fem.solve(fem.lhs(Feq) == fem.rhs(Feq), phie_f, bc)
+        phie.assign(phie_f)
+        picard_solver(fem.lhs(Feq), fem.rhs(Feq), phie_f, phie, bc)
 
-        prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-8
-        prm['newton_solver']['relative_tolerance'] = 1e-7
-        prm['newton_solver']['maximum_iterations'] = 25
-        prm['newton_solver']['relaxation_parameter'] = 1.0
-        solver.solve()
+        # J = fem.derivative(Feq, phie_f, du)
+        # problem = fem.NonlinearVariationalProblem(Feq, phis_f, bc, J)
+        # solver = fem.NonlinearVariationalSolver(problem)
+        #
+        # prm = solver.parameters
+        # prm['newton_solver']['absolute_tolerance'] = 1e-8
+        # prm['newton_solver']['relative_tolerance'] = 1e-7
+        # prm['newton_solver']['maximum_iterations'] = 25
+        # prm['newton_solver']['relaxation_parameter'] = 1.0
+        # solver.solve()
 
-        u_array[k, :] = phis_f.vector().get_local()[fem.vertex_to_dof_map(domain.V)]
+        u_array[k, :] = phie_f.vector().get_local()[fem.vertex_to_dof_map(domain.V)]
         u_array2[k, :] = fem.interpolate(j, V).vector().get_local()[fem.vertex_to_dof_map(V)]
         k += 1
 
@@ -80,8 +125,8 @@ def main():
     d['x'] = comsol.mesh
     d['ce'] = comsol.data.ce[1::2]
     d['cse'] = comsol.data.cse[1::2]
-    d['phie'] = comsol.data.phie[1::2]
-    d['phis'] = u_array
+    d['phie'] = u_array
+    d['phis'] = comsol.data.phis[1::2]
 
     d = dict(d, **cmn.raw_params2)
 
@@ -107,11 +152,7 @@ def main():
     neg = dict(map(lambda x: (x[0], filter(x[1], 'neg')), d.items()))
     dta = equations.eval_j(**neg, **cmn.raw_params.const)
 
-    utilities.report(comsol.neg, time_in, u_array[:, comsol.neg_ind],
-                     comsol.data.phis[:, comsol.neg_ind][1::2], '$\Phi_s^{neg}$')
-    plt.show()
-    utilities.report(comsol.pos, time_in, u_array[:, comsol.pos_ind],
-                     comsol.data.phis[:, comsol.pos_ind][1::2], '$\Phi_s^{pos}$')
+    utilities.report(comsol.mesh, time_in, u_array, comsol.data.phie[1::2], '$\Phi_e$')
     plt.show()
 
     utilities.report(comsol.neg, time_in, dta,

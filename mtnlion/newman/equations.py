@@ -23,12 +23,43 @@ def phie(jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds=0, neumann=
         return a, Lin
 
 
-def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, **kwargs):
-    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)),
-                          ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
-                          ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
-                          R=R, Tref=Tref, degree=degree)
+class K(fem.Expression):
+    def __init__(self, materials, csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis, R, F, Tref, j, **kwargs):
+        self.materials = materials
+        self.csmax = csmax
+        self.cse = cse
+        self.ce = ce
+        self.ce0 = ce0
+        self.alpha = alpha
+        self.k_norm_ref = k_norm_ref
+        self.phie = phie
+        self.phis = phis
+        self.R = R
+        self.F = F
+        self.Tref = Tref
+        self.j = j
 
+    def eval_cell(self, values, x, cell):
+        if self.materials[cell.index] == 0 or self.materials[cell.index] == 2:
+            values[0] = self.j(self.csmax(x), self.cse(x), self.ce(x), self.ce0(x), self.alpha(x),
+                               self.k_norm_ref(x), self.phie(x), self.phis(x), x, self.F(x), self.R(x), self.Tref(x))
+        else:
+            values[0] = 0
+
+
+def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, dm, degree=1, **kwargs):
+    # return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)),
+    #                       ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
+    #                       ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
+    #                       R=R, Tref=Tref, degree=degree)
+    _, sym_jeval = _sym_j(Uocp_neg, Uocp_pos)
+    return K(dm, csmax=csmax, cse=cse, ce=ce, ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, phie=phie,
+             phis=phis, R=R, F=F, Tref=Tref, j=sym_jeval, degree=1)
+
+
+def eval_j(x, ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, **kwargs):
+    _, jeval = _sym_j(Uocp_neg, Uocp_pos)
+    return jeval(csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis, x, F, R, Tref)
 
 def _sym_j(Uocp_neg, Uocp_pos):
     number = sym.Symbol('n')
@@ -53,4 +84,6 @@ def _sym_j(Uocp_neg, Uocp_pos):
     sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
     sym_j_domain = sym.Piecewise((sym_j, x <= 1), (sym_j, x >= 2), (0, True))
 
-    return sym_j_domain
+    jeval = sym.lambdify((csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis, x, f, r, Tref), sym_j, 'numpy')
+
+    return sym_j_domain, jeval

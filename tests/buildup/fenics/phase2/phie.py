@@ -46,8 +46,8 @@ def phi_e():
 
     # phi_e = Phie(sigma_eff, Lc, a_s, F, eps_e, t_plus, brug_kappa, kappa_eff, kappa_Deff, phie, v, dx, ds)
     # F = phi_e.get(ce, jbar, fem.Constant(0))
-
-    a, Lin = equations.phie(jbar, ce, Lc, a_s, F, kappa_eff, kappa_Deff, phie, v, dx, nonlin=False)
+    # jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds = 0, neumann = 0, nonlin = False, ** kwargs
+    a, Lin = equations.phie(jbar, ce, phie, v, dx, Lc, a_s, F, kappa_eff, kappa_Deff)
 
     for i, j in enumerate(comsol_sol.data.j):
         # Initialize Dirichlet BCs
