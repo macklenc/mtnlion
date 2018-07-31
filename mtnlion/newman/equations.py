@@ -25,6 +25,19 @@ def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=
         return a, Lin
 
 
+# TODO: add explicit euler class?
+def ce_explicit_euler(jbar, ce_1, ce, v, dx, dt, a_s, eps_e, De_eff, t_plus, L,
+                      ds=0, neumann=0, nonlin=False, **kwargs):
+    a = L * eps_e * ce * v * dx
+    Lin = L * eps_e * ce_1 * v * dx - dt * De_eff / L * fem.dot(fem.grad(ce_1), fem.grad(v)) * dx + dt * L * a_s * \
+          (fem.Constant(1) - t_plus) * jbar * v * dx + neumann * v * ds
+
+    if nonlin:
+        return a - Lin
+    else:
+        return a, Lin
+
+
 def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, **kwargs):
     return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
