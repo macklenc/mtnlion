@@ -2,6 +2,8 @@ import fenics as fem
 import sympy as sym
 
 
+# TODO: add internal Neumann conditions or remove boundary Neumann conditions
+
 def phis(jbar, phis, v, dx, a_s, F, sigma_eff, L, ds=0, neumann=0, nonlin=False, **kwargs):
     a = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v)) * dx
     Lin = L * a_s * F * jbar * v * dx + neumann * v * ds
