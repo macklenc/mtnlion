@@ -2,7 +2,7 @@
 Equation solver
 """
 import logging
-from typing import Union, Dict, List, Tuple, Callable
+from typing import Union, Dict, List, Callable
 
 import munch
 import numpy as np
@@ -55,6 +55,7 @@ def find_ind_near(data: np.ndarray, value: Union[List[int], List[float]]) -> np.
     """
 
     return np.array([(np.abs(data - v)).argmin() for v in value])
+
 
 # TODO: move subdomain logic here
 class Mountain:
