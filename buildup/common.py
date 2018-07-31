@@ -3,6 +3,7 @@ import numbers
 import fenics as fem
 import munch
 import numpy as np
+import sympy as sym
 
 import domain2
 import mtnlion.comsol as comsol
@@ -71,6 +72,28 @@ def collect(n_dict, *keys):
     return [n_dict[x] for x in keys]
 
 
+def kappa_D(R, Tref, F, t_plus, **kwargs):
+    dfdc = sym.Symbol('dfdc')
+    # dfdc = 0
+    kd = fem.Constant(2) * R * Tref / F * (fem.Constant(1) + dfdc) * (t_plus - fem.Constant(1))
+    kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
+
+    return kd, kappa_D
+
+
+def kappa_Deff(ce, kappa_ref, eps_e, brug_kappa, kappa_D, **kwargs):
+    x = sym.Symbol('ce')
+    y = sym.Symbol('x')
+    kp = kappa_ref.subs(y, x)
+
+    # TODO: separate kappa_ref
+    kappa_ref = fem.Expression(sym.printing.ccode(kp), ce=ce, degree=1)
+    kappa_eff = kappa_ref * eps_e ** brug_kappa
+    kappa_Deff = kappa_D * kappa_ref * eps_e
+
+    return kappa_eff, kappa_Deff
+
+
 class Common:
     def __init__(self, time):
         self.time = time
@@ -100,6 +123,7 @@ class Common:
         self.params['De_eff'] = self.const.De_ref * self.params.eps_e ** self.params.brug_De
         self.params['Uocp_neg'] = self.params.Uocp[0][0]
         self.params['Uocp_pos'] = self.params.Uocp[2][0]
+        self.const.kappa_ref = self.const.kappa_ref[0]
 
         self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
         # self.neg_V = fem.FunctionSpace(self.neg_submesh, 'Lagrange', 1)
@@ -109,6 +133,8 @@ class Common:
 
         self.I_1C = 20.5
         self.Iapp = [self.I_1C if 10 <= i <= 20 else -self.I_1C if 30 <= i <= 40 else 0 for i in time]
+
+        _, self.params['kappa_D'] = kappa_D(**self.params, **self.const)
 
 
 class Common2:
@@ -161,3 +187,11 @@ class Common2:
 
 
         self.Ds = utilities.mkparam(self.dm, self.params.neg.Ds_ref, 0, self.params.pos.Ds_ref)
+
+# Notes for later, TODO: clean up
+#         boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
+#         boundary_markers.set_all(0)
+#         b1 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=1)
+#         b2 = fem.CompiledSubDomain('near(x[0], b, DOLFIN_EPS)', b=2)
+#         b1.mark(boundary_markers, 2)
+#         b2.mark(boundary_markers, 3)
