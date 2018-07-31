@@ -38,13 +38,13 @@ def test_load_numpy_file(save_npz) -> None:
         assert np.array_equal(v, result[k])
 
 def test_load_csv_file():
-    data = loader.load_csv_file('tests/reference/comsol_solution/v.csv.bz2')
+    data = loader.load_csv_file('buildup/reference/comsol_solution/v.csv.bz2')
 
     assert data.any()
 
 
 def test_format_name():
-    testname = 'tests/reference/comsol_solution/v.csv.bz2'
+    testname = 'buildup/reference/comsol_solution/v.csv.bz2'
     result = loader.format_name(testname)
 
     assert 'v.csv' == result
