@@ -12,7 +12,7 @@ def phis(jbar, phis, v, dx, a_s, F, sigma_eff, L, ds=0, neumann=0, nonlin=False,
         return a, Lin
 
 
-def phie(jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds=0, neumann=0, nonlin=False, **kwargs):
+def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=0, nonlin=False, **kwargs):
     a = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v)) * dx
     Lin = L * a_s * F * jbar * v * dx - kappa_Deff / L * \
           fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
