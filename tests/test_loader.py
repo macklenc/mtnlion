@@ -38,7 +38,7 @@ def test_load_numpy_file(save_npz) -> None:
         assert np.array_equal(v, result[k])
 
 def test_load_csv_file():
-    data = loader.load_csv_file('buildup/reference/comsol_solution/v.csv.bz2')
+    data = loader.load_csv_file('buildup/reference/comsol_solution/voltage.csv.bz2')
 
     assert data.any()
 
