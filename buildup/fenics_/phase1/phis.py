@@ -20,6 +20,11 @@ def main():
 
     a, L = equations.phis(jbar_c, phis_u, v, domain.dx((0, 2)), **cmn.params, **cmn.const,
                           neumann=Iapp/cmn.const.Acell, ds=domain.ds(4), nonlin=False)
+    a += fem.dot(phis_u, v) * domain.dx(1)
+    # same as
+    # a2, L2 = equations.phis(fem.Constant(0), phis_u, v, domain.dx(1), **cmn.params, **cmn.const, nonlin=False)
+    # a += a2
+    # L += L2
 
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i)
@@ -35,7 +40,7 @@ def main():
     plt.savefig('comsol_compare_phis_neg.png')
     plt.show()
     utilities.report(comsol.pos, time, phis_sol[:, comsol.pos_ind],
-                     comsol.data.phis[:, comsol.pos_ind], '$\Phi_s^{neg}$')
+                     comsol.data.phis[:, comsol.pos_ind], '$\Phi_s^{pos}$')
     plt.savefig('comsol_compare_phis_pos.png')
     plt.show()
 
