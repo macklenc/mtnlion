@@ -19,10 +19,12 @@ def prepare_comsol_buildup(time):
     return cmn, domain, comsol
 
 class Domain():
-    def __init__(self, V, dx, ds, boundary_markers, domain_markers):
+    def __init__(self, V, dx, ds, dS, n, boundary_markers, domain_markers):
         self.V = V
         self.dx = dx
         self.ds = ds
+        self.dS = dS
+        self.n = n
         self.neg_marker, self.sep_marker, self.pos_marker = (0, 1, 2)
         self.boundary_markers = boundary_markers
         self.domain_markers = domain_markers
@@ -105,7 +107,8 @@ class Common:
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
         self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
-        self.mesh, self.dx, self.ds, self.bm, self.dm = domain2.generate_domain(self.comsol_solution.mesh)
+        self.mesh, self.dx, self.ds, self.dS, self.n, self.bm, self.dm = \
+            domain2.generate_domain(self.comsol_solution.mesh)
         # self.neg_submesh = fem.SubMesh(self.mesh, self.dm, 0)
         # self.sep_submesh = fem.SubMesh(self.mesh, self.dm, 1)
         # self.pos_submesh = fem.SubMesh(self.mesh, self.dm, 2)
@@ -129,7 +132,7 @@ class Common:
         # self.neg_V = fem.FunctionSpace(self.neg_submesh, 'Lagrange', 1)
         # self.sep_V = fem.FunctionSpace(self.sep_submesh, 'Lagrange', 1)
         # self.pos_V = fem.FunctionSpace(self.pos_submesh, 'Lagrange', 1)
-        self.domain = Domain(self.V, self.dx, self.ds, self.bm, self.dm)
+        self.domain = Domain(self.V, self.dx, self.ds, self.dS, self.n, self.bm, self.dm)
 
         self.I_1C = 20.5
         self.Iapp = [self.I_1C if 10 <= i <= 20 else -self.I_1C if 30 <= i <= 40 else 0 for i in time]
