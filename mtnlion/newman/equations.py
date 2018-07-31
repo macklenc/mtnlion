@@ -17,7 +17,7 @@ def phis(jbar, phis, v, dx, a_s, F, sigma_eff, L, ds=0, neumann=0, nonlin=False,
 def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=0, nonlin=False, **kwargs):
     a = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v)) * dx
     Lin = L * a_s * F * jbar * v * dx - kappa_Deff / L * \
-          fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
+        fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
 
     if nonlin:
         return a - Lin
@@ -29,8 +29,8 @@ def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=
 def ce_explicit_euler(jbar, ce_1, ce, v, dx, dt, a_s, eps_e, De_eff, t_plus, L,
                       ds=0, neumann=0, nonlin=False, **kwargs):
     a = L * eps_e * ce * v * dx
-    Lin = L * eps_e * ce_1 * v * dx - dt * De_eff / L * fem.dot(fem.grad(ce_1), fem.grad(v)) * dx + dt * L * a_s * \
-          (fem.Constant(1) - t_plus) * jbar * v * dx + neumann * v * ds
+    Lin = L * eps_e * ce_1 * v * dx - dt * De_eff / L * fem.dot(fem.grad(ce_1), fem.grad(v)) * dx + \
+        dt * L * a_s * (fem.Constant(1) - t_plus) * jbar * v * dx + neumann * v * ds
 
     if nonlin:
         return a - Lin
