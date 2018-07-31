@@ -19,7 +19,7 @@ def main():
     Iapp = fem.Constant(0)
 
     a, L = equations.phis(jbar_c, phis_u, v, domain.dx((0, 2)), **cmn.params, **cmn.const,
-                          neumann=Iapp/cmn.params.Acell, ds=domain.ds(4), nonlin=False)
+                          neumann=Iapp/cmn.const.Acell, ds=domain.ds(4), nonlin=False)
 
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i)
