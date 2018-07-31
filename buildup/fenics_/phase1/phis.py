@@ -45,11 +45,11 @@ def main():
     phis_sol, comsol = run(time, return_comsol=True)
     utilities.report(comsol.neg, time, phis_sol[:, comsol.neg_ind],
                      comsol.data.phis[:, comsol.neg_ind], '$\Phi_s^{neg}$')
-    plt.savefig('comsol_compare_phis_neg.png')
+    utilities.save_plot(__file__, 'plots/compare_phis_neg.png')
     plt.show()
     utilities.report(comsol.pos, time, phis_sol[:, comsol.pos_ind],
                      comsol.data.phis[:, comsol.pos_ind], '$\Phi_s^{pos}$')
-    plt.savefig('comsol_compare_phis_pos.png')
+    utilities.save_plot(__file__, 'plots/compare_phis_pos.png')
     plt.show()
 
 

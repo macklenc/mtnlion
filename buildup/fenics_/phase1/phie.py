@@ -38,7 +38,7 @@ def main():
 
     phie_sol, comsol = run(time, return_comsol=True)
     utilities.report(comsol.mesh, time, phie_sol, comsol.data.phie, '$\Phi_e$')
-    plt.savefig('comsol_compare_phie.png')
+    utilities.save_plot(__file__, 'plots/compare_phie.png')
     plt.show()
 
 
