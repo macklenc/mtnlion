@@ -10,6 +10,13 @@ import mtnlion.engine as engine
 import utilities
 
 
+def prepare_comsol_buildup(time):
+    cmn = Common(time)
+    domain = cmn.domain
+    comsol = cmn.comsol_solution
+
+    return cmn, domain, comsol
+
 class Domain():
     def __init__(self, V, dx, ds, boundary_markers, domain_markers):
         self.V = V
@@ -99,6 +106,9 @@ class Common:
         # self.sep_V = fem.FunctionSpace(self.sep_submesh, 'Lagrange', 1)
         # self.pos_V = fem.FunctionSpace(self.pos_submesh, 'Lagrange', 1)
         self.domain = Domain(self.V, self.dx, self.ds, self.bm, self.dm)
+
+        self.I_1C = 20.5
+        self.Iapp = [self.I_1C if 10 <= i <= 20 else -self.I_1C if 30 <= i <= 40 else 0 for i in time]
 
 
 class Common2:

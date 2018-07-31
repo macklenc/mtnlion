@@ -17,6 +17,23 @@ def gather_data():
     return d_comsol, params
 
 
+def create_solution_matrices(nr, nc, r):
+    return tuple(np.empty((nr, nc)) for _ in range(r))
+
+
+def create_functions(V, r):
+    return tuple(fem.Function(V) for _ in range(r))
+
+
+def assign_functions(from_funcs, to_funcs, V, i):
+    for (f, t) in zip(from_funcs, to_funcs):
+        t.vector()[:] = f[i, fem.dof_to_vertex_map(V)].astype('double')
+
+
+def get_1d(func, V):
+    return func.vector().get_local()[fem.vertex_to_dof_map(V)]
+
+
 def piecewise(mesh, subdomain, *values):
     V0 = fem.FunctionSpace(mesh, 'DG', 0)
     k = fem.Function(V0)
