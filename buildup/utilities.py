@@ -1,5 +1,5 @@
-import time
 import os
+import time
 
 import fenics as fem
 import matplotlib.pyplot as plt
@@ -35,6 +35,14 @@ def assign_functions(from_funcs, to_funcs, V, i):
 def get_1d(func, V):
     return func.vector().get_local()[fem.vertex_to_dof_map(V)]
 
+
+def save_plot(local_module_path, name):
+    file = os.path.join(os.path.dirname(local_module_path), name)
+    directory = os.path.dirname(os.path.abspath(file))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    plt.savefig(name)
 
 def piecewise(mesh, subdomain, *values):
     V0 = fem.FunctionSpace(mesh, 'DG', 0)
