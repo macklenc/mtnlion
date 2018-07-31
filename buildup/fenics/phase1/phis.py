@@ -1,8 +1,7 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 
-import common
-import utilities
+from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
