@@ -6,8 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sym
 
-import common
-import utilities
+from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
@@ -61,7 +60,7 @@ def main():
 
     x = sym.Symbol('ce')
     y = sym.Symbol('x')
-    kp = cmn.const.kappa_ref[0].subs(y, x)
+    kp = cmn.const.kappa_ref.subs(y, x)
 
     dfdc = sym.Symbol('dfdc')
     # dfdc = 0

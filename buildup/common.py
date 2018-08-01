@@ -30,7 +30,7 @@ class Domain():
         self.domain_markers = domain_markers
 
 
-def collect_params(params, mesh, dm):
+def collect_params(params, mesh, dm, V0):
     lst = [0, 0]
     n_dict = dict()
     for k in params.neg:
@@ -49,7 +49,9 @@ def collect_params(params, mesh, dm):
             lst[1] += 1
 
         if isinstance(neg, numbers.Number):
-            n_dict[k] = utilities.piecewise(mesh, dm, neg, sep, pos)
+            n_dict[k] = utilities.piecewise(mesh, dm, V0, neg, sep, pos)
+            # n_dict[k] = utilities.mkparam(dm, neg, sep, pos)
+            # n_dict[k] = utilities.piecewise2(V, neg, sep, pos)
         else:
             n_dict[k] = [neg, sep, pos]
 
@@ -96,12 +98,26 @@ def kappa_Deff(ce, kappa_ref, eps_e, brug_kappa, kappa_D, **kwargs):
     return kappa_eff, kappa_Deff
 
 
+def collect_parameters(params):
+    n_dict = dict()
+
+    keys = set(list(params.neg.keys()) + list(params.sep.keys()) + list(params.pos.keys()))
+    for k in keys:
+        neg = params.neg.get(k, 0.0)
+        sep = params.sep.get(k, 0.0)
+        pos = params.pos.get(k, 0.0)
+
+        n_dict[k] = [neg, sep, pos]
+
+    return munch.Munch(n_dict)
+
+
 class Common:
     def __init__(self, time):
         self.time = time
 
         # Collect required data
-        comsol_data, raw_params = utilities.gather_data()
+        comsol_data, self.raw_params = utilities.gather_data()
         self.time_ind = engine.find_ind_near(comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(comsol_data.filter_time(self.time_ind))
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
@@ -109,19 +125,22 @@ class Common:
 
         self.mesh, self.dx, self.ds, self.dS, self.n, self.bm, self.dm = \
             domain2.generate_domain(self.comsol_solution.mesh)
+        self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
+        self.V0 = fem.FunctionSpace(self.mesh, 'DG', 0)
         # self.neg_submesh = fem.SubMesh(self.mesh, self.dm, 0)
         # self.sep_submesh = fem.SubMesh(self.mesh, self.dm, 1)
         # self.pos_submesh = fem.SubMesh(self.mesh, self.dm, 2)
 
         # Initialize parameters
-        self.const = collect_const(raw_params.const)
+        self.const = collect_const(self.raw_params.const)
         self.const['F'] = fem.Constant(96487)
         self.const['R'] = fem.Constant(8.314)  # universal gas constant
 
-        self.params = collect_params(raw_params, self.mesh, self.dm)
-        self.params['a_s'] = fem.Constant(3) * utilities.piecewise(self.mesh, self.dm,
-                                                                   raw_params.neg.eps_s / raw_params.neg.Rs, 0,
-                                                                   raw_params.pos.eps_s / raw_params.pos.Rs)
+        self.params = collect_params(self.raw_params, self.mesh, self.dm, self.V0)
+        self.params['a_s'] = fem.Constant(3) * utilities.piecewise(self.mesh, self.dm, self.V0,
+                                                                   self.raw_params.neg.eps_s / self.raw_params.neg.Rs,
+                                                                   0,
+                                                                   self.raw_params.pos.eps_s / self.raw_params.pos.Rs)
         self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
         self.params['De_eff'] = self.const.De_ref * self.params.eps_e ** self.params.brug_De
         self.params['Uocp_neg'] = self.params.Uocp[0][0]
@@ -138,6 +157,11 @@ class Common:
         self.Iapp = [self.I_1C if 10 <= i <= 20 else -self.I_1C if 30 <= i <= 40 else 0 for i in time]
 
         _, self.params['kappa_D'] = kappa_D(**self.params, **self.const)
+        self.raw_params2 = collect_parameters(self.raw_params)
+        self.raw_params2['F'] = 96487
+        self.raw_params2['R'] = 8.314
+        self.raw_params2['Uocp_neg'] = self.params.Uocp[0][0]
+        self.raw_params2['Uocp_pos'] = self.params.Uocp[2][0]
 
 
 class Common2:
