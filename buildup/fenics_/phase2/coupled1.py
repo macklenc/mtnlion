@@ -26,8 +26,8 @@ def main():
     domain = cmn.domain
     comsol = cmn.comsol_solution
     k_norm_ref, csmax, alpha, L, a_s, sigma_eff = \
-        common.collect(cmn.params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
-    F, R, Tref, ce0, Acell = common.collect(cmn.const, 'F', 'R', 'Tref', 'ce0', 'Acell')
+        common.collect(cmn.fenics_params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
+    F, R, Tref, ce0, Acell = common.collect(cmn.fenics_consts, 'F', 'R', 'Tref', 'ce0', 'Acell')
     V = domain.V
     v = fem.TestFunction(V)
     du = fem.TrialFunction(V)
@@ -38,10 +38,11 @@ def main():
     phis_f = fem.Function(V)  # "previous solution"
     phie_f = fem.Function(V)
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref, cmn.params.Uocp[0][0],
-                    cmn.params.Uocp[2][0], dm=domain.domain_markers)
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
+                    cmn.fenics_params.Uocp[0][0],
+                    cmn.fenics_params.Uocp[2][0], dm=domain.domain_markers)
     phis_form = partial(equations.phis, j, phis_f, v, domain.dx((0, 2)),
-                        **cmn.params, **cmn.const, ds=domain.ds(4), nonlin=True)
+                        **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4), nonlin=True)
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time_in), len(comsol.mesh)))
@@ -82,7 +83,8 @@ def main():
     d['phie'] = comsol.data.phie[1::2]
     d['phis'] = u_array
 
-    d = dict(d, **cmn.raw_params2)
+    neg_params = {k: v[0] if isinstance(v, np.ndarray) else v for k, v in cmn.params.items()}
+    d = dict(d, **neg_params)
 
     def filter(x, sel='neg'):
         if sel is 'neg':
@@ -104,7 +106,7 @@ def main():
         return x
 
     neg = dict(map(lambda x: (x[0], filter(x[1], 'neg')), d.items()))
-    dta = equations.eval_j(**neg, **cmn.raw_params.const)
+    dta = equations.eval_j(**neg, **cmn.consts)
 
     utilities.report(comsol.neg, time_in, u_array[:, comsol.neg_ind],
                      comsol.data.phis[:, comsol.neg_ind][1::2], '$\Phi_s^{neg}$')

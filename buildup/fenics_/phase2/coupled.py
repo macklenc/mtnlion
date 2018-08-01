@@ -56,16 +56,17 @@ def main():
     cmn = common.Common(time)
     domain = cmn.domain
     comsol = cmn.comsol_solution
-    Acell = cmn.const.Acell
+    Acell = cmn.fenics_consts.Acell
 
     x = sym.Symbol('ce')
     y = sym.Symbol('x')
-    kp = cmn.const.kappa_ref.subs(y, x)
+    kp = cmn.fenics_consts.kappa_ref.subs(y, x)
 
     dfdc = sym.Symbol('dfdc')
     # dfdc = 0
-    kd = fem.Constant(2) * cmn.const.R * cmn.const.Tref / cmn.const.F * (fem.Constant(1) + dfdc) * (
-            cmn.const.t_plus - fem.Constant(1))
+    kd = fem.Constant(2) * cmn.fenics_consts.R * cmn.fenics_consts.Tref / cmn.fenics_consts.F * (
+        fem.Constant(1) + dfdc) * (
+             cmn.fenics_consts.t_plus - fem.Constant(1))
     kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
 
     P = fem.FiniteElement('CG', cmn.mesh.ufl_cell(), degree=1)
@@ -90,10 +91,11 @@ def main():
     ce_f = fem.Function(domain.V)  # "previous solution"
     cse_f = fem.Function(domain.V)
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, **cmn.params, **cmn.const, dm=domain.domain_markers)
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, **cmn.fenics_params, **cmn.fenics_consts, dm=domain.domain_markers)
     phis_form = partial(equations.phis, j, u_phis, v_phis, domain.dx((0, 2)),
-                        **cmn.params, **cmn.const, ds=domain.ds(4), nonlin=True)
-    phie_form = partial(equations.phie, j, ce_f, u_phie, v_phie, domain.dx, **cmn.params, **cmn.const, nonlin=True)
+                        **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4), nonlin=True)
+    phie_form = partial(equations.phie, j, ce_f, u_phie, v_phie, domain.dx, **cmn.fenics_params, **cmn.fenics_consts,
+                        nonlin=True)
 
     # initialize matrix to save solution results
     phis_array = np.empty((len(time_in), len(comsol.mesh)))
@@ -117,8 +119,8 @@ def main():
         bc[2] = fem.DirichletBC(V.sub(1), comsol.data.phie[i, 0], domain.boundary_markers, 1)
 
         kappa_ref = fem.Expression(sym.printing.ccode(kp), ce=ce_f, degree=1)
-        kappa_eff = kappa_ref * cmn.params.eps_e ** cmn.params.brug_kappa
-        kappa_Deff = kappa_D * kappa_ref * cmn.params.eps_e
+        kappa_eff = kappa_ref * cmn.fenics_params.eps_e ** cmn.fenics_params.brug_kappa
+        kappa_Deff = kappa_D * kappa_ref * cmn.fenics_params.eps_e
 
         Feq = phis_form(neumann=fem.Constant(Iapp[i]) / Acell) + \
               phie_form(kappa_eff=kappa_eff, kappa_Deff=kappa_Deff) + \
@@ -142,7 +144,8 @@ def main():
     d['phie'] = comsol.data.phie[1::2]
     d['phis'] = phis_array
 
-    d = dict(d, **cmn.raw_params2)
+    neg_params = {k: v[0] if isinstance(v, np.ndarray) else v for k, v in cmn.params.items()}
+    d = dict(d, **neg_params)
 
     def filter(x, sel='neg'):
         if sel is 'neg':
@@ -164,7 +167,7 @@ def main():
         return x
 
     neg = dict(map(lambda x: (x[0], filter(x[1], 'neg')), d.items()))
-    dta = equations.eval_j(**neg, **cmn.raw_params.const)
+    dta = equations.eval_j(**neg, **cmn.consts)
 
     utilities.report(comsol.neg, time_in, phis_array[:, comsol.neg_ind],
                      comsol.data.phis[:, comsol.neg_ind][1::2], '$\Phi_s^{neg}$')

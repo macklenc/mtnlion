@@ -17,8 +17,8 @@ def run(time, dt, return_comsol=False):
 
     jbar_c_1, ce_c, ce_c_1, ce = utilities.create_functions(domain.V, 4)
 
-    de_eff = cmn.params.De_eff
-    Lc = cmn.params.L
+    de_eff = cmn.fenics_params.De_eff
+    Lc = cmn.fenics_params.L
     n = domain.n
     dS = domain.dS
     neumann = dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(2) + \
@@ -27,7 +27,7 @@ def run(time, dt, return_comsol=False):
               dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
 
     a, L = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
-                                       **cmn.params, **cmn.const, nonlin=False)
+                                       **cmn.fenics_params, **cmn.fenics_consts, nonlin=False)
     L += neumann
 
     k = 0

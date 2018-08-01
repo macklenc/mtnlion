@@ -18,6 +18,7 @@ def prepare_comsol_buildup(time):
 
     return cmn, domain, comsol
 
+
 class Domain():
     def __init__(self, V, dx, ds, dS, n, boundary_markers, domain_markers):
         self.V = V
@@ -30,38 +31,7 @@ class Domain():
         self.domain_markers = domain_markers
 
 
-def collect_params(params, mesh, dm, V0):
-    lst = [0, 0]
-    n_dict = dict()
-    for k in params.neg:
-        neg = params.neg.get(k)
-        sep = params.sep.get(k, None)
-        pos = params.pos.get(k, None)
-
-        if sep is None:
-            sep = 0
-        else:
-            lst[0] += 1
-
-        if pos is None:
-            pos = 0
-        else:
-            lst[1] += 1
-
-        if isinstance(neg, numbers.Number):
-            n_dict[k] = utilities.piecewise(mesh, dm, V0, neg, sep, pos)
-            # n_dict[k] = utilities.mkparam(dm, neg, sep, pos)
-            # n_dict[k] = utilities.piecewise2(V, neg, sep, pos)
-        else:
-            n_dict[k] = [neg, sep, pos]
-
-    if len(params.sep) < lst[0] or len(params.pos) < lst[1]:
-        raise NameError('Not all parameters were added')
-
-    return munch.Munch(n_dict)
-
-
-def collect_const(const):
+def collect_fenics_const(const):
     n_dict = dict()
     for k, v in const.items():
         if isinstance(v, numbers.Number):
@@ -72,17 +42,29 @@ def collect_const(const):
     return munch.Munch(n_dict)
 
 
+def collect_fenics_params(params, mesh, dm, V):
+    n_dict = dict()
+
+    for k, v in params.items():
+        if isinstance(v, np.ndarray):
+            try:
+                n_dict[k] = utilities.piecewise(mesh, dm, V, *v)
+            except TypeError:
+                n_dict[k] = v
+        else:
+            n_dict[k] = v
+
+    return munch.Munch(n_dict)
+
+
 def collect(n_dict, *keys):
     return [n_dict[x] for x in keys]
 
 
-def kappa_D(R, Tref, F, t_plus, **kwargs):
-    dfdc = sym.Symbol('dfdc')
-    # dfdc = 0
-    kd = fem.Constant(2) * R * Tref / F * (fem.Constant(1) + dfdc) * (t_plus - fem.Constant(1))
-    kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
+def kappa_D(R, Tref, F, t_plus, dfdc, **kwargs):
+    kd = 2 * R * Tref / F * (1 + dfdc) * (t_plus - 1)
 
-    return kd, kappa_D
+    return kd
 
 
 def kappa_Deff(ce, kappa_ref, eps_e, brug_kappa, kappa_D, **kwargs):
@@ -107,7 +89,7 @@ def collect_parameters(params):
         sep = params.sep.get(k, 0.0)
         pos = params.pos.get(k, 0.0)
 
-        n_dict[k] = [neg, sep, pos]
+        n_dict[k] = np.array([neg, sep, pos])
 
     return munch.Munch(n_dict)
 
@@ -123,31 +105,38 @@ class Common:
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
         self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
+        self.params = collect_parameters(self.raw_params)
+        self.consts = self.raw_params.const
+
+        self.params['Uocp_neg'] = self.params.Uocp[0][0]
+        self.params['Uocp_pos'] = self.params.Uocp[2][0]
+        self.params['De_eff'] = self.consts.De_ref * self.params.eps_e ** self.params.brug_De
+        self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
+
+        self.consts['F'] = 96487
+        self.consts['R'] = 8.314
+        self.consts['dfdc'] = 0
+        self.consts['kappa_D'] = kappa_D(**self.params, **self.consts)
+        self.consts.kappa_ref = self.consts.kappa_ref[0]
+
         self.mesh, self.dx, self.ds, self.dS, self.n, self.bm, self.dm = \
             domain2.generate_domain(self.comsol_solution.mesh)
+
         self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
         self.V0 = fem.FunctionSpace(self.mesh, 'DG', 0)
+
+        self.fenics_params = collect_fenics_params(self.params, self.mesh, self.dm, self.V0)
+        self.fenics_consts = collect_fenics_const(self.consts)
+
+        self.fenics_params['a_s'] = fem.Constant(3) * utilities.piecewise(self.mesh, self.dm, self.V0,
+                                                                          self.raw_params.neg.eps_s / self.raw_params.neg.Rs,
+                                                                          0,
+                                                                          self.raw_params.pos.eps_s / self.raw_params.pos.Rs)
+
         # self.neg_submesh = fem.SubMesh(self.mesh, self.dm, 0)
         # self.sep_submesh = fem.SubMesh(self.mesh, self.dm, 1)
         # self.pos_submesh = fem.SubMesh(self.mesh, self.dm, 2)
 
-        # Initialize parameters
-        self.const = collect_const(self.raw_params.const)
-        self.const['F'] = fem.Constant(96487)
-        self.const['R'] = fem.Constant(8.314)  # universal gas constant
-
-        self.params = collect_params(self.raw_params, self.mesh, self.dm, self.V0)
-        self.params['a_s'] = fem.Constant(3) * utilities.piecewise(self.mesh, self.dm, self.V0,
-                                                                   self.raw_params.neg.eps_s / self.raw_params.neg.Rs,
-                                                                   0,
-                                                                   self.raw_params.pos.eps_s / self.raw_params.pos.Rs)
-        self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
-        self.params['De_eff'] = self.const.De_ref * self.params.eps_e ** self.params.brug_De
-        self.params['Uocp_neg'] = self.params.Uocp[0][0]
-        self.params['Uocp_pos'] = self.params.Uocp[2][0]
-        self.const.kappa_ref = self.const.kappa_ref[0]
-
-        self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
         # self.neg_V = fem.FunctionSpace(self.neg_submesh, 'Lagrange', 1)
         # self.sep_V = fem.FunctionSpace(self.sep_submesh, 'Lagrange', 1)
         # self.pos_V = fem.FunctionSpace(self.pos_submesh, 'Lagrange', 1)
@@ -155,13 +144,6 @@ class Common:
 
         self.I_1C = 20.5
         self.Iapp = [self.I_1C if 10 <= i <= 20 else -self.I_1C if 30 <= i <= 40 else 0 for i in time]
-
-        _, self.params['kappa_D'] = kappa_D(**self.params, **self.const)
-        self.raw_params2 = collect_parameters(self.raw_params)
-        self.raw_params2['F'] = 96487
-        self.raw_params2['R'] = 8.314
-        self.raw_params2['Uocp_neg'] = self.params.Uocp[0][0]
-        self.raw_params2['Uocp_pos'] = self.params.Uocp[2][0]
 
 
 class Common2:
