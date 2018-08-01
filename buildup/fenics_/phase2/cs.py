@@ -28,8 +28,8 @@ def ce():
     # create local variables
     comsol_sol = cmn.comsol_solution
     mesh, dx, ds, bm, dm = cmn.mesh, cmn.dx, cmn.ds, cmn.bm, cmn.dm
-    eps_e, de_eff, Lc, a_s = common.collect(cmn.params, 'eps_e', 'De_eff', 'L', 'a_s')
-    t_plus = cmn.const.t_plus
+    eps_e, de_eff, Lc, a_s = common.collect(cmn.fenics_params, 'eps_e', 'De_eff', 'L', 'a_s')
+    t_plus = cmn.fenics_consts.t_plus
 
     # create function space and basis functions
     V = fem.FunctionSpace(mesh, 'Lagrange', 1)
@@ -59,7 +59,7 @@ def ce():
 
     # a = Lc*eps_e*ce*v*dx
     # L = Lc*eps_e*ce_1*v*dx - dtc*de_eff/Lc*fem.dot(fem.grad(ce_1), fem.grad(v))*dx + dtc*Lc*a_s*\
-    #     (fem.Constant(1) - t_plus)*jbar*v*dx + neumann
+    #     (fem.fenics_constsant(1) - t_plus)*jbar*v*dx + neumann
 
     a = Lc * eps_e * ce * v * dx + dtc * de_eff/Lc*fem.dot(fem.grad(ce), fem.grad(v))*dx - neumann
     L = -dtc * Lc * a_s * (fem.Constant(1) - t_plus) * jbar * v * dx + Lc * eps_e * ce_1 * v * dx

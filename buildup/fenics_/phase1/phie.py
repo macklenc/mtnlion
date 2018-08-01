@@ -13,11 +13,11 @@ def run(time, return_comsol=False):
     v = fem.TestFunction(domain.V)
 
     jbar_c, ce_c, phie = utilities.create_functions(domain.V, 3)
-    kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.params, **cmn.const)
+    kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.fenics_params, **cmn.fenics_consts)
 
     # TODO: add internal neumann conditions
     a, L = equations.phie(jbar_c, ce_c, phie_u, v, domain.dx, kappa_eff, kappa_Deff,
-                          **cmn.params, **cmn.const, nonlin=False)
+                          **cmn.fenics_params, **cmn.fenics_consts, nonlin=False)
 
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j, comsol.data.ce], [jbar_c, ce_c], domain.V, i)

@@ -45,14 +45,15 @@ def main():
     domain = cmn.domain
     comsol = cmn.comsol_solution
     k_norm_ref, csmax, alpha, L, a_s, sigma_eff = \
-        common.collect(cmn.params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
-    F, R, Tref, ce0, Acell = common.collect(cmn.const, 'F', 'R', 'Tref', 'ce0', 'Acell')
-    Lc, a_s, eps_e, sigma_eff, brug_kappa = common.collect(cmn.params, 'L', 'a_s', 'eps_e', 'sigma_eff', 'brug_kappa')
-    F, t_plus, R, T = common.collect(cmn.const, 'F', 't_plus', 'R', 'Tref')
+        common.collect(cmn.fenics_params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
+    F, R, Tref, ce0, Acell = common.collect(cmn.fenics_consts, 'F', 'R', 'Tref', 'ce0', 'Acell')
+    Lc, a_s, eps_e, sigma_eff, brug_kappa = common.collect(cmn.fenics_params, 'L', 'a_s', 'eps_e', 'sigma_eff',
+                                                           'brug_kappa')
+    F, t_plus, R, T = common.collect(cmn.fenics_consts, 'F', 't_plus', 'R', 'Tref')
 
     x = sym.Symbol('ce')
     y = sym.Symbol('x')
-    kp = cmn.const.kappa_ref.subs(y, x)
+    kp = cmn.fenics_consts.kappa_ref.subs(y, x)
 
     dfdc = sym.Symbol('dfdc')
     # dfdc = 0
@@ -74,14 +75,15 @@ def main():
     kappa_eff = kappa_ref * eps_e ** brug_kappa
     kappa_Deff = kappa_D * kappa_ref * eps_e
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref, cmn.params.Uocp[0][0],
-                    cmn.params.Uocp[2][0], dm=domain.domain_markers)
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
+                    cmn.fenics_params.Uocp[0][0],
+                    cmn.fenics_params.Uocp[2][0], dm=domain.domain_markers)
     # phie(jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds=0, neumann=0, nonlin=False, **kwargs):
 
     u = fem.TrialFunction(V)
     v = fem.TestFunction(V)
     phie_form = equations.phie(j, ce_f, u, v, domain.dx, kappa_eff=kappa_eff, kappa_Deff=kappa_Deff,
-                               **cmn.params, **cmn.const, nonlin=True)
+                               **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time_in), len(comsol.mesh)))
@@ -127,7 +129,8 @@ def main():
     d['phie'] = u_array
     d['phis'] = comsol.data.phis[1::2]
 
-    d = dict(d, **cmn.raw_params2)
+    neg_params = {k: v[0] if isinstance(v, np.ndarray) else v for k, v in cmn.params.items()}
+    d = dict(d, **neg_params)
 
     def filter(x, sel='neg'):
         if sel is 'neg':
@@ -149,7 +152,7 @@ def main():
         return x
 
     neg = dict(map(lambda x: (x[0], filter(x[1], 'neg')), d.items()))
-    dta = equations.eval_j(**neg, **cmn.raw_params.const)
+    dta = equations.eval_j(**neg, **cmn.consts)
 
     utilities.report(comsol.mesh, time_in, u_array, comsol.data.phie[1::2], '$\Phi_e$')
     plt.show()

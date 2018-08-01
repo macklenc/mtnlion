@@ -14,12 +14,13 @@ def run(time, solver, return_comsol=False):
 
     phis_c, phie_c_, ce_c, cse_c = utilities.create_functions(domain.V, 4)
     phie = utilities.create_functions(domain.V, 1)[0]
-    kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.params, **cmn.const)
+    kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.fenics_params, **cmn.fenics_consts)
 
-    j = equations.j_new(ce_c, cse_c, phie_c_, phis_c, **cmn.params, **cmn.const, dm=domain.domain_markers, V=domain.V)
+    j = equations.j_new(ce_c, cse_c, phie_c_, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
+                        dm=domain.domain_markers, V=domain.V)
     # TODO: add internal neumann conditions
     a, L = equations.phie(j, ce_c, phie_u, v, domain.dx, kappa_eff, kappa_Deff,
-                          **cmn.params, **cmn.const, nonlin=False)
+                          **cmn.fenics_params, **cmn.fenics_consts, nonlin=False)
 
     k = 0
     for i in range(int(len(time) / 2)):

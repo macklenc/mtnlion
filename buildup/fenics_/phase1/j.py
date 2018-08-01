@@ -84,11 +84,11 @@ def main():
     domain = cmn.domain
     comsol = cmn.comsol_solution
 
-    k_norm_ref, csmax, alpha = common.collect(cmn.params, 'k_norm_ref', 'csmax', 'alpha')
-    F, R, Tref, ce0 = common.collect(cmn.const, 'F', 'R', 'Tref', 'ce0')
+    k_norm_ref, csmax, alpha = common.collect(cmn.fenics_params, 'k_norm_ref', 'csmax', 'alpha')
+    F, R, Tref, ce0 = common.collect(cmn.fenics_consts, 'F', 'R', 'Tref', 'ce0')
 
     fenics = solve(time, domain.V, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
-                   cmn.params.Uocp[0][0], cmn.params.Uocp[2][0], comsol)
+                   cmn.fenics_params.Uocp[0][0], cmn.fenics_params.Uocp[2][0], comsol)
 
     utilities.report(comsol.mesh[comsol.neg_ind], time, fenics[:, comsol.neg_ind],
                      comsol.data.j[:, comsol.neg_ind], '$j_{neg}$')
