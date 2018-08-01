@@ -112,6 +112,8 @@ class Common:
         self.params['Uocp_pos'] = self.params.Uocp[2][0]
         self.params['De_eff'] = self.consts.De_ref * self.params.eps_e ** self.params.brug_De
         self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
+        self.params['a_s'] = 3 * np.divide(self.params.eps_s, self.params.Rs,
+                                           out=np.zeros_like(self.params.eps_s), where=self.params.Rs != 0)
 
         self.consts['F'] = 96487
         self.consts['R'] = 8.314
@@ -127,11 +129,6 @@ class Common:
 
         self.fenics_params = collect_fenics_params(self.params, self.mesh, self.dm, self.V0)
         self.fenics_consts = collect_fenics_const(self.consts)
-
-        self.fenics_params['a_s'] = fem.Constant(3) * utilities.piecewise(self.mesh, self.dm, self.V0,
-                                                                          self.raw_params.neg.eps_s / self.raw_params.neg.Rs,
-                                                                          0,
-                                                                          self.raw_params.pos.eps_s / self.raw_params.pos.Rs)
 
         # self.neg_submesh = fem.SubMesh(self.mesh, self.dm, 0)
         # self.sep_submesh = fem.SubMesh(self.mesh, self.dm, 1)
