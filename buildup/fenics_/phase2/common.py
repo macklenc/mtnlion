@@ -91,7 +91,8 @@ class Common:
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
         self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
 
-        self.mesh, self.dx, self.ds, self.bm, self.dm = domain2.generate_domain(self.comsol_solution.mesh)
+        self.mesh, self.dx, self.ds, self.dS, self.n, self.bm, self.dm = \
+            domain2.generate_domain(self.comsol_solution.mesh)
         self.V = fem.FunctionSpace(self.mesh, 'Lagrange', 1)
         self.V0 = fem.FunctionSpace(self.mesh, 'DG', 0)
         # self.neg_submesh = fem.SubMesh(self.mesh, self.dm, 0)
