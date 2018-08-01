@@ -1,3 +1,4 @@
+import os
 import time
 
 import fenics as fem
@@ -11,9 +12,10 @@ import mtnlion.engine as engine
 
 def gather_data():
     # Load required cell data
-    resources = '../../../reference/'
-    params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.load(resources + 'guwang2.npz')
+    localdir = os.path.dirname(__file__)
+    resources = os.path.join(localdir, '../../reference/')
+    params = engine.fetch_params(os.path.join(resources, 'GuAndWang_parameter_list.xlsx'))
+    d_comsol = comsol.load(os.path.join(resources, 'guwang.npz'))
     return d_comsol, params
 
 
