@@ -52,8 +52,8 @@ def piecewise(mesh, subdomain, V0, *values):
         marker = subdomain.array()[cell]
         k.vector()[cell] = values[marker]
 
-    # return k
-    return fem.interpolate(k, fem.FunctionSpace(mesh, 'Lagrange', 1))
+    return k
+    # return fem.interpolate(k, fem.FunctionSpace(mesh, 'Lagrange', 1))
 
 
 def piecewise2(V, *values):
