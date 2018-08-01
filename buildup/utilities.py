@@ -151,3 +151,15 @@ class Timer:
     def __exit__(self, *args):
         self.end = time.clock()
         self.interval = self.end - self.start
+
+
+def picard_solver(F, u, u_, bc, tol=1e-5, maxiter=25):
+    eps = 1.0
+    iter = 0
+    while eps > tol and iter < maxiter:
+        iter += 1
+        fem.solve(F, u, bc)
+        diff = u.vector().get_local() - u_.vector().get_local()
+        eps = np.linalg.norm(diff, ord=np.Inf)
+        print('iter={}, norm={}'.format(iter, eps))
+        u_.assign(u)
