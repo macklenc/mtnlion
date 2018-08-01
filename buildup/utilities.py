@@ -1,3 +1,4 @@
+import os
 import time
 
 import fenics as fem
@@ -11,11 +12,37 @@ import mtnlion.engine as engine
 
 def gather_data():
     # Load required cell data
-    resources = '../../../reference/'
-    params = engine.fetch_params(resources + 'GuAndWang_parameter_list.xlsx')
-    d_comsol = comsol.load(resources + 'guwang2.npz')
+    localdir = os.path.dirname(__file__)
+    resources = os.path.join(localdir, 'reference/')
+    params = engine.fetch_params(os.path.join(resources, 'GuAndWang_parameter_list.xlsx'))
+    d_comsol = comsol.load(os.path.join(resources, 'guwang.npz'))
     return d_comsol, params
 
+
+def create_solution_matrices(nr, nc, r):
+    return tuple(np.empty((nr, nc)) for _ in range(r))
+
+
+def create_functions(V, r):
+    return tuple(fem.Function(V) for _ in range(r))
+
+
+def assign_functions(from_funcs, to_funcs, V, i):
+    for (f, t) in zip(from_funcs, to_funcs):
+        t.vector()[:] = f[i, fem.dof_to_vertex_map(V)].astype('double')
+
+
+def get_1d(func, V):
+    return func.vector().get_local()[fem.vertex_to_dof_map(V)]
+
+
+def save_plot(local_module_path, name):
+    file = os.path.join(os.path.dirname(local_module_path), name)
+    directory = os.path.dirname(os.path.abspath(file))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    plt.savefig(name)
 
 def piecewise(mesh, subdomain, *values):
     V0 = fem.FunctionSpace(mesh, 'DG', 0)

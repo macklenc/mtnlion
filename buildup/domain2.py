@@ -41,13 +41,17 @@ def generate_domain(raw_mesh):
     # Setup measures
     dx = fem.Measure('dx', domain=mesh, subdomain_data=domain_markers)
     ds = fem.Measure('ds', domain=mesh, subdomain_data=boundary_markers)
+    dS = fem.Measure('dS', domain=mesh, subdomain_data=boundary_markers)
+
+    # normal vector
+    n = fem.FacetNormal(mesh)
 
     # print(domain_markers.array())
     # print(boundary_markers.array())
     # fem.plot(markers)
     # plt.show()
 
-    return mesh, dx, ds, boundary_markers, domain_markers
+    return mesh, dx, ds, dS, n, boundary_markers, domain_markers
 
 
 def generate_domain2(mesh):

@@ -23,7 +23,7 @@ def solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, true_sol):
     jbar = fem.Function(domain.V)
     phis = fem.Function(domain.V)
 
-    phis_eq = partial(equations.phis, jbar, a_s, F, sigma_eff, L, phis_u, v, dx, domain.ds(4), nonlin=False)
+    phis_eq = partial(equations.phis, jbar, a_s, F, sigma_eff, L, phis_u, v, domain.dx, domain.ds(4), nonlin=False)
 
     bc = [fem.DirichletBC(V, 0.0, bm, 1), 0]
     for i, j in enumerate(true_sol.data.j):
