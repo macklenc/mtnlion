@@ -15,9 +15,21 @@ def run(time, return_comsol=False):
     jbar_c, ce_c, phie = utilities.create_functions(domain.V, 3)
     kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.fenics_params, **cmn.fenics_consts)
 
-    # TODO: add internal neumann conditions
+    Lc = cmn.fenics_params.L
+    n = domain.n
+    dS = domain.dS
+
+    newmann_a = (kappa_eff('-') / Lc('-') * fem.inner(fem.grad(phie_u('-')), n('-')) * v('-') +
+                 kappa_eff('+') / Lc('+') * fem.inner(fem.grad(phie_u('+')), n('+')) * v('+')) * (dS(2) + dS(3))
+
+    newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
+                  kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
+
     a, L = equations.phie(jbar_c, ce_c, phie_u, v, domain.dx, kappa_eff, kappa_Deff,
                           **cmn.fenics_params, **cmn.fenics_consts, nonlin=False)
+
+    a += newmann_a
+    L += newmann_L
 
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j, comsol.data.ce], [jbar_c, ce_c], domain.V, i)

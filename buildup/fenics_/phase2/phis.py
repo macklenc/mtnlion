@@ -18,9 +18,9 @@ def run(time, solver, return_comsol=False):
     Iapp = fem.Constant(0)
 
     # TODO: Fix j
-    # j = equations.j(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts)
-    j = equations.j_new(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts,
-                        dm=domain.domain_markers, V=domain.V)
+    j = equations.j(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts)
+    # j = equations.j_new(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts,
+    #                     dm=domain.domain_markers, V=domain.V)
 
     a, L = equations.phis(j, phis_u, v, domain.dx((0, 2)), **cmn.fenics_params, **cmn.fenics_consts,
                           neumann=Iapp / cmn.fenics_consts.Acell, ds=domain.ds(4), nonlin=False)

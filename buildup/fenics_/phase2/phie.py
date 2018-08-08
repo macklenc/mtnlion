@@ -16,11 +16,25 @@ def run(time, solver, return_comsol=False):
     phie = utilities.create_functions(domain.V, 1)[0]
     kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.fenics_params, **cmn.fenics_consts)
 
-    j = equations.j_new(ce_c, cse_c, phie_c_, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
+    Lc = cmn.fenics_params.L
+    n = domain.n
+    dS = domain.dS
+
+    newmann_a = (kappa_eff('-') / Lc('-') * fem.inner(fem.grad(phie_u('-')), n('-')) * v('-') +
+                 kappa_eff('+') / Lc('+') * fem.inner(fem.grad(phie_u('+')), n('+')) * v('+')) * (dS(2) + dS(3))
+
+    newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
+                  kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
+
+    j = equations.j(ce_c, cse_c, phie_c_, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
                         dm=domain.domain_markers, V=domain.V)
-    # TODO: add internal neumann conditions
-    a, L = equations.phie(j, ce_c, phie_u, v, domain.dx, kappa_eff, kappa_Deff,
-                          **cmn.fenics_params, **cmn.fenics_consts, nonlin=False)
+
+    F = equations.phie(j, ce_c, phie_u, v, domain.dx((0, 2)), kappa_eff, kappa_Deff,
+                       **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
+    F += equations.phie(fem.Constant(0), ce_c, phie_u, v, domain.dx(1), kappa_eff, kappa_Deff,
+                        **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
+
+    F += newmann_a - newmann_L
 
     k = 0
     for i in range(int(len(time) / 2)):
@@ -31,7 +45,7 @@ def run(time, solver, return_comsol=False):
                                    [phis_c, ce_c, cse_c], domain.V, i)
         bc = fem.DirichletBC(domain.V, comsol.data.phie[i, 0], domain.boundary_markers, 1)
 
-        solver(a == L, phie, phie_c_, bc)
+        solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
         phie_sol[k, :] = utilities.get_1d(phie, domain.V)
         j_sol[k, :] = utilities.get_1d(fem.interpolate(j, domain.V), domain.V)
         k += 1
