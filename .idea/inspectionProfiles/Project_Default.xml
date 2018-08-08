@@ -33,6 +33,7 @@
           <option value="fenics.SubMesh" />
           <option value="fenics.IntervalMesh" />
           <option value="fenics.FunctionAssigner" />
+          <option value="fenics.set_log_level" />
         </list>
       </option>
     </inspection_tool>
