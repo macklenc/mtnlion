@@ -17,7 +17,7 @@ def phis(jbar, phis, v, dx, a_s, F, sigma_eff, L, ds=0, neumann=0, nonlin=False,
 def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=0, nonlin=False, **kwargs):
     a = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v)) * dx
     Lin = L * a_s * F * jbar * v * dx - kappa_Deff / L * \
-        fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
+          fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
 
     if nonlin:
         return a - Lin
@@ -62,11 +62,55 @@ def ce_explicit_euler(jbar, ce_1, ce, v, dx, dt, a_s, eps_e, De_eff, t_plus, L,
         return a, Lin
 
 
+my_expression = '''
+class test : public Expression
+{
+public:
+
+  test() : Expression() { }
+
+  void eval(Array<double>& values, const Array<double>& x) const
+  {
+    Array<double> cse_val(x.size()), csmax_val(x.size()), soc(x.size());
+    cse->eval(cse_val, x);
+    csmax->eval(csmax_val, x);
+    // std::vector<double> test(0.1, 0.2);
+    // boost::math::cubic_b_spline<double> spline(test.begin(), test.end(), 0, 0.1);
+    
+    if(x[0] <= 2 + DOLFIN_EPS){
+        values[0] = 0;
+        return;
+    }
+    
+    std::cout << "x coord: " << x[0] << std::endl;
+    std::cout << "cse: " << cse_val[0] << std::endl;
+    std::cout << "csmax: " << csmax_val[0] << std::endl;
+    for(std::size_t i = 0; i < cse_val.size(); i++){
+        soc[i] = cse_val[i]/csmax_val[i];
+        std::cout << "soc value: " << soc[i] << std::endl;
+    }
+    if(x[0] >= 2.0)
+        Uocp->eval(values, soc);
+    else
+        for(unsigned i = 0; i < values.size(); ++i){
+            values[i] = 0;
+        }
+  }
+
+  std::shared_ptr<const Function> Uocp; // DOLFIN 1.4.0
+  std::shared_ptr<const Function> cse; // DOLFIN 1.4.0
+  std::shared_ptr<const Function> csmax; // DOLFIN 1.4.0
+  //boost::shared_ptr<const Function> f; // DOLFIN 1.3.0
+};
+'''
+
+
 def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, **kwargs):
-    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)[0]),
+    Uocp_pos = fem.Expression(cppcode=my_expression, Uocp=Uocp_pos, cse=cse, csmax=csmax, degree=1)
+    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos=None)[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
                           ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
-                          R=R, Tref=Tref, degree=degree)
+                          R=R, Tref=Tref, Uocp_pos=Uocp_pos, degree=degree)
 
 
 def j_new(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, dm, V, degree=1,
@@ -90,7 +134,7 @@ def eval_j(x, ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uo
     return jeval(csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis, x, F, R, Tref)
 
 
-def _sym_j(Uocp_neg, Uocp_pos):
+def _sym_j(Uocp_neg=None, Uocp_pos=None):
     number = sym.Symbol('n')
     csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis = sym.symbols('csmax cse ce ce0 alpha k_norm_ref phie phis')
     x, f, r, Tref = sym.symbols('x[0], F, R, Tref')
@@ -103,12 +147,16 @@ def _sym_j(Uocp_neg, Uocp_pos):
 
     tmpx = sym.Symbol('x')
     # Uocp_pos = Uocp_pos * 1.00025  #########################################FIX ME!!!!!!!!!!!!!!!!!!*1.00025
-
-    Uocp_neg = Uocp_neg.subs(tmpx, soc)
-    Uocp_pos = Uocp_pos.subs(tmpx, soc)
+    if Uocp_neg:
+        Uocp_neg = Uocp_neg.subs(tmpx, soc)
+    else:
+        Uocp_neg = sym.Symbol('Uocp_neg')
+    if Uocp_pos:
+        Uocp_pos = Uocp_pos.subs(tmpx, soc)
+    else:
+        Uocp_pos = sym.Symbol('Uocp_pos')
 
     uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
-
     eta = phis - phie - uocp
     sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
     sym_j_domain = sym.Piecewise((sym_j, x <= 1), (sym_j, x >= 2), (0, True))
