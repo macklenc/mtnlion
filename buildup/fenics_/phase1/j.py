@@ -2,21 +2,22 @@ import sys
 
 import fenics as fem
 import matplotlib.pyplot as plt
+import numpy as np
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
 
-import numpy as np
-
 
 def eref_pos():
-    x_values = np.array([0.44, 0.467804, 0.495607, 0.523411, 0.551214, 0.579018, 0.606821, 0.634625, 0.662428, 0.690232,
-                0.718035, 0.745839, 0.773642, 0.801446, 0.829249, 0.857053, 0.884856, 0.91266, 0.940463, 0.968267,
-                0.99607, 1])
+    x_values = np.array([0.175, 0.195, 0.215, 0.235, 0.255, 0.275, 0.295, 0.315, 0.335, 0.355, 0.375, 0.395, 0.415,
+                         0.435, 0.455, 0.475, 0.495, 0.515, 0.535, 0.555, 0.575, 0.595, 0.615, 0.635, 0.655, 0.675,
+                         0.695, 0.715, 0.735, 0.755, 0.775, 0.795, 0.815, 0.835, 0.855, 0.875, 0.895, 0.915, 0.935,
+                         0.955, 0.975, 0.995])
 
-    y_values = np.array([4.24783, 4.19155, 4.16236, 4.14308, 4.12451, 4.09837, 4.069, 4.04214, 4.01823, 3.99499,
-                         3.97035, 3.94095, 3.90082, 3.8528, 3.8116, 3.78152, 3.75736, 3.735, 3.71117, 3.68231, 3.64192,
-                         3.62824])
+    y_values = np.array([4.2763, 4.1898, 4.1507, 4.133, 4.1248, 4.1209, 4.119, 4.1179, 4.1171, 4.1165, 4.116,
+                         4.1153, 4.1145, 4.1135, 4.1121, 4.1099, 4.1066, 4.1014, 4.0934, 4.082, 4.067, 4.05,
+                         4.0333, 4.0192, 4.0087, 4.0012, 3.996, 3.9923, 3.9893, 3.9867, 3.9841, 3.9813, 3.9783,
+                         3.9747, 3.9705, 3.9652, 3.9585, 3.9493, 3.9361, 3.9144, 3.869, 3.5944])
 
     mesh = fem.IntervalMesh(len(x_values) - 1, 0, 3)
     mesh.coordinates()[:] = np.array([x_values]).transpose()
@@ -24,7 +25,8 @@ def eref_pos():
     V1 = fem.FunctionSpace(mesh, 'Lagrange', 1)
     eref = fem.Function(V1)
     eref.vector()[:] = y_values[fem.vertex_to_dof_map(V1)]
-    eref.set_allow_extrapolation(True)
+    # ret = fem.conditional(x >= 2, eref, 0)
+    # eref.set_allow_extrapolation(True)
     # print(eref(0.5))
 
     return eref
@@ -36,6 +38,7 @@ def run(time, return_comsol=False, engine='comsol', form='equation'):
 
     phis_c, phie_c, cse_c, ce_c = utilities.create_functions(domain.V, 4)
     cmn.fenics_params.Uocp_pos = eref_pos()
+    cmn.fenics_params.materials = cmn.domain.domain_markers
 
     # TODO: add forms to j. I.e. equation, interpolation
     jbar = equations.j(ce_c, cse_c, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts, form=form)
