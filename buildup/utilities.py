@@ -56,12 +56,12 @@ def piecewise(mesh, subdomain, V0, *values):
     return fem.interpolate(k, fem.FunctionSpace(mesh, 'Lagrange', 1))
 
 
-def piecewise2(V, *values):
+def piecewise2(mesh, subdomain, V0, *values):
     x = sym.Symbol('x[0]')
     E = sym.Piecewise((values[0], x <= 1.0 + fem.DOLFIN_EPS), (values[1], sym.And(x > 1.0, x < 2.0)),
                       (values[2], x >= 2.0 - fem.DOLFIN_EPS), (0, True))
     exp = fem.Expression(sym.printing.ccode(E), degree=0)
-    fun = fem.interpolate(exp, V)
+    fun = fem.interpolate(exp, V0)
 
     return fun
 

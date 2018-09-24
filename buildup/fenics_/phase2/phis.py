@@ -30,6 +30,24 @@ def eref_pos():
     return eref
 
 
+def eref_neg():
+    x_values = np.array([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7])
+
+    y_values = np.array([0.9761, 0.8179, 0.6817, 0.5644, 0.4635, 0.3767, 0.3019, 0.2376, 0.1822, 0.1345, 0.0935,
+                         0.0582, 0.0278, 0.0016])
+
+    mesh = fem.IntervalMesh(len(x_values) - 1, 0, 3)
+    mesh.coordinates()[:] = np.array([x_values]).transpose()
+
+    V1 = fem.FunctionSpace(mesh, 'Lagrange', 1)
+    eref = fem.Function(V1)
+    eref.vector()[:] = y_values[fem.vertex_to_dof_map(V1)]
+    # ret = fem.conditional(x >= 2, eref, 0)
+    # eref.set_allow_extrapolation(True)
+    # print(eref(0.5))
+
+    return eref
+
 def run(time, solver, return_comsol=False):
     cmn, domain, comsol = common.prepare_comsol_buildup(time)
 
@@ -39,6 +57,7 @@ def run(time, solver, return_comsol=False):
     v = fem.TestFunction(domain.V)
 
     phis_c_, phie_c, ce_c, cse_c = utilities.create_functions(domain.V, 4)
+    cmn.fenics_params.Uocp_neg = eref_neg()
     cmn.fenics_params.Uocp_pos = eref_pos()
     cmn.fenics_params.materials = cmn.domain.domain_markers
     phis = utilities.create_functions(domain.V, 1)[0]
