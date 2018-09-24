@@ -83,7 +83,54 @@ public:
     //}
     
     
-    if((*materials)[cell.index] == 2){
+    if(x[0] >= 2.0){
+        std::cout << "x coord: " << x[0] << std::endl;
+        std::cout << "cse: " << cse_val[0] << std::endl;
+        std::cout << "csmax: " << csmax_val[0] << std::endl;
+        if(csmax_val[0] < 22860-1)
+            csmax_val[0] = 22860;
+        for(std::size_t i = 0; i < cse_val.size(); i++){
+            soc[i] = cse_val[i]/csmax_val[i];
+            std::cout << "soc value: " << soc[i] << std::endl;
+        }
+        Uocp->eval(values, soc);
+        std::cout << "Uocp: " << values[0] << std::endl << std::endl;
+    } else {
+        values[0] = 0.3393;
+    }
+  }
+
+  std::shared_ptr<const Function> Uocp; // DOLFIN 1.4.0
+  std::shared_ptr<const Function> cse; // DOLFIN 1.4.0
+  std::shared_ptr<const Function> csmax; // DOLFIN 1.4.0
+  std::shared_ptr<MeshFunction<std::size_t>> materials;
+  std::size_t index;
+  //boost::shared_ptr<const Function> f; // DOLFIN 1.3.0
+};
+'''
+
+my_expression1 = '''
+class test : public Expression
+{
+public:
+
+  test() : Expression() { }
+
+  void eval(Array<double>& values, const Array<double>& x, const ufc::cell& cell) const
+  {
+    Array<double> cse_val(x.size()), csmax_val(x.size()), soc(x.size());
+    cse->eval(cse_val, x);
+    csmax->eval(csmax_val, x);
+    // std::vector<double> test(0.1, 0.2);
+    // boost::math::cubic_b_spline<double> spline(test.begin(), test.end(), 0, 0.1);
+
+    //if(x[0] <= 2 + DOLFIN_EPS){
+    //    values[0] = 0;
+    //    return;
+    //}
+
+
+    if(x[0] <= 1.0){
         std::cout << "x coord: " << x[0] << std::endl;
         std::cout << "cse: " << cse_val[0] << std::endl;
         std::cout << "csmax: " << csmax_val[0] << std::endl;
@@ -93,6 +140,8 @@ public:
         }
         Uocp->eval(values, soc);
         std::cout << "Uocp: " << values[0] << std::endl << std::endl;
+    } else {
+        values[0] = 0.3393;
     }
   }
 
@@ -100,6 +149,7 @@ public:
   std::shared_ptr<const Function> cse; // DOLFIN 1.4.0
   std::shared_ptr<const Function> csmax; // DOLFIN 1.4.0
   std::shared_ptr<MeshFunction<std::size_t>> materials;
+  std::size_t index;
   //boost::shared_ptr<const Function> f; // DOLFIN 1.3.0
 };
 '''
@@ -107,12 +157,14 @@ public:
 
 def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, materials=1,
       **kwargs):
-    Uocp_pos = fem.Expression(cppcode=my_expression, Uocp=Uocp_pos, cse=cse, csmax=csmax, degree=1)
+    Uocp_pos = fem.Expression(cppcode=my_expression, Uocp=Uocp_pos, cse=cse, csmax=csmax, index=2, degree=1)
     Uocp_pos.materials = materials
-    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos=None)[0]),
+    Uocp_neg = fem.Expression(cppcode=my_expression1, Uocp=Uocp_neg, cse=cse, csmax=csmax, index=0, degree=1)
+    Uocp_neg.materials = materials
+    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg=None, Uocp_pos=None)[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
                           ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
-                          R=R, Tref=Tref, Uocp_pos=Uocp_pos, degree=degree)
+                          R=R, Tref=Tref, Uocp_pos=Uocp_pos, Uocp_neg=Uocp_neg, degree=degree)
 
 
 def j_new(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, dm, V, degree=1,
