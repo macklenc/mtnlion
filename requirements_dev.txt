@@ -6,7 +6,7 @@ flake8==3.5.0
 tox==3.5.2
 coverage==4.5.1
 Sphinx==1.7.6
-sphinx_rtd_theme==0.4.1
+sphinx_rtd_theme==0.4.2
 
 pytest==3.7.1
 pytest-runner==4.2
