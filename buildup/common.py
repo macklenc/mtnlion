@@ -48,7 +48,7 @@ def collect_fenics_params(params, mesh, dm, V):
     for k, v in params.items():
         if isinstance(v, np.ndarray):
             try:
-                n_dict[k] = utilities.piecewise2(mesh, dm, V, *v)
+                n_dict[k] = utilities.piecewise(mesh, dm, V, *v)
             except TypeError:
                 n_dict[k] = v
         else:
