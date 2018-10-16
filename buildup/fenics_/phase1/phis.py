@@ -27,6 +27,7 @@ def run(time, return_comsol=False):
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i)
         Iapp.assign(cmn.Iapp[i])
+        bc[0] = fem.DirichletBC(domain.V, comsol.data.phis[i, 0], domain.boundary_markers, 1)
         bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, -1], domain.boundary_markers, 4)
 
         fem.solve(a == L, phis, bc)

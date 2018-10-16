@@ -15,7 +15,7 @@ def gather_data():
     localdir = os.path.dirname(__file__)
     resources = os.path.join(localdir, 'reference/')
     params = engine.fetch_params(os.path.join(resources, 'GuAndWang_parameter_list.xlsx'))
-    d_comsol = comsol.load(os.path.join(resources, 'guwang.npz'))
+    d_comsol = comsol.load(os.path.join(resources, 'guwang_phie.npz'))
     return d_comsol, params
 
 

@@ -34,6 +34,7 @@ def run(time, solver, return_comsol=False):
         utilities.assign_functions([comsol.data.phie, comsol.data.ce, comsol.data.cse],
                                    [phie_c, ce_c, cse_c], domain.V, i)
         Iapp.assign(cmn.Iapp[i])
+        bc[0] = fem.DirichletBC(domain.V, comsol.data.phis[i, 0], domain.boundary_markers, 1)
         bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, -1], domain.boundary_markers, 4)
 
         solver(a == L, phis, phis_c_, bc)
