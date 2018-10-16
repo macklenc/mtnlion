@@ -99,11 +99,13 @@ class Common:
         self.time = time
 
         # Collect required data
-        comsol_data, self.raw_params = utilities.gather_data()
+        comsol_data, self.raw_params, Uocp_spline = utilities.gather_data()
         self.time_ind = engine.find_ind_near(comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(comsol_data.filter_time(self.time_ind))
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
         self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
+
+        self.Uocp_spline = munch.Munch(Uocp_spline)
 
         self.params = collect_parameters(self.raw_params)
         self.consts = self.raw_params.const
