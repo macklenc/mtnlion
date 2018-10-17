@@ -10,7 +10,6 @@ from mtnlion.newman import equations
 
 def eref_pos(cmn):
     x_values = cmn.Uocp_spline.Uocp_pos[:, 0]
-
     y_values = cmn.Uocp_spline.Uocp_pos[:, 1]
 
     mesh = fem.IntervalMesh(len(x_values) - 1, 0, 3)
@@ -27,7 +26,6 @@ def eref_pos(cmn):
 
 def eref_neg(cmn):
     x_values = cmn.Uocp_spline.Uocp_neg[:, 0]
-
     y_values = cmn.Uocp_spline.Uocp_neg[:, 1]
 
     mesh = fem.IntervalMesh(len(x_values) - 1, 0, 3)
@@ -48,8 +46,10 @@ def run(time, return_comsol=False, engine='comsol', form='equation'):
     j_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
 
     phis_c, phie_c, cse_c, ce_c, sol = utilities.create_functions(domain.V, 5)
+
     u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
+
     cmn.fenics_params.Uocp_pos = eref_pos(cmn)
     cmn.fenics_params.Uocp_neg = eref_neg(cmn)
     cmn.fenics_params.materials = cmn.domain.domain_markers
