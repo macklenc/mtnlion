@@ -12,16 +12,22 @@ def run(time, return_comsol=False, engine='comsol', form='equation'):
 
     j_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
 
-    phis_c, phie_c, cse_c, ce_c = utilities.create_functions(domain.V, 4)
+    phis_c, phie_c, cse_c, ce_c, sol = utilities.create_functions(domain.V, 5)
+    u = fem.TrialFunction(domain.V)
+    v = fem.TestFunction(domain.V)
 
     # TODO: add forms to j. I.e. equation, interpolation
     jbar = equations.j(ce_c, cse_c, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts, form=form)
+
+    a = fem.dot(u, v) * domain.dx((0, 2))
+    L = jbar * v * domain.dx((0, 2))
 
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.phis, comsol.data.phie, comsol.data.cse, comsol.data.ce],
                                    [phis_c, phie_c, cse_c, ce_c], domain.V, i)
 
-        j_sol[i, :] = utilities.get_1d(fem.interpolate(jbar, domain.V), domain.V)
+        fem.solve(a == L, sol)
+        j_sol[i, :] = utilities.get_1d(fem.interpolate(sol, domain.V), domain.V)
 
     if return_comsol:
         return j_sol, comsol
