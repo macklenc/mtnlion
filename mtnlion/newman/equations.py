@@ -84,37 +84,37 @@ public:
     
     
     if(x[0] >= 2.0 && electrode == 1){
-        std::cout << "x coord: " << x[0] << std::endl;
-        std::cout << "cse: " << cse_val[0] << std::endl;
-        std::cout << "csmax: " << csmax_val[0] << std::endl;
+        //std::cout << "x coord: " << x[0] << std::endl;
+        //std::cout << "cse: " << cse_val[0] << std::endl;
+        //std::cout << "csmax: " << csmax_val[0] << std::endl;
         if(csmax_val[0] < 22860-1){
-            std::cout << "CSMAX " << csmax_val[0] << std::endl;
-            std::cout << (*materials)[cell.index] << std::endl;
-            std::cout << "x: " << x[0] << std::endl;
+            //std::cout << "CSMAX " << csmax_val[0] << std::endl;
+            //std::cout << (*materials)[cell.index] << std::endl;
+            //std::cout << "x: " << x[0] << std::endl;
             csmax_val[0] = 22860;
         }
         for(std::size_t i = 0; i < cse_val.size(); i++){
             soc[i] = cse_val[i]/csmax_val[i];
-            std::cout << "soc value: " << soc[i] << std::endl;
+            //std::cout << "soc value: " << soc[i] << std::endl;
         }
         Uocp->eval(values, soc);
-        std::cout << "Uocp: " << values[0] << std::endl << std::endl;
+        //std::cout << "Uocp: " << values[0] << std::endl << std::endl;
     } else if(x[0] <= 1.0 && electrode == 0){
         if(csmax_val[0] < 26390){
-            std::cout << "CSMAX " << csmax_val[0] << std::endl;
-            std::cout << (*materials)[cell.index] << std::endl;
-            std::cout << "x: " << x[0] << std::endl;
+            //std::cout << "CSMAX " << csmax_val[0] << std::endl;
+            //std::cout << (*materials)[cell.index] << std::endl;
+            //std::cout << "x: " << x[0] << std::endl;
             csmax_val[0] = 26390;
         }
-        std::cout << "x coord: " << x[0] << std::endl;
-        std::cout << "cse: " << cse_val[0] << std::endl;
-        std::cout << "csmax: " << csmax_val[0] << std::endl;
+       // std::cout << "x coord: " << x[0] << std::endl;
+        //std::cout << "cse: " << cse_val[0] << std::endl;
+        //std::cout << "csmax: " << csmax_val[0] << std::endl;
         for(std::size_t i = 0; i < cse_val.size(); i++){
             soc[i] = cse_val[i]/csmax_val[i];
-            std::cout << "soc value: " << soc[i] << std::endl;
+            //std::cout << "soc value: " << soc[i] << std::endl;
         }
         Uocp->eval(values, soc);
-        std::cout << "Uocp: " << values[0] << std::endl << std::endl;
+        //std::cout << "Uocp: " << values[0] << std::endl << std::endl;
     } 
   }
 
@@ -128,16 +128,17 @@ public:
 };
 '''
 
-def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, materials=1,
+
+def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp2, degree=1, materials=1,
       **kwargs):
-    Uocp_pos = fem.Expression(cppcode=my_expression, Uocp=Uocp_pos, cse=cse, csmax=csmax, index=2, electrode=1, degree=1)
-    Uocp_pos.materials = materials
-    Uocp_neg = fem.Expression(cppcode=my_expression, Uocp=Uocp_neg, cse=cse, csmax=csmax, index=0, electrode=0, degree=1)
-    Uocp_neg.materials = materials
-    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg=None, Uocp_pos=None)[0]),
+    # Uocp_pos = fem.Expression(cppcode=my_expression, Uocp=Uocp_pos, cse=cse, csmax=csmax, index=2, electrode=1, degree=1)
+    # Uocp_pos.materials = materials
+    # Uocp_neg = fem.Expression(cppcode=my_expression, Uocp=Uocp_neg, cse=cse, csmax=csmax, index=0, electrode=0, degree=1)
+    # Uocp_neg.materials = materials
+    return fem.Expression(sym.printing.ccode(_sym_j()[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
                           ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
-                          R=R, Tref=Tref, Uocp_pos=Uocp_pos, Uocp_neg=Uocp_neg, degree=degree)
+                          R=R, Tref=Tref, Uocp=Uocp2, degree=degree)
 
 
 def j_new(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, dm, V, degree=1,
@@ -183,7 +184,8 @@ def _sym_j(Uocp_neg=None, Uocp_pos=None):
     else:
         Uocp_pos = sym.Symbol('Uocp_pos')
 
-    uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
+    # uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
+    uocp = sym.Symbol('Uocp')
     eta = phis - phie - uocp
     sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
     sym_j_domain = sym.Piecewise((sym_j, x <= 1), (sym_j, x >= 2), (0, True))
