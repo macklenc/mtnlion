@@ -3,6 +3,41 @@ import matplotlib.pyplot as plt
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
+import numpy as np
+
+def eref_pos(cmn):
+    x_values = cmn.Uocp_spline.Uocp_pos[:, 0]
+
+    y_values = cmn.Uocp_spline.Uocp_pos[:, 1]
+
+    mesh = fem.IntervalMesh(len(x_values) - 1, 0, 3)
+    mesh.coordinates()[:] = np.array([x_values]).transpose()
+
+    V1 = fem.FunctionSpace(mesh, 'Lagrange', 1)
+    eref = fem.Function(V1)
+    eref.vector()[:] = y_values[fem.vertex_to_dof_map(V1)]
+    # ret = fem.conditional(x >= 2, eref, 0)
+    # eref.set_allow_extrapolation(True)
+    # print(eref(0.5))
+
+    return eref
+
+def eref_neg(cmn):
+    x_values = cmn.Uocp_spline.Uocp_neg[:, 0]
+
+    y_values = cmn.Uocp_spline.Uocp_neg[:, 1]
+
+    mesh = fem.IntervalMesh(len(x_values) - 1, 0, 3)
+    mesh.coordinates()[:] = np.array([x_values]).transpose()
+
+    V1 = fem.FunctionSpace(mesh, 'Lagrange', 1)
+    eref = fem.Function(V1)
+    eref.vector()[:] = y_values[fem.vertex_to_dof_map(V1)]
+    # ret = fem.conditional(x >= 2, eref, 0)
+    # eref.set_allow_extrapolation(True)
+    # print(eref(0.5))
+
+    return eref
 
 
 def run(time, solver, return_comsol=False):
@@ -12,7 +47,10 @@ def run(time, solver, return_comsol=False):
     phie_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
 
-    phis_c, phie_c_, ce_c, cse_c = utilities.create_functions(domain.V, 4)
+    phis_c, phie_c_, ce_c, cse_c, phie_c = utilities.create_functions(domain.V, 5)
+    cmn.fenics_params.Uocp_pos = eref_pos(cmn)
+    cmn.fenics_params.Uocp_neg = eref_neg(cmn)
+    cmn.fenics_params.materials = cmn.domain.domain_markers
     phie = utilities.create_functions(domain.V, 1)[0]
     kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.fenics_params, **cmn.fenics_consts)
 
@@ -26,7 +64,7 @@ def run(time, solver, return_comsol=False):
     newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
                   kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
 
-    j = equations.j(ce_c, cse_c, phie_c_, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
+    j = equations.j(ce_c, cse_c, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
                         dm=domain.domain_markers, V=domain.V)
 
     F = equations.phie(j, ce_c, phie_u, v, domain.dx((0, 2)), kappa_eff, kappa_Deff,
@@ -41,6 +79,7 @@ def run(time, solver, return_comsol=False):
         i_1 = i * 2  # previous time step
         i = i * 2 + 1  # current time step
         utilities.assign_functions([comsol.data.phie], [phie_c_], domain.V, i_1)
+        utilities.assign_functions([comsol.data.phie], [phie_c], domain.V, i)
         utilities.assign_functions([comsol.data.phis, comsol.data.ce, comsol.data.cse],
                                    [phis_c, ce_c, cse_c], domain.V, i)
         bc = fem.DirichletBC(domain.V, comsol.data.phie[i, 0], domain.boundary_markers, 1)

@@ -54,9 +54,16 @@ def run(time, return_comsol=False, engine='comsol', form='equation'):
     cmn.fenics_params.Uocp_neg = eref_neg(cmn)
     cmn.fenics_params.materials = cmn.domain.domain_markers
 
-    # TODO: add forms to j. I.e. equation, interpolation
-    jbar = equations.j(ce_c, cse_c, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts, form=form)
+    h = fem.interpolate(fem.Expression('x[0] <= 1.0 ? f : (x[0] >= 2.0 ? g : 0)', f=cmn.params.csmax[0], g=cmn.params.csmax[2], degree=1), domain.V)
+    soc = fem.Expression('cse/csmax', cse=cse_c, csmax=cmn.fenics_params.csmax, degree=1)
+    Uocp, neg, pos = common.create_uocp_fenics(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, domain.domain_markers, soc)
+    # a = fem.dot(u, v) * domain.dx((0, 2))
+    # L = Uocp * v * domain.dx((0, 2))
 
+
+    # TODO: add forms to j. I.e. equation, interpolation
+    jbar = equations.j(ce_c, cse_c, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts, form=form, Uocp2=Uocp)
+    #
     a = fem.dot(u, v) * domain.dx((0, 2))
     L = jbar * v * domain.dx((0, 2))
 
@@ -66,7 +73,11 @@ def run(time, return_comsol=False, engine='comsol', form='equation'):
 
         fem.solve(a == L, sol)
         j_sol[i, :] = utilities.get_1d(fem.interpolate(sol, domain.V), domain.V)
-
+        # plt.plot(j_sol[i, :])
+        # plt.show()
+    #
+    #
+    # sys.exit(0)
     if return_comsol:
         return j_sol, comsol
     else:
@@ -81,6 +92,8 @@ def main():
 
     utilities.report(comsol.mesh[comsol.neg_ind], time, j_sol[:, comsol.neg_ind],
                      comsol.data.j[:, comsol.neg_ind], '$j_{neg}$')
+
+    print(np.max(j_sol[:, comsol.neg_ind][:, :-2]-comsol.data.j[:, comsol.neg_ind][:,:-2]))
     utilities.save_plot(__file__, 'plots/compare_j_neg.png')
     plt.show()
     utilities.report(comsol.mesh[comsol.pos_ind], time, j_sol[:, comsol.pos_ind],
