@@ -48,6 +48,11 @@ def save_plot(local_module_path, name):
 
 
 def piecewise(mesh, subdomain, V0, *values):
+    # TODO: benchmark differences
+    # same thing as commented code below
+    # h = fem.Expression('x[0] <= 1.0 ? f : (x[0] >= 2 ? g : h)', f=values[0], h=values[1], g=values[2], degree=1)
+    # k = fem.interpolate(h, V0)
+
     V0 = fem.FunctionSpace(mesh, 'DG', 0)
     k = fem.Function(V0)
     for cell in range(len(subdomain.array())):
@@ -55,7 +60,6 @@ def piecewise(mesh, subdomain, V0, *values):
         k.vector()[cell] = values[marker]
 
     return k
-    # return fem.interpolate(k, fem.FunctionSpace(mesh, 'Lagrange', 1))
 
 
 def piecewise2(V, *values):
@@ -165,3 +169,32 @@ def picard_solver(F, u, u_, bc, tol=1e-5, maxiter=25):
         eps = np.linalg.norm(diff, ord=np.Inf)
         print('iter={}, norm={}'.format(iter, eps))
         u_.assign(u)
+
+
+# Doesn't work!
+def newton_solver(F, u_, bc, J, V, a_tol=1e-7, r_tol=1e-10, maxiter=25, relaxation=1):
+    eps = 1.0
+    iter = 0
+    u_inc = fem.Function(V)
+    while eps > a_tol and iter < maxiter:
+        iter += 1
+        # plt.plot(get_1d(u_, V))
+        # plt.show()
+
+        A, b = fem.assemble_system(J, -F, bc)
+        fem.solve(A, u_inc.vector(), b)
+        eps = np.linalg.norm(u_inc.vector().get_local(), ord=np.Inf)
+        print('iter={}, eps={}'.format(iter, eps))
+
+        # plt.plot(get_1d(u_inc, V))
+        # plt.show()
+
+        a = fem.assemble(F)
+        # for bnd in bc:
+        bc.apply(a)
+        print('b.norm = {}, linalg norm = {}'.format(b.norm('l2'), np.linalg.norm(a.get_local(), ord=2)))
+        fnorm = b.norm('l2')
+
+        u_.vector()[:] += relaxation * u_inc.vector()
+
+        print('fnorm: {}'.format(fnorm))
