@@ -58,8 +58,8 @@ def run(time, solver, return_comsol=False):
     n = domain.n
     dS = domain.dS
 
-    newmann_a = (kappa_eff('-') / Lc('-') * fem.inner(fem.grad(phie_u('-')), n('-')) * v('-') +
-                 kappa_eff('+') / Lc('+') * fem.inner(fem.grad(phie_u('+')), n('+')) * v('+')) * (dS(2) + dS(3))
+    newmann_a = (kappa_eff('-') / Lc('-') * fem.inner(fem.grad(phie_c_('-')), n('-')) * v('-') +
+                 kappa_eff('+') / Lc('+') * fem.inner(fem.grad(phie_c_('+')), n('+')) * v('+')) * (dS(2) + dS(3))
 
     newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
                   kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
@@ -67,9 +67,9 @@ def run(time, solver, return_comsol=False):
     j = equations.j(ce_c, cse_c, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
                         dm=domain.domain_markers, V=domain.V)
 
-    F = equations.phie(j, ce_c, phie_u, v, domain.dx((0, 2)), kappa_eff, kappa_Deff,
+    F = equations.phie(j, ce_c, phie_c_, v, domain.dx((0, 2)), kappa_eff, kappa_Deff,
                        **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
-    F += equations.phie(fem.Constant(0), ce_c, phie_u, v, domain.dx(1), kappa_eff, kappa_Deff,
+    F += equations.phie(fem.Constant(0), ce_c, phie_c_, v, domain.dx(1), kappa_eff, kappa_Deff,
                         **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
 
     F += newmann_a - newmann_L
@@ -84,8 +84,21 @@ def run(time, solver, return_comsol=False):
                                    [phis_c, ce_c, cse_c], domain.V, i)
         bc = fem.DirichletBC(domain.V, comsol.data.phie[i, 0], domain.boundary_markers, 1)
 
-        solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
-        phie_sol[k, :] = utilities.get_1d(phie, domain.V)
+        J = fem.derivative(F, phie_c_, phie_u)
+
+        # utilities.newton_solver(F, phie_c_, bc, J, domain.V, relaxation=0.1)
+        problem = fem.NonlinearVariationalProblem(F, phie_c_, bc, J)
+        solver = fem.NonlinearVariationalSolver(problem)
+
+        prm = solver.parameters
+        prm['newton_solver']['absolute_tolerance'] = 1e-8
+        prm['newton_solver']['relative_tolerance'] = 1e-7
+        prm['newton_solver']['maximum_iterations'] = 5000
+        prm['newton_solver']['relaxation_parameter'] = 0.18
+        solver.solve()
+
+        # solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
+        phie_sol[k, :] = utilities.get_1d(phie_c_, domain.V)
         j_sol[k, :] = utilities.get_1d(fem.interpolate(j, domain.V), domain.V)
         k += 1
 
@@ -97,7 +110,7 @@ def run(time, solver, return_comsol=False):
 
 def main():
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.INFO)
 
     # Times at which to run solver
     time_in = [0.1, 5, 10, 15, 20]
