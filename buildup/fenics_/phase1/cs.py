@@ -4,51 +4,27 @@ import numpy as np
 import sympy as sym
 
 import common
-import mtnlion.comsol as comsol
 import mtnlion.engine as engine
-import mtnlion.loader as loader
 import utilities
 
 
-def c_e():
+def run(time, dt, return_comsol=False):
+    dtc = fem.Constant(dt)
+    cmn, domain, comsold = common.prepare_comsol_buildup(time)
     # Times at which to run solver
     time_in = [0.1, 5, 10, 15, 20]
-    dt = 0.1
-    dtc = fem.Constant(dt)
-    time = [None]*(len(time_in)*2)
-    time[::2] = [t-dt for t in time_in]
-    time[1::2] = time_in
 
     # Collect common data
     mesh = fem.Mesh('../../reference/comsol_solution/cs.xml')
-    file_data = loader.collect_files(['../../reference/comsol_solution/cs.csv.bz2'], format_key=comsol.format_name,
-                                     loader=loader.load_csv_file)
     V = fem.FunctionSpace(mesh, 'Lagrange', 1)
-    dofs = V.tabulate_dof_coordinates().reshape(-1, 2)
     # fem.plot(mesh)
     # plt.show()
-    transform = []
-    for i in dofs:
-        ind1 = np.where(np.abs(file_data['cs'][:, 0] - i[0]) <= 1e-5)
-        ind2 = np.where(np.abs(file_data['cs'][:, 1] - i[1]) <= 1e-5)
-
-        if len(ind1[0]) > 0 and len(ind2[0]) > 0:
-            transform.append(np.intersect1d(ind1, ind2)[0])
-            if len(np.intersect1d(ind1, ind2)) > 1:
-                raise ValueError('Too many matching indices')
-        else:
-            raise ValueError('Missing indices, check tolerances')
-
-    cs_data1 = file_data['cs'][transform]
-    cs_data = cs_data1[:, 2:]
 
     # print(fem.vertex_to_dof_map(V))
     # print(mesh.coordinates()[:])
     cmn1d = common.Common(time)
     cmn = common.Common2(time, mesh)
-
-    cs_data1 = np.array(cs_data1[:, np.append([0, 1], cmn.time_ind + 2)])
-    cs_data = np.array(cs_data[:, cmn.time_ind]).T
+    cs_data = comsold.data.cs
 
     t1e = fem.Expression('x[0]', degree=1)
     t1 = fem.interpolate(t1e, V)
@@ -58,7 +34,6 @@ def c_e():
     # plt.show()
     # exit(0)
 
-    # mgx, mgy = np.mgrid(cs_data1[:, 0], cs_data1[:, 1])
     # plt.pcolormesh(mgx, mgy, cs_data[-1])
 
     cs_1 = fem.Function(V)
@@ -249,7 +224,7 @@ def c_e():
     print(
         np.average(np.subtract(u_array, cs_data[1::2]), axis=1) / (np.max(cs_data[1::2]) - np.min(cs_data[1::2])) * 100)
 
-    data = np.append(cs_data1[:, 0:2], cs_data1[:, 3::2], axis=1)
+    data = np.append(comsold.pseudo_mesh, comsold.data.cs[0::2].T, axis=1)
     indices = np.where(np.abs(data[:, 1] - 1.0) <= 1e-5)[0]
     data = data[indices]
     data = data[data[:, 0].argsort()]
@@ -286,8 +261,24 @@ def c_e():
     plt.plot(np.repeat([cmn1d.comsol_solution.mesh], len(time_in), axis=0).T, cmn1d.comsol_solution.data.cse[1::2].T)
     plt.show()
 
+
+def main():
+    # Quiet
+    fem.set_log_level(fem.ERROR)
+
+    # Times at which to run solver
+    time_in = [0.1, 5, 10, 15, 20]
+    # time_in = np.arange(0.1, 50, 0.1)
+    dt = 0.1
+    time = [None] * (len(time_in) * 2)
+    time[::2] = [t - dt for t in time_in]
+    time[1::2] = time_in
+
+    run(time, dt, return_comsol=True)
+
+
 if __name__ == '__main__':
-    c_e()
+    main()
 
 
 #
