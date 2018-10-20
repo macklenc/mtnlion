@@ -94,16 +94,47 @@ def collect_parameters(params):
     return munch.Munch(n_dict)
 
 
+# TODO: settable tolerances
+# TODO: Documentation
+def organize(file_coords, dofs):
+    transform = []
+    for i in dofs:
+        ind1 = np.where(np.abs(file_coords[:, 0] - i[0]) <= 1e-5)
+        ind2 = np.where(np.abs(file_coords[:, 1] - i[1]) <= 1e-5)
+        if len(ind1[0]) > 0 and len(ind2[0]) > 0:
+            transform.append(np.intersect1d(ind1, ind2)[0])
+            if len(np.intersect1d(ind1, ind2)) > 1:
+                raise ValueError('Too many matching indices')
+        else:
+            raise ValueError('Missing indices, check tolerances')
+    return transform
+
+
+# TODO: Documentation
+def get_fenics_dofs(mesh_xml):
+    mesh = fem.Mesh(mesh_xml)
+    V = fem.FunctionSpace(mesh, 'Lagrange', 1)
+    dofs = V.tabulate_dof_coordinates().reshape(-1, 2)
+    return dofs
+
+
 class Common:
     def __init__(self, time):
         self.time = time
 
         # Collect required data
-        comsol_data, self.raw_params = utilities.gather_data()
+        comsol_data, self.raw_params, pseudo_mesh_file = utilities.gather_data()
+
         self.time_ind = engine.find_ind_near(comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(comsol_data.filter_time(self.time_ind))
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
         self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
+
+        pseudo_mesh_dofs = get_fenics_dofs(pseudo_mesh_file)
+        shuffle_indices = organize(self.comsol_solution.pseudo_mesh, pseudo_mesh_dofs)
+        self.comsol_solution.pseudo_mesh = self.comsol_solution.pseudo_mesh[shuffle_indices]
+        self.comsol_solution.data.cs = self.comsol_solution.data.cs[:, shuffle_indices]
+
 
         self.params = collect_parameters(self.raw_params)
         self.consts = self.raw_params.const
@@ -148,7 +179,7 @@ class Common2:
         self.time = time
 
         # Collect required data
-        self.comsol_data, self.params = utilities.gather_data()
+        self.comsol_data, self.params, _ = utilities.gather_data()
         self.time_ind = engine.find_ind_near(self.comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(self.comsol_data.filter_time(self.time_ind))
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
