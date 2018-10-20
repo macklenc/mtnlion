@@ -63,8 +63,8 @@ class Mountain:
     Container for holding n-variable n-dimensional data in space and time.
     """
 
-    def __init__(self, mesh: np.ndarray, time_mesh: np.ndarray, boundaries: Union[np.ndarray, List[float]],
-                 **kwargs: np.ndarray) -> None:
+    def __init__(self, mesh: np.ndarray, pseudo_dim_mesh: np.ndarray, time_mesh: np.ndarray,
+                 boundaries: Union[np.ndarray, List[float]], **kwargs: np.ndarray) -> None:
         """
         Store the solutions to each given parameter
 
@@ -76,6 +76,7 @@ class Mountain:
         logger.info('Initializing solution data...')
         self.data = munch.Munch(kwargs)
         self.mesh = mesh
+        self.pseudo_mesh = pseudo_dim_mesh
         self.time_mesh = time_mesh
         self.boundaries = boundaries
 
@@ -84,7 +85,8 @@ class Mountain:
         Retrieve dictionary of Mountain to serialize
         :return: data dictionary
         """
-        d = {'mesh': self.mesh, 'time_mesh': self.time_mesh, 'boundaries': self.boundaries}
+        d = {'mesh': self.mesh, 'pseudo_mesh': self.pseudo_mesh, 'time_mesh': self.time_mesh,
+             'boundaries': self.boundaries}
         return dict(d, **self.data)
 
     @classmethod
@@ -94,7 +96,7 @@ class Mountain:
         :param data: dictionary of formatted data
         :return: consolidated simulation data
         """
-        return cls(data.pop('mesh'), data.pop('time_mesh'), data.pop('boundaries'), **data)
+        return cls(data.pop('mesh'), data.pop('pseudo_mesh'), data.pop('time_mesh'), data.pop('boundaries'), **data)
 
     def filter(self, index: Union[List['ellipsis'], List[int], List[slice], slice], func: Callable = lambda x: x) \
             -> Dict[str, np.ndarray]:
@@ -120,7 +122,8 @@ class Mountain:
         :param func: function to call on every variable in data
         :return: time filtered Mountain
         """
-        return type(self)(self.mesh, func(self.time_mesh[index]), self.boundaries, **self.filter(index, func=func))
+        return type(self)(self.mesh, self.pseudo_mesh, func(self.time_mesh[index]), self.boundaries,
+                          **self.filter(index, func=func))
 
     def filter_space(self, index: Union[List['ellipsis'], List[int], slice],
                      func: Callable = lambda x: x) -> 'Mountain':
@@ -138,5 +141,5 @@ class Mountain:
         if isinstance(index, slice):
             index = [index]
 
-        return type(self)(func(self.mesh[index]), self.time_mesh, self.boundaries,
+        return type(self)(func(self.mesh[index]), self.pseudo_mesh, self.time_mesh, self.boundaries,
                           **self.filter([...] + index, func=func))

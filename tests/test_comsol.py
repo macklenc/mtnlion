@@ -102,7 +102,7 @@ def test_format_data() -> None:
     data_dict['mesh'] = mesh1
     data_dict['time_mesh'] = time_mesh
 
-    result = comsol.format_data(data_dict, bound)
+    result = comsol.format_2d_data(data_dict, bound)
 
     expected = {'d1': np.array([[0, 1, 2, 3, 4, 5, 6, 7, 8]]),
                 'd2': np.array([[0, 1, 2, 2, 3, 4, 5, 6, 7]]),
@@ -117,7 +117,7 @@ def test_format_data() -> None:
 
     data_dict.pop('mesh')
     with pytest.raises(Exception) as ex:
-        comsol.format_data(data_dict, bound)
+        comsol.format_2d_data(data_dict, bound)
 
 
 # TODO: move to different test file

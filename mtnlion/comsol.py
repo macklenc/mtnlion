@@ -9,7 +9,7 @@ repeated x values, such that the y values are duplicated.
 """
 import logging
 import os
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Callable
 
 import numpy as np
 
@@ -73,8 +73,9 @@ def get_standardized(cell: domain.ReferenceCell) -> Union[domain.ReferenceCell, 
     # return domain.ReferenceCell(mesh, cell.time_mesh, cell.boundaries, **new_data)
 
 
-def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]])\
-        -> Union[Dict[str, np.ndarray], None]:
+# TODO generalize the formatting of data for mesh name and arbitrary dimensions
+def format_2d_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]]) \
+    -> Union[Dict[str, np.ndarray], None]:
     """
     Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
     first dimension is time and the second is the solution in space. Each solution has it's own entry in a
@@ -85,7 +86,7 @@ def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[i
     :return: convenient dictionary of non-stationary solutions
     """
 
-    logger.info('Reformatting raw data')
+    logger.info('Reformatting 2D data')
     data = dict()
     try:
         mesh_dict = {'time_mesh': raw_data['time_mesh'], 'mesh': raw_data['mesh'], 'boundaries': boundaries}
@@ -94,7 +95,7 @@ def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[i
         raise ex
 
     for key, value in raw_data.items():
-        if key in ('mesh', 'time_mesh'):
+        if key in ('mesh', 'time_mesh', 'pseudo_mesh'):
             continue
 
         logger.info('Reformatting {}'.format(key))
@@ -116,6 +117,32 @@ def format_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[i
             raise ex
 
         logger.info('Done formatting {}'.format(key))
+    return {**data, **mesh_dict}
+
+
+# TODO generalize the formatting of data for mesh name and arbitrary dimensions, also fix tools
+def format_pseudo_dim(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]],
+                      shuffle: Callable = lambda x: range(len(x))) \
+    -> Union[Dict[str, np.ndarray], None]:
+    logger.info('Reformatting 3D data')
+    data = dict()
+
+    try:
+        indices = shuffle(raw_data['pseudo_mesh'])
+        mesh_dict = {'time_mesh': raw_data['time_mesh'], 'pseudo_mesh': np.array(raw_data['pseudo_mesh'])[indices],
+                     'boundaries': boundaries}
+    except KeyError as ex:
+        logger.critical('Missing required data', exc_info=True)
+        raise ex
+
+    try:
+        data['cs'] = np.array(raw_data['cs'][:, 2:])[indices].T
+    except KeyError as ex:
+        logger.critical('Missing required data', exc_info=True)
+        raise ex
+
+    logger.info('Done collecting {}'.format('cs'))
+
     return {**data, **mesh_dict}
 
 
