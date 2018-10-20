@@ -11,15 +11,17 @@ import utilities
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsold = common.prepare_comsol_buildup(time)
+    pseudo_domain = cmn.pseudo_domain
     # Times at which to run solver
     time_in = [0.1, 5, 10, 15, 20]
 
     # Collect common data
-    mesh = fem.Mesh('../../reference/comsol_solution/cs.xml')
-    V = fem.FunctionSpace(mesh, 'Lagrange', 1)
+    V = pseudo_domain.V
+
+    Ds = cmn.fenics_params.Ds_ref
+    Rs = cmn.fenics_params.Rs
 
     cmn1d = common.Common(time)
-    cmn = common.Common2(time, mesh)
     cs_data = comsold.data.cs
 
     t1e = fem.Expression('x[0]', degree=1)
@@ -31,21 +33,18 @@ def run(time, dt, return_comsol=False):
     cs_1.vector()[:] = cs_data[-1, :].astype('double')
 
     # initialize matrix to save solution results
-    u_array = np.empty((len(time_in), len(mesh.coordinates()[:])))
+    u_array = np.empty((len(time_in), len(pseudo_domain.mesh.coordinates()[:])))
 
     # create local variables
     comsol_sol = cmn.comsol_solution
-    mesh, dx, ds, bm, dm = cmn.mesh, cmn.dx, cmn.ds, cmn.bm, cmn.dm
-
-    Ds = cmn.Ds
-    Rs = cmn.Rs
+    dx, ds, bm, dm = pseudo_domain.dx, pseudo_domain.ds, pseudo_domain.boundary_markers, pseudo_domain.domain_markers
 
     j, y, eps = sym.symbols('j x[1] DOLFIN_EPS')
     sym_j = sym.Piecewise((j, (y + eps) >= 1), (0, True))
     rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
     # cse = fem.Expression('')
 
-    bmesh = fem.BoundaryMesh(mesh, 'exterior')
+    bmesh = fem.BoundaryMesh(pseudo_domain.mesh, 'exterior')
     cc = fem.MeshFunction('size_t', bmesh, bmesh.topology().dim())
     top = fem.AutoSubDomain(lambda x: (1.0 - fem.DOLFIN_EPS) <= x[1] <= (1.0 + fem.DOLFIN_EPS))
     # top = fem.CompiledSubDomain('near(x[1], b, DOLFIN_EPS)', b=1.0)
@@ -69,8 +68,8 @@ def run(time, dt, return_comsol=False):
         i = i*2 + 1
 
         # Define function space and basis functions
-        V = fem.FunctionSpace(mesh, 'Lagrange', 1)
-        W = fem.FunctionSpace(cmn1d.mesh, 'Lagrange', 1)
+        V = fem.FunctionSpace(pseudo_domain.mesh, 'Lagrange', 1)
+        W = fem.FunctionSpace(cmn1d.domain.mesh, 'Lagrange', 1)
         cs = fem.TrialFunction(V)
         v = fem.TestFunction(V)
 
