@@ -20,8 +20,9 @@ def c_e():
     time[1::2] = time_in
 
     # Collect common data
-    mesh = fem.Mesh('../../../reference/comsol_solution/cs.xml')
-    file_data = loader.collect_files(['../../../reference/comsol_solution/cs.csv.bz2'], format_key=comsol.format_name, loader=loader.load_csv_file)
+    mesh = fem.Mesh('../../reference/comsol_solution/cs.xml')
+    file_data = loader.collect_files(['../../reference/comsol_solution/cs.csv.bz2'], format_key=comsol.format_name,
+                                     loader=loader.load_csv_file)
     V = fem.FunctionSpace(mesh, 'Lagrange', 1)
     dofs = V.tabulate_dof_coordinates().reshape(-1, 2)
     # fem.plot(mesh)
