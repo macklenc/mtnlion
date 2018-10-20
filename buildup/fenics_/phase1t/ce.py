@@ -86,7 +86,7 @@ def ce():
         # print('t={time}: error = {error}'.format(time=time[i], error=np.abs(u_array[k, :] - comsol_sol.data.ce[i, :]).max()))
         k += 1
 
-    # utilities.report(comsol_sol.mesh, time_in, u_array, comsol_sol.data.ce[1::2], '$c_e$')
+    # utilities.report(comsol_sol.mesh, time_in, u_array, comsol_sol.data.ce[1::2], '$run$')
     utilities.overlay_plt(comsol_sol.mesh, time_in, 'ce', u_array)
 
     plt.savefig('comsol_compare_ce.png')
