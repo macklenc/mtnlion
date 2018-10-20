@@ -141,5 +141,9 @@ class Mountain:
         if isinstance(index, slice):
             index = [index]
 
-        return type(self)(func(self.mesh[index]), self.pseudo_mesh, self.time_mesh, self.boundaries,
+        # TODO: FIXME, shouldn't know anything about cs
+        cs = self.data.cs
+        tmp = type(self)(func(self.mesh[index]), self.pseudo_mesh, self.time_mesh, self.boundaries,
                           **self.filter([...] + index, func=func))
+        tmp.data.cs = cs
+        return tmp
