@@ -20,7 +20,14 @@ def run(time, dt, return_comsol=False):
     top.mark(cc, 9)
     submesh = fem.SubMesh(bmesh, cc, 9)
     X = fem.FunctionSpace(submesh, 'Lagrange', 1)
-    print(submesh.coordinates()[fem.dof_to_vertex_map(X)])
+
+    # cc = fem.MeshFunction('size_t', pseudo_domain.mesh, pseudo_domain.mesh.topology().dim()-1)
+    # top = fem.AutoSubDomain(lambda x: (1.0 - fem.DOLFIN_EPS) <= x[1] <= (1.0 + fem.DOLFIN_EPS))
+    # top.mark(cc, 9)
+    # submesh = fem.SubMesh(pseudo_domain.mesh, cc, 9)
+    # X = fem.FunctionSpace(submesh, 'Lagrange', 1)
+    #
+    # print(submesh.coordinates()[fem.dof_to_vertex_map(X)])
     # fem.plot(submesh)
     # plt.show()
     # exit(0)
@@ -67,7 +74,9 @@ def run(time, dt, return_comsol=False):
 
         tmpj = np.append(comsol_sol.data.j[i_1, comsol_sol.neg_ind], comsol_sol.data.j[i_1, comsol_sol.pos_ind])
         utilities.assign_functions([comsol_sol.data.j], [jbar_c], domain.V, i_1)
-        jbar2.vector()[:] = tmpj[fem.dof_to_vertex_map(X)].astype('double')
+        # jbar2.vector()[:] = tmpj[fem.dof_to_vertex_map(X)].astype('double')
+        jbar2.vector()[:] = tmpj.astype('double')
+        # jbar2.assign(fem.Constant(0))
 
         # jbar2.assign(fem.Constant(0))
         # utilities.assign_functions([comsol.data.cs], [cs_1], pseudo_domain.V, i_1) # Already organized????
@@ -90,6 +99,7 @@ def run(time, dt, return_comsol=False):
         k += 1
 
     # exit()
+    ## find c_se from c_s
     data = np.append(comsol.pseudo_mesh, comsol.data.cs[1::2].T, axis=1)  # grab cs for each time
     indices = np.where(np.abs(data[:, 1] - 1.0) <= 1e-5)[0]  # find the indices of the solution where r=1 (cse)
     data = data[indices]  # reduce data set to only show cse
@@ -98,6 +108,14 @@ def run(time, dt, return_comsol=False):
     neg_ind = np.where(xcoor <= 1)[0]  # using the pseudo dims definition of neg and pos electrodes
     pos_ind = np.where(xcoor >= 1.5)[0]
     cse = data[:, 2:]  # first two columns are the coordinates
+
+    ## find c_se on the pseudo dim coordinates
+    # tmpcse = np.concatenate((comsol_sol.data.cse[1::2, comsol_sol.neg_ind], comsol_sol.data.cse[1::2, comsol_sol.pos_ind]), axis=1)
+    #
+    # utilities.report(xcoor[neg_ind], time_in, cse.T[:, neg_ind], tmpcse[:, neg_ind], '$c_{s,e}^{neg}$')
+    # plt.show()
+    # utilities.report(xcoor[pos_ind], time_in, cse.T[:, pos_ind], tmpcse[:, pos_ind], '$c_{s,e}^{pos}$')
+    # plt.show()
 
     print(engine.rmse(cse_sol, cse.T) / np.sqrt(np.average(cse.T ** 2)) * 100)
 
