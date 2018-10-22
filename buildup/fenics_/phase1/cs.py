@@ -7,6 +7,54 @@ import common
 import mtnlion.engine as engine
 import utilities
 
+x_conv = '''
+class XConv : public Expression
+{
+public:
+  XConv() : Expression() {}
+
+  void eval(Array<double>& values, const Array<double>& x,
+            const ufc::cell& c) const
+  {      
+      switch((*markers)[c.index]){
+        case 0:
+            neg->eval(values, x, c);
+            return;
+        case 1:
+            sep->eval(values, x, c);
+            return;
+        case 2:
+            pos->eval(values, x, c);
+            return;
+      }
+  }
+  
+  std::shared_ptr<MeshFunction<std::size_t>> markers;
+  std::shared_ptr<GenericFunction> neg;
+  std::shared_ptr<GenericFunction> sep;
+  std::shared_ptr<GenericFunction> pos;
+};
+'''
+
+composition = '''
+class Composition : public Expression
+{
+public:
+  Composition() : Expression() {}
+
+  void eval(Array<double>& values, const Array<double>& x,
+            const ufc::cell& c) const
+  {
+      Array<double> val(x.size());
+      inner->eval(val, x, c);
+      outer->eval(values, val, c);      
+  }
+  
+  std::shared_ptr<GenericFunction> outer;
+  std::shared_ptr<GenericFunction> inner;
+};
+'''
+
 
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
@@ -21,16 +69,24 @@ def run(time, dt, return_comsol=False):
     submesh = fem.SubMesh(bmesh, cc, 9)
     X = fem.FunctionSpace(submesh, 'Lagrange', 1)
 
-    # cc = fem.MeshFunction('size_t', pseudo_domain.mesh, pseudo_domain.mesh.topology().dim()-1)
-    # top = fem.AutoSubDomain(lambda x: (1.0 - fem.DOLFIN_EPS) <= x[1] <= (1.0 + fem.DOLFIN_EPS))
-    # top.mark(cc, 9)
-    # submesh = fem.SubMesh(pseudo_domain.mesh, cc, 9)
-    # X = fem.FunctionSpace(submesh, 'Lagrange', 1)
-    #
-    # print(submesh.coordinates()[fem.dof_to_vertex_map(X)])
-    # fem.plot(submesh)
-    # plt.show()
-    # exit(0)
+    pseudo_boundaries = np.array([0, 1, 1.5, 2.5])
+    pseudo_neg_domain = fem.CompiledSubDomain('(x[0] >= (b1 - DOLFIN_EPS)) && (x[0] <= (b2 + DOLFIN_EPS))',
+                                              b1=pseudo_boundaries[0].astype(np.double),
+                                              b2=pseudo_boundaries[1].astype(np.double))
+    pseudo_sep_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
+                                              b1=pseudo_boundaries[1].astype(np.double),
+                                              b2=pseudo_boundaries[2].astype(np.double))
+    pseudo_pos_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
+                                              b1=pseudo_boundaries[2].astype(np.double),
+                                              b2=pseudo_boundaries[3].astype(np.double))
+
+    # Mark the subdomains, pseudo dim
+    pseudo_domain_markers = fem.MeshFunction('size_t', submesh, submesh.topology().dim())
+    pseudo_domain_markers.set_all(99)
+    pseudo_neg_domain.mark(pseudo_domain_markers, 0)
+    pseudo_sep_domain.mark(pseudo_domain_markers, 1)
+    pseudo_pos_domain.mark(pseudo_domain_markers, 2)
+
 
     cs_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.pseudo_mesh), 1)[0]
     cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(submesh.coordinates()[:, 0]), 1)[0]
@@ -42,6 +98,39 @@ def run(time, dt, return_comsol=False):
     jbar_c = utilities.create_functions(domain.V, 1)[0]
     jbar2 = utilities.create_functions(X, 1)[0]
     jbar2.set_allow_extrapolation(True)
+
+    main_from_pseudo = fem.Expression(cppcode=x_conv, markers=pseudo_domain_markers, degree=1)
+    main_from_pseudo.neg = fem.Expression('x[0]', degree=1)
+    main_from_pseudo.sep = fem.Expression('2*x[0]-1', degree=1)
+    main_from_pseudo.pos = fem.Expression('x[0] + 0.5', degree=1)
+
+    pseudo_from_main = fem.Expression(cppcode=x_conv, markers=domain.domain_markers, degree=1)
+    pseudo_from_main.neg = fem.Expression('x[0]', degree=1)
+    pseudo_from_main.sep = fem.Expression('0.5*(x[0]+1)', degree=1)
+    pseudo_from_main.pos = fem.Expression('x[0] + 0.5', degree=1)
+
+    # x = fem.Expression('x[0]', degree=1)
+
+    # print(utilities.get_1d(fem.interpolate(main_x_from_pseudo, domain.V), domain.V))
+    # print(utilities.get_1d(fem.interpolate(x, X), X))
+    print(utilities.get_1d(fem.interpolate(main_from_pseudo, X), X))
+
+    composition_ex = fem.Expression(cppcode=composition, inner=main_from_pseudo, outer=jbar_c, degree=1)
+    utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, 4)
+
+    orig = utilities.get_1d(fem.interpolate(jbar_c, domain.V), domain.V)
+    test = utilities.get_1d(fem.interpolate(composition_ex, X), X)
+    # print(test)
+    # plt.plot(orig)
+    # plt.show()
+    # plt.plot(test)
+    # plt.show()
+    #
+    # exit()
+
+
+
+
 
     Ds = cmn.fenics_params.Ds_ref
     Rs = cmn.fenics_params.Rs
@@ -56,7 +145,7 @@ def run(time, dt, return_comsol=False):
     a = Rs * rbar2 * cs_u * v * dx
 
     # Times at which to run solver
-    time_in = [0.1, 5, 10, 15, 20]
+    time_in = [15, 25, 35, 45]
 
     # Collect common data
     V = pseudo_domain.V
@@ -76,6 +165,8 @@ def run(time, dt, return_comsol=False):
         utilities.assign_functions([comsol_sol.data.j], [jbar_c], domain.V, i_1)
         # jbar2.vector()[:] = tmpj[fem.dof_to_vertex_map(X)].astype('double')
         jbar2.vector()[:] = tmpj.astype('double')
+        jbar2.assign(fem.interpolate(composition_ex, X))
+
         # jbar2.assign(fem.Constant(0))
 
         # jbar2.assign(fem.Constant(0))
@@ -141,7 +232,7 @@ def main():
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    time_in = [0.1, 5, 10, 15, 20]
+    time_in = [15, 25, 35, 45]
     # time_in = np.arange(0.1, 50, 0.1)
     dt = 0.1
     time = [None] * (len(time_in) * 2)
