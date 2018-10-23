@@ -4,7 +4,6 @@ import numpy as np
 import sympy as sym
 
 import common
-import mtnlion.engine as engine
 import utilities
 
 x_conv = '''
@@ -100,7 +99,9 @@ def run(time, dt, return_comsol=False):
     # plt.show()
 
     cs_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.pseudo_mesh), 1)[0]
-    cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
+    pseudo_cse_sol = \
+        utilities.create_solution_matrices(int(len(time) / 2), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
+    cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.mesh), 1)[0]
 
     cs_u = fem.TrialFunction(pseudo_domain.V)
     v = fem.TestFunction(pseudo_domain.V)
@@ -111,6 +112,7 @@ def run(time, dt, return_comsol=False):
     jbar2, cse = utilities.create_functions(cse_domain.V, 2)
     jbar2.set_allow_extrapolation(True)
     cse.set_allow_extrapolation(True)
+    cse_t.set_allow_extrapolation(True)
 
     main_from_pseudo = fem.Expression(cppcode=x_conv, markers=cse_domain.domain_markers, degree=1)
     main_from_pseudo.neg = fem.Expression('x[0]', degree=1)
@@ -122,35 +124,8 @@ def run(time, dt, return_comsol=False):
     pseudo_from_main.sep = fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1)
     pseudo_from_main.pos = fem.Expression(('x[0] - 0.5', '1.0'), degree=1)
 
-    x = fem.Expression('x[0]', degree=1)
-
-    # print(utilities.get_1d(fem.interpolate(main_x_from_pseudo, domain.V), domain.V))
-    # print(utilities.get_1d(fem.interpolate(x, X), X))
-
-    print(utilities.get_1d(fem.interpolate(pseudo_from_main, jV), jV))
-    # print(utilities.get_1d(fem.interpolate(x, X), X))
-    print(utilities.get_1d(fem.interpolate(main_from_pseudo, cse_domain.V), cse_domain.V))
-
     composition_ex = fem.Expression(cppcode=composition, inner=main_from_pseudo, outer=jbar_c, degree=1)
     composition_ex_cse = fem.Expression(cppcode=composition, inner=pseudo_from_main, outer=cs, degree=1)
-
-    # utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, 4)
-    # orig = utilities.get_1d(fem.interpolate(jbar_c, domain.V), domain.V)
-    # test = utilities.get_1d(fem.interpolate(composition_ex, cse_domain.V), cse_domain.V)
-
-    # orig = utilities.get_1d(fem.interpolate(x, domain.V), domain.V)
-    # test = utilities.get_1d(fem.interpolate(composition_ex_cse, cse_domain.V), cse_domain.V)
-    # print(test)
-    # plt.plot(orig)
-    # plt.show()
-    # plt.plot(test)
-    # plt.show()
-    #
-    # exit()
-
-
-
-
 
     Ds = cmn.fenics_params.Ds_ref
     Rs = cmn.fenics_params.Rs
@@ -181,16 +156,8 @@ def run(time, dt, return_comsol=False):
         i_1 = i * 2
         i = i*2 + 1
 
-        tmpj = np.append(comsol_sol.data.j[i_1, comsol_sol.neg_ind], comsol_sol.data.j[i_1, comsol_sol.pos_ind])
         utilities.assign_functions([comsol_sol.data.j], [jbar_c], domain.V, i_1)
-        # jbar2.vector()[:] = tmpj[fem.dof_to_vertex_map(X)].astype('double')
-        jbar2.vector()[:] = tmpj.astype('double')
         jbar2.assign(fem.interpolate(composition_ex, cse_domain.V))
-
-        # jbar2.assign(fem.Constant(0))
-
-        # jbar2.assign(fem.Constant(0))
-        # utilities.assign_functions([comsol.data.cs], [cs_1], pseudo_domain.V, i_1) # Already organized????
         cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
 
         # Setup equation
@@ -202,17 +169,15 @@ def run(time, dt, return_comsol=False):
         cse.assign(fem.interpolate(cs, cse_domain.V))
         cse_t.assign(fem.interpolate(composition_ex_cse, jV))
 
-        plt.plot(utilities.get_1d(cse_t, jV)[0:21])
-        plt.plot(comsol.data.cse[i, comsol.neg_ind])
-        plt.show()
-        plt.plot(utilities.get_1d(cse_t, jV)[21:])
-        plt.plot(comsol.data.cse[i, comsol.pos_ind])
-        plt.show()
+        # plt.plot(utilities.get_1d(cse_t, jV)[0:21])
+        # plt.plot(comsol.data.cse[i, comsol.neg_ind])
+        # plt.show()
+        # plt.plot(utilities.get_1d(cse_t, jV)[21:])
+        # plt.plot(comsol.data.cse[i, comsol.pos_ind])
+        # plt.show()
 
-        # asdf = utilities.get_1d(cse, X)
-        # fdsa = np.concatenate(
-        #     (asdf[:len(comsol_sol.neg)], np.zeros(len(comsol_sol.sep) - 2), asdf[len(comsol_sol.neg):]))
-        cse_sol[k, :] = cse.vector().get_local()
+        pseudo_cse_sol[k, :] = cse.vector().get_local()
+        cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse_t, domain.V), domain.V)
 
         u_nodal_values = cs.vector()
         cs_sol[k, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(pseudo_domain.V)]
@@ -221,26 +186,13 @@ def run(time, dt, return_comsol=False):
     # exit()
     ## find c_se from c_s
     xcoor, cse, neg_ind, pos_ind = find_cse_from_cs(comsol)
-
-    ## find c_se on the pseudo dim coordinates
-    # tmpcse = np.concatenate((comsol_sol.data.cse[1::2, comsol_sol.neg_ind], comsol_sol.data.cse[1::2, comsol_sol.pos_ind]), axis=1)
-    #
-    # utilities.report(xcoor[neg_ind], time_in, cse.T[:, neg_ind], tmpcse[:, neg_ind], '$c_{s,e}^{neg}$')
-    # plt.show()
-    # utilities.report(xcoor[pos_ind], time_in, cse.T[:, pos_ind], tmpcse[:, pos_ind], '$c_{s,e}^{pos}$')
-    # plt.show()
-
-    print(engine.rmse(cse_sol, cse.T) / np.sqrt(np.average(cse.T ** 2)) * 100)
-
-    utilities.report(xcoor[neg_ind], time_in, cse_sol[:, neg_ind],
+    utilities.report(xcoor[neg_ind], time_in, pseudo_cse_sol[:, neg_ind],
                      cse.T[:, neg_ind], '$c_{s,e}^{neg}$')
     plt.show()
-    utilities.report(xcoor[pos_ind], time_in, cse_sol[:, pos_ind],
+    utilities.report(xcoor[pos_ind], time_in, pseudo_cse_sol[:, pos_ind],
                      cse.T[:, pos_ind], '$c_{s,e}^{pos}$')
     plt.show()
     # plt.savefig('comsol_compare_cs.png')
-    # plt.show()
-    # plt.plot(np.repeat([cmn.comsol_solution.mesh], len(time_in), axis=0).T, cmn.comsol_solution.data.cse[1::2].T)
     # plt.show()
 
     if return_comsol:
@@ -261,10 +213,17 @@ def main():
     time[::2] = [t - dt for t in time_in]
     time[1::2] = time_in
 
-    cs_sol, comsol = run(time, dt, return_comsol=True)
-    # utilities.report(comsol.mesh, time_in, cs_sol, comsol.data.ce[1::2], '$\c_s$')
-    # utilities.save_plot(__file__, 'plots/compare_cs.png')
-    # plt.show()
+    cse_sol, comsol = run(time, dt, return_comsol=True)
+
+    utilities.report(comsol.mesh[comsol.neg_ind], time_in, cse_sol[:, comsol.neg_ind],
+                     comsol.data.cse[1::2, comsol.neg_ind], '$\c_{s,e}$')
+    utilities.save_plot(__file__, 'plots/compare_cse_neg.png')
+    plt.show()
+    utilities.report(comsol.mesh[comsol.pos_ind], time_in, cse_sol[:, comsol.pos_ind],
+                     comsol.data.cse[1::2, comsol.pos_ind], '$\c_{s,e}$')
+    utilities.save_plot(__file__, 'plots/compare_cse_pos.png')
+
+    plt.show()
 
 
 if __name__ == '__main__':
