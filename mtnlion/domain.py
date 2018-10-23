@@ -57,8 +57,8 @@ class ReferenceCell(engine.Mountain):
     between [2, 3]. For convenience the subdomains are added onto engine.Mountain.
     """
 
-    def __init__(self, mesh: np.ndarray, time_mesh: np.ndarray, boundaries: Union[np.ndarray, List[float]],
-                 **kwargs: np.ndarray) -> None:
+    def __init__(self, mesh: np.ndarray, pseudo_mesh: np.ndarray, time_mesh: np.ndarray,
+                 boundaries: Union[np.ndarray, List[float]], **kwargs: np.ndarray) -> None:
         """
         Store the solutions to each cell parameter
 
@@ -67,9 +67,10 @@ class ReferenceCell(engine.Mountain):
         :param kwargs: arrays for each solution
         """
         logger.info('Creating ReferenceCell...')
-        super(ReferenceCell, self).__init__(mesh, time_mesh, boundaries, **kwargs)
+        super(ReferenceCell, self).__init__(mesh, pseudo_mesh, time_mesh, boundaries, **kwargs)
 
         logger.info('Finding subdomains and indices...')
+        # TODO: add pseudo mesh
         self.neg_ind, self.sep_ind, self.pos_ind = subdomains(mesh[0:], [(0, 1), (1, 2), (2, 3)])
         self.neg, self.sep, self.pos = mesh[self.neg_ind, ...], mesh[self.sep_ind, ...], mesh[self.pos_ind, ...]
 
@@ -89,4 +90,5 @@ class ReferenceCell(engine.Mountain):
         else:
             return None
 
-        return engine.Mountain(self.mesh, self.time_mesh, self.boundaries, **self.data).filter_space(space)
+        return engine.Mountain(self.mesh, self.pseudo_mesh, self.time_mesh, self.boundaries, **self.data).filter_space(
+            space)
