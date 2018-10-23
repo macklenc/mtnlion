@@ -3,6 +3,7 @@ import time
 
 import fenics as fem
 import matplotlib.pyplot as plt
+import munch
 import numpy as np
 import sympy as sym
 
@@ -19,6 +20,25 @@ def gather_data():
     pseudo_mesh_file = os.path.join(resources, 'comsol_solution/cs.xml')
     return d_comsol, params, pseudo_mesh_file
 
+
+def gather_expressions():
+    # TODO: read entire directory
+    localdir = os.path.dirname(__file__)
+    code = dict()
+    with open(os.path.join(localdir, '../mtnlion/headers/xbar.h')) as f:
+        code['xbar'] = ''.join(f.readlines())
+
+    with open(os.path.join(localdir, '../mtnlion/headers/composition.h')) as f:
+        code['composition'] = ''.join(f.readlines())
+
+    with open(os.path.join(localdir, '../mtnlion/headers/piecewise.h')) as f:
+        code['piecewise'] = ''.join(f.readlines())
+
+    return munch.Munch(code)
+
+
+# TODO: this is ugly
+expressions = gather_expressions()
 
 def create_solution_matrices(nr, nc, r):
     return tuple(np.empty((nr, nc)) for _ in range(r))
@@ -72,44 +92,9 @@ def piecewise2(V, *values):
 
 
 def mkparam(markers, k_1=0, k_2=0, k_3=0, k_4=0):
-    x = sym.Symbol('x[0]')
-    asdf = sym.Piecewise((k_1, x <= 1.0 + fem.DOLFIN_EPS), (k_2, sym.And(x > 1.0, x < 2.0)),
-                         (k_3, x >= 2.0 - fem.DOLFIN_EPS), (0, True))
-    cppcode = """
-    class K : public Expression
-    {
-        public:
-            void eval(Array<double>& values,
-                      const Array<double>& x,
-                      const ufc::cell& cell) const
-            {
-                switch((*markers)[cell.index]){
-                case 1:
-                    values[0] = k_1;
-                    break;
-                case 2:
-                    values[0] = k_2;
-                    break;
-                case 3:
-                    values[0] = k_3;
-                    break;
-                case 4:
-                    values[0] = k_4;
-                    break;
-                default:
-                    values[0] = 0;
-                }
-            }
-
-        std::shared_ptr<MeshFunction<std::size_t>> markers;
-        double k_1, k_2, k_3, k_4;
-    };
-    """
-
-    var = fem.Expression(cppcode=cppcode, degree=1)
+    var = fem.Expression(cppcode=expressions.piecewise, degree=1)
     var.markers = markers
     var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
-    # var = fem.Expression(sym.ccode(asdf), degree=1)
     return var
 
 

@@ -5,55 +5,6 @@ import numpy as np
 from buildup import (common, utilities)
 from mtnlion.newman import equations
 
-x_conv = '''
-class XConv : public Expression
-{
-public:
-  XConv() : Expression() {}
-
-  void eval(Array<double>& values, const Array<double>& x,
-            const ufc::cell& c) const
-  {
-      switch((*markers)[c.index]){
-        case 0:
-            neg->eval(values, x, c);
-            return;
-        case 1:
-            sep->eval(values, x, c);
-            return;
-        case 2:
-            pos->eval(values, x, c);
-            return;
-      }
-  }
-  
-  std::shared_ptr<MeshFunction<std::size_t>> markers;
-  std::shared_ptr<GenericFunction> neg;
-  std::shared_ptr<GenericFunction> sep;
-  std::shared_ptr<GenericFunction> pos;
-};
-'''
-
-
-composition = '''
-class Composition : public Expression
-{
-public:
-  Composition() : Expression() {}
-
-  void eval(Array<double>& values, const Array<double>& x,
-            const ufc::cell& c) const
-  {
-      Array<double> val(3);
-      inner->eval(val, x, c);
-      outer->eval(values, val, c);      
-  }
-  
-  std::shared_ptr<GenericFunction> outer;
-  std::shared_ptr<GenericFunction> inner;
-};
-'''
-
 
 def find_cse_from_cs(comsol):
     data = np.append(comsol.pseudo_mesh, comsol.data.cs[1::2].T, axis=1)  # grab cs for each time
@@ -71,9 +22,10 @@ def find_cse_from_cs(comsol):
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
 def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
-    xbar = fem.Expression(cppcode=x_conv, markers=dest_markers,
+    xbar = fem.Expression(cppcode=utilities.expressions.xbar, markers=dest_markers,
                           neg=dest_x_neg, sep=dest_x_sep, pos=dest_x_pos, degree=1)
-    return fem.Expression(cppcode=composition, inner=xbar, outer=func, degree=1)
+    return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
+
 
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
