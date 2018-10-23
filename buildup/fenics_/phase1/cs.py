@@ -15,8 +15,7 @@ public:
 
   void eval(Array<double>& values, const Array<double>& x,
             const ufc::cell& c) const
-  {      
-        std::cout << "input x: " << x << std::endl;
+  {
       switch((*markers)[c.index]){
         case 0:
             neg->eval(values, x, c);
@@ -47,15 +46,13 @@ public:
   void eval(Array<double>& values, const Array<double>& x,
             const ufc::cell& c) const
   {
-      Array<double> val(2);
+      Array<double> val(3);
       inner->eval(val, x, c);
-      std::cout << val << std::endl;
       outer->eval(values, val, c);      
   }
   
   std::shared_ptr<GenericFunction> outer;
   std::shared_ptr<GenericFunction> inner;
-  unsigned num_dims;
 };
 '''
 
@@ -115,12 +112,12 @@ def run(time, dt, return_comsol=False):
     jbar2.set_allow_extrapolation(True)
     cse.set_allow_extrapolation(True)
 
-    main_from_pseudo = fem.Expression(cppcode=x_conv, markers=cse_domain.domain_markers, num_dims=1, degree=1)
+    main_from_pseudo = fem.Expression(cppcode=x_conv, markers=cse_domain.domain_markers, degree=1)
     main_from_pseudo.neg = fem.Expression('x[0]', degree=1)
     main_from_pseudo.sep = fem.Expression('2*x[0]-1', degree=1)
     main_from_pseudo.pos = fem.Expression('x[0] + 0.5', degree=1)
 
-    pseudo_from_main = fem.Expression(cppcode=x_conv, markers=submesh_domain_markers, num_dims=2, degree=1)
+    pseudo_from_main = fem.Expression(cppcode=x_conv, markers=submesh_domain_markers, degree=1)
     pseudo_from_main.neg = fem.Expression(('x[0]', '1.0'), degree=1)
     pseudo_from_main.sep = fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1)
     pseudo_from_main.pos = fem.Expression(('x[0] - 0.5', '1.0'), degree=1)
