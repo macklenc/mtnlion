@@ -6,6 +6,22 @@ import click
 from mtnlion.comsol import *
 
 
+# TODO: settable tolerances
+# TODO: Documentation
+def organize(file_coords, dofs):
+    transform = []
+    for i in dofs:
+        ind1 = np.where(np.abs(file_coords[:, 0] - i[0]) <= 1e-5)
+        ind2 = np.where(np.abs(file_coords[:, 1] - i[1]) <= 1e-5)
+        if len(ind1[0]) > 0 and len(ind2[0]) > 0:
+            transform.append(np.intersect1d(ind1, ind2)[0])
+            if len(np.intersect1d(ind1, ind2)) > 1:
+                raise ValueError('Too many matching indices')
+        else:
+            raise ValueError('Missing indices, check tolerances')
+    return transform
+
+
 @click.command()
 @click.option('--dt', '-t', nargs=3, type=float, help='[start time stop time delta time]')
 @click.option('--bound', '-b', type=click.Path(exists=True, readable=True, resolve_path=True),
@@ -52,7 +68,10 @@ def main(input_files: List[str], output: Union[click.utils.LazyFile, str],
                             'time mesh is required', exc_info=True)
             raise ex
 
-    data = format_data(file_data, boundaries=bound)
+    data = format_2d_data(file_data, boundaries=bound)
+    data1 = format_pseudo_dim(file_data, boundaries=bound)
+    data['pseudo_mesh'] = data1['pseudo_mesh']
+    data['cs'] = data1['cs']
     loader.save_npz_file(output, data)
 
     logger.info('Conversion completed successfully')
