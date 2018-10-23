@@ -135,7 +135,7 @@ def run(time, dt, return_comsol=False):
     print(utilities.get_1d(fem.interpolate(main_from_pseudo, cse_domain.V), cse_domain.V))
 
     composition_ex = fem.Expression(cppcode=composition, inner=main_from_pseudo, outer=jbar_c, degree=1)
-    composition_ex_cse = fem.Expression(cppcode=composition, inner=pseudo_from_main, outer=cse, degree=1)
+    composition_ex_cse = fem.Expression(cppcode=composition, inner=pseudo_from_main, outer=cs, degree=1)
 
     # utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, 4)
     # orig = utilities.get_1d(fem.interpolate(jbar_c, domain.V), domain.V)
