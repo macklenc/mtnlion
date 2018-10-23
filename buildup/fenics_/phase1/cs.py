@@ -60,46 +60,20 @@ def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(time)
     pseudo_domain = cmn.pseudo_domain
-
-    bmesh = fem.BoundaryMesh(pseudo_domain.mesh, 'exterior')
-    cc = fem.MeshFunction('size_t', bmesh, bmesh.topology().dim())
-    top = fem.AutoSubDomain(lambda x: (1.0 - fem.DOLFIN_EPS) <= x[1] <= (1.0 + fem.DOLFIN_EPS))
-    # top = fem.CompiledSubDomain('near(x[1], b, DOLFIN_EPS)', b=1.0)
-    top.mark(cc, 9)
-    submesh = fem.SubMesh(bmesh, cc, 9)
-    X = fem.FunctionSpace(submesh, 'Lagrange', 1)
-
-    pseudo_boundaries = np.array([0, 1, 1.5, 2.5])
-    pseudo_neg_domain = fem.CompiledSubDomain('(x[0] >= (b1 - DOLFIN_EPS)) && (x[0] <= (b2 + DOLFIN_EPS))',
-                                              b1=pseudo_boundaries[0].astype(np.double),
-                                              b2=pseudo_boundaries[1].astype(np.double))
-    pseudo_sep_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                              b1=pseudo_boundaries[1].astype(np.double),
-                                              b2=pseudo_boundaries[2].astype(np.double))
-    pseudo_pos_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                              b1=pseudo_boundaries[2].astype(np.double),
-                                              b2=pseudo_boundaries[3].astype(np.double))
-
-    # Mark the subdomains, pseudo dim
-    pseudo_domain_markers = fem.MeshFunction('size_t', submesh, submesh.topology().dim())
-    pseudo_domain_markers.set_all(99)
-    pseudo_neg_domain.mark(pseudo_domain_markers, 0)
-    pseudo_sep_domain.mark(pseudo_domain_markers, 1)
-    pseudo_pos_domain.mark(pseudo_domain_markers, 2)
-
+    cse_domain = cmn.pseudo_cse_domain
 
     cs_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.pseudo_mesh), 1)[0]
-    cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(submesh.coordinates()[:, 0]), 1)[0]
+    cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
 
     cs_u = fem.TrialFunction(pseudo_domain.V)
     v = fem.TestFunction(pseudo_domain.V)
 
     cs_1, cs, jbar2_interp = utilities.create_functions(pseudo_domain.V, 3)
     jbar_c = utilities.create_functions(domain.V, 1)[0]
-    jbar2 = utilities.create_functions(X, 1)[0]
+    jbar2 = utilities.create_functions(cse_domain.V, 1)[0]
     jbar2.set_allow_extrapolation(True)
 
-    main_from_pseudo = fem.Expression(cppcode=x_conv, markers=pseudo_domain_markers, degree=1)
+    main_from_pseudo = fem.Expression(cppcode=x_conv, markers=cse_domain.domain_markers, degree=1)
     main_from_pseudo.neg = fem.Expression('x[0]', degree=1)
     main_from_pseudo.sep = fem.Expression('2*x[0]-1', degree=1)
     main_from_pseudo.pos = fem.Expression('x[0] + 0.5', degree=1)
@@ -113,13 +87,13 @@ def run(time, dt, return_comsol=False):
 
     # print(utilities.get_1d(fem.interpolate(main_x_from_pseudo, domain.V), domain.V))
     # print(utilities.get_1d(fem.interpolate(x, X), X))
-    print(utilities.get_1d(fem.interpolate(main_from_pseudo, X), X))
+    print(utilities.get_1d(fem.interpolate(main_from_pseudo, cse_domain.V), cse_domain.V))
 
     composition_ex = fem.Expression(cppcode=composition, inner=main_from_pseudo, outer=jbar_c, degree=1)
     utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, 4)
 
     orig = utilities.get_1d(fem.interpolate(jbar_c, domain.V), domain.V)
-    test = utilities.get_1d(fem.interpolate(composition_ex, X), X)
+    test = utilities.get_1d(fem.interpolate(composition_ex, cse_domain.V), cse_domain.V)
     # print(test)
     # plt.plot(orig)
     # plt.show()
@@ -165,7 +139,7 @@ def run(time, dt, return_comsol=False):
         utilities.assign_functions([comsol_sol.data.j], [jbar_c], domain.V, i_1)
         # jbar2.vector()[:] = tmpj[fem.dof_to_vertex_map(X)].astype('double')
         jbar2.vector()[:] = tmpj.astype('double')
-        jbar2.assign(fem.interpolate(composition_ex, X))
+        jbar2.assign(fem.interpolate(composition_ex, cse_domain.V))
 
         # jbar2.assign(fem.Constant(0))
 
@@ -179,7 +153,7 @@ def run(time, dt, return_comsol=False):
         # Solve
         fem.solve(a == L, cs)
         cs.set_allow_extrapolation(True)
-        cse = fem.interpolate(cs, X)
+        cse = fem.interpolate(cs, cse_domain.V)
         # asdf = utilities.get_1d(cse, X)
         # fdsa = np.concatenate(
         #     (asdf[:len(comsol_sol.neg)], np.zeros(len(comsol_sol.sep) - 2), asdf[len(comsol_sol.neg):]))
