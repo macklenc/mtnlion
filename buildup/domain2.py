@@ -139,6 +139,33 @@ def generate_domain(raw_mesh, pseudo_mesh):
     # normal vector, pseudo dim cse
     pseudo_cse_n = fem.FacetNormal(pseudo_cse_mesh)
 
+    combined_subdomains = fem.MeshFunction('size_t', mesh, mesh.topology().dim())
+    combined_subdomains.array()[main_domain_markers.array() == 0] = 1
+    combined_subdomains.array()[main_domain_markers.array() == 2] = 1
+    electrode_mesh = fem.SubMesh(mesh, combined_subdomains, 1)
+    electrode_domain_markers = fem.MeshFunction('size_t', electrode_mesh, electrode_mesh.topology().dim())
+    electrode_domain_markers.set_all(99)
+    neg_domain.mark(electrode_domain_markers, 0)
+    sep_domain.mark(electrode_domain_markers, 1)
+    pos_domain.mark(electrode_domain_markers, 2)
+
+    electrode_V = fem.FunctionSpace(electrode_mesh, 'Lagrange', 1)
+    # Mark the boundaries, electrode dim
+    electrode_boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
+    electrode_boundary_markers.set_all(0)
+    b0.mark(electrode_boundary_markers, 1)
+    b1.mark(electrode_boundary_markers, 2)
+    b2.mark(electrode_boundary_markers, 3)
+    b3.mark(electrode_boundary_markers, 4)
+
+    # Setup measures, electrode dim
+    electrode_dx = fem.Measure('dx', domain=mesh, subdomain_data=electrode_domain_markers)
+    electrode_ds = fem.Measure('ds', domain=mesh, subdomain_data=electrode_boundary_markers)
+    electrode_dS = fem.Measure('dS', domain=mesh, subdomain_data=electrode_boundary_markers)
+
+    # normal vector, main dim
+    electrode_n = fem.FacetNormal(mesh)
+
     # print(main_domain_markers.array())
     # print(main_boundary_markers.array())
     # fem.plot(markers)
@@ -148,7 +175,9 @@ def generate_domain(raw_mesh, pseudo_mesh):
            Domain(pseudo_mesh, pseudo_V, pseudo_dx, pseudo_ds, pseudo_dS, pseudo_n, pseudo_boundary_markers,
                   pseudo_domain_markers), \
            Domain(pseudo_cse_mesh, pseudo_cse_V, pseudo_cse_dx, pseudo_cse_ds, pseudo_cse_dS, pseudo_cse_n,
-                  pseudo_cse_boundary_markers, pseudo_cse_domain_markers)
+                  pseudo_cse_boundary_markers, pseudo_cse_domain_markers), \
+           Domain(electrode_mesh, electrode_V, electrode_dx, electrode_ds, electrode_dS, electrode_n,
+                  electrode_boundary_markers, electrode_domain_markers)
 
 
 def generate_domain2(mesh):

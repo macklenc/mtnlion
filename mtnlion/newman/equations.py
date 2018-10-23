@@ -62,6 +62,14 @@ def ce_explicit_euler(jbar, ce_1, ce, v, dx, dt, a_s, eps_e, De_eff, t_plus, L,
         return a, Lin
 
 
+def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
+    rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
+    a = Rs * rbar2 * cs * v * dx
+    Lin = Rs * rbar2 * cs_1 * v * dx - dt * Ds_ref * rbar2 / Rs * fem.dot(cs_1.dx(1), v.dx(1)) * dx
+
+    return a - Lin
+
+
 def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, **kwargs):
     return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,

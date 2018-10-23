@@ -1,10 +1,9 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
-import sympy as sym
 
-import common
-import utilities
+from buildup import (common, utilities)
+from mtnlion.newman import equations
 
 x_conv = '''
 class XConv : public Expression
@@ -69,136 +68,80 @@ def find_cse_from_cs(comsol):
     return xcoor, cse, neg_ind, pos_ind
 
 
+# essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
+# then this method returns func(xbar)
+def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
+    xbar = fem.Expression(cppcode=x_conv, markers=dest_markers,
+                          neg=dest_x_neg, sep=dest_x_sep, pos=dest_x_pos, degree=1)
+    return fem.Expression(cppcode=composition, inner=xbar, outer=func, degree=1)
+
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(time)
     pseudo_domain = cmn.pseudo_domain
     cse_domain = cmn.pseudo_cse_domain
+    electrode_domain = cmn.electrode_domain
 
-    boundaries = np.arange(4)
-    # Setup subdomain markers
-    neg_domain = fem.CompiledSubDomain('(x[0] >= (b1 - DOLFIN_EPS)) && (x[0] <= (b2 + DOLFIN_EPS))',
-                                       b1=boundaries[0].astype(np.double), b2=boundaries[1].astype(np.double))
-    sep_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[1].astype(np.double), b2=boundaries[2].astype(np.double))
-    pos_domain = fem.CompiledSubDomain('(x[0] >= b1 - DOLFIN_EPS) && (x[0] <= b2 + DOLFIN_EPS)',
-                                       b1=boundaries[2].astype(np.double), b2=boundaries[3].astype(np.double))
-
-    combined_subdomains = fem.MeshFunction('size_t', domain.mesh, domain.mesh.topology().dim())
-    combined_subdomains.array()[domain.domain_markers.array() == 0] = 1
-    combined_subdomains.array()[domain.domain_markers.array() == 2] = 1
-    submesh = fem.SubMesh(domain.mesh, combined_subdomains, 1)
-    submesh_domain_markers = fem.MeshFunction('size_t', submesh, submesh.topology().dim())
-    submesh_domain_markers.set_all(99)
-    neg_domain.mark(submesh_domain_markers, 0)
-    sep_domain.mark(submesh_domain_markers, 1)
-    pos_domain.mark(submesh_domain_markers, 2)
-    jV = fem.FunctionSpace(submesh, 'Lagrange', 1)
-
-    # fem.plot(submesh)
-    # plt.show()
-
-    cs_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.pseudo_mesh), 1)[0]
+    cs_sol = utilities.create_solution_matrices(int(len(time) / 2), len(pseudo_domain.mesh.coordinates()), 1)[0]
     pseudo_cse_sol = \
         utilities.create_solution_matrices(int(len(time) / 2), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
-    cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.mesh), 1)[0]
+    cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(domain.mesh.coordinates()), 1)[0]
 
     cs_u = fem.TrialFunction(pseudo_domain.V)
     v = fem.TestFunction(pseudo_domain.V)
 
-    cs_1, cs, jbar2_interp = utilities.create_functions(pseudo_domain.V, 3)
-    jbar_c, cse_2 = utilities.create_functions(domain.V, 2)
-    cse_t = utilities.create_functions(jV, 1)[0]
-    jbar2, cse = utilities.create_functions(cse_domain.V, 2)
-    jbar2.set_allow_extrapolation(True)
+    cs_1, cs = utilities.create_functions(pseudo_domain.V, 2)
+    jbar_c = utilities.create_functions(domain.V, 1)[0]
+    cse = utilities.create_functions(electrode_domain.V, 1)[0]
+    cs_jbar, cs_cse = utilities.create_functions(cse_domain.V, 2)
+
+    cs_jbar.set_allow_extrapolation(True)
     cse.set_allow_extrapolation(True)
-    cse_t.set_allow_extrapolation(True)
 
-    main_from_pseudo = fem.Expression(cppcode=x_conv, markers=cse_domain.domain_markers, degree=1)
-    main_from_pseudo.neg = fem.Expression('x[0]', degree=1)
-    main_from_pseudo.sep = fem.Expression('2*x[0]-1', degree=1)
-    main_from_pseudo.pos = fem.Expression('x[0] + 0.5', degree=1)
+    jbar_to_pseudo = cross_domain(jbar_c, cse_domain.domain_markers,
+                                  fem.Expression('x[0]', degree=1),
+                                  fem.Expression('2*x[0]-1', degree=1),
+                                  fem.Expression('x[0] + 0.5', degree=1))
 
-    pseudo_from_main = fem.Expression(cppcode=x_conv, markers=submesh_domain_markers, degree=1)
-    pseudo_from_main.neg = fem.Expression(('x[0]', '1.0'), degree=1)
-    pseudo_from_main.sep = fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1)
-    pseudo_from_main.pos = fem.Expression(('x[0] - 0.5', '1.0'), degree=1)
+    cs_cse_to_cse = cross_domain(cs, electrode_domain.domain_markers,
+                                 fem.Expression(('x[0]', '1.0'), degree=1),
+                                 fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
+                                 fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
 
-    composition_ex = fem.Expression(cppcode=composition, inner=main_from_pseudo, outer=jbar_c, degree=1)
-    composition_ex_cse = fem.Expression(cppcode=composition, inner=pseudo_from_main, outer=cs, degree=1)
-
-    Ds = cmn.fenics_params.Ds_ref
-    Rs = cmn.fenics_params.Rs
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
 
-    j, y, eps = sym.symbols('j x[1] DOLFIN_EPS')
-    sym_j = sym.Piecewise((j, (y + eps) >= 1), (0, True))
     rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
-    jbar = fem.Expression(sym.printing.ccode(sym_j), j=jbar2, degree=3)
-    neumann = dtc * rbar2 * (-jbar) * v * ds(5)
-    a = Rs * rbar2 * cs_u * v * dx
+    jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
+    neumann = dtc * rbar2 * jbar * v * ds(5)
 
-    # Times at which to run solver
-    time_in = [15, 25, 35, 45]
-
-    # Collect common data
-    V = pseudo_domain.V
-
-    cs_1 = fem.Function(V)
-    cs_1.vector()[:] = comsol.data.cs[-1, :].astype('double')
-
-    # create local variables
-    comsol_sol = cmn.comsol_solution
+    F = equations.cs(cs_1, cs_u, v, dx, dtc, **cmn.fenics_params, **cmn.fenics_consts)
+    F += neumann
 
     k = 0
     for i in range(int(len(time) / 2)):
         i_1 = i * 2
         i = i*2 + 1
 
-        utilities.assign_functions([comsol_sol.data.j], [jbar_c], domain.V, i_1)
-        jbar2.assign(fem.interpolate(composition_ex, cse_domain.V))
+        utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i_1)
+        # TODO: make assignable with utilities.assign_functions
         cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
+        cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
-        # Setup equation
-        L = Rs*rbar2*cs_1*v*dx - dtc*Ds*rbar2/Rs*fem.dot(cs_1.dx(1), v.dx(1))*dx + neumann
+        fem.solve(fem.lhs(F) == fem.rhs(F), cs)
+        cs_cse.assign(fem.interpolate(cs, cse_domain.V))
+        cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
 
-        # Solve
-        fem.solve(a == L, cs)
-        cs.set_allow_extrapolation(True)
-        cse.assign(fem.interpolate(cs, cse_domain.V))
-        cse_t.assign(fem.interpolate(composition_ex_cse, jV))
-
-        # plt.plot(utilities.get_1d(cse_t, jV)[0:21])
-        # plt.plot(comsol.data.cse[i, comsol.neg_ind])
-        # plt.show()
-        # plt.plot(utilities.get_1d(cse_t, jV)[21:])
-        # plt.plot(comsol.data.cse[i, comsol.pos_ind])
-        # plt.show()
-
-        pseudo_cse_sol[k, :] = cse.vector().get_local()
-        cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse_t, domain.V), domain.V)
-
-        u_nodal_values = cs.vector()
-        cs_sol[k, :] = u_nodal_values.get_local()[fem.vertex_to_dof_map(pseudo_domain.V)]
+        pseudo_cse_sol[k, :] = cs_cse.vector().get_local()  # used to show that cs computed correctly
+        cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse, domain.V), domain.V)  # desired result
+        # TODO: make usable with get 1d
+        cs_sol[k, :] = cs.vector().get_local()  # used to prove that cs computed correctly
         k += 1
 
-    # exit()
-    ## find c_se from c_s
-    xcoor, cse, neg_ind, pos_ind = find_cse_from_cs(comsol)
-    utilities.report(xcoor[neg_ind], time_in, pseudo_cse_sol[:, neg_ind],
-                     cse.T[:, neg_ind], '$c_{s,e}^{neg}$')
-    plt.show()
-    utilities.report(xcoor[pos_ind], time_in, pseudo_cse_sol[:, pos_ind],
-                     cse.T[:, pos_ind], '$c_{s,e}^{pos}$')
-    plt.show()
-    # plt.savefig('comsol_compare_cs.png')
-    # plt.show()
-
     if return_comsol:
-        return cse_sol, comsol
+        return cs_sol, pseudo_cse_sol, cse_sol, comsol
     else:
-        return cse_sol
+        return cs_sol, pseudo_cse_sol, cse_sol
 
 
 def main():
@@ -207,20 +150,29 @@ def main():
 
     # Times at which to run solver
     time_in = [15, 25, 35, 45]
-    # time_in = np.arange(0.1, 50, 0.1)
     dt = 0.1
     time = [None] * (len(time_in) * 2)
     time[::2] = [t - dt for t in time_in]
     time[1::2] = time_in
 
-    cse_sol, comsol = run(time, dt, return_comsol=True)
+    cs_sol, pseudo_cse_sol, cse_sol, comsol = run(time, dt, return_comsol=True)
+
+    print('cs total normalized RMSE%: {}'.format(utilities.norm_rmse(cs_sol, comsol.data.cs[1::2])))
+
+    xcoor, cse, neg_ind, pos_ind = find_cse_from_cs(comsol)
+    utilities.report(xcoor[neg_ind], time_in, pseudo_cse_sol[:, neg_ind],
+                     cse.T[:, neg_ind], 'pseudo $c_{s,e}^{neg}$')
+    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_neg.png')
+    utilities.report(xcoor[pos_ind], time_in, pseudo_cse_sol[:, pos_ind],
+                     cse.T[:, pos_ind], 'pseudo $c_{s,e}^{pos}$')
+    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_pos.png')
 
     utilities.report(comsol.mesh[comsol.neg_ind], time_in, cse_sol[:, comsol.neg_ind],
-                     comsol.data.cse[1::2, comsol.neg_ind], '$\c_{s,e}$')
+                     comsol.data.cse[1::2, comsol.neg_ind], '$c_{s,e}$')
     utilities.save_plot(__file__, 'plots/compare_cse_neg.png')
     plt.show()
     utilities.report(comsol.mesh[comsol.pos_ind], time_in, cse_sol[:, comsol.pos_ind],
-                     comsol.data.cse[1::2, comsol.pos_ind], '$\c_{s,e}$')
+                     comsol.data.cse[1::2, comsol.pos_ind], '$c_{s,e}$')
     utilities.save_plot(__file__, 'plots/compare_cse_pos.png')
 
     plt.show()

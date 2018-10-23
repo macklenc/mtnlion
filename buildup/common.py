@@ -140,8 +140,8 @@ class Common:
         self.consts['kappa_D'] = kappa_D(**self.params, **self.consts)
         self.consts.kappa_ref = self.consts.kappa_ref[0]
 
-        self.domain, self.pseudo_domain, self.pseudo_cse_domain = domain2.generate_domain(self.comsol_solution.mesh,
-                                                                                          fem.Mesh(pseudo_mesh_file))
+        self.domain, self.pseudo_domain, self.pseudo_cse_domain, self.electrode_domain = \
+            domain2.generate_domain(self.comsol_solution.mesh, fem.Mesh(pseudo_mesh_file))
 
         self.V0 = fem.FunctionSpace(self.domain.mesh, 'DG', 0)
         self.fenics_params = collect_fenics_params(self.params, self.domain.mesh, self.domain.domain_markers, self.V0)
