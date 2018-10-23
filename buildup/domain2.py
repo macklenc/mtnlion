@@ -15,7 +15,7 @@ class Domain():
         self.domain_markers = domain_markers
 
 
-# TODO: refactor
+# TODO: refactor!!!
 def generate_domain(raw_mesh, pseudo_mesh):
     boundaries = np.arange(4)
     pseudo_boundaries = np.array([0, 1, 1.5, 2.5])
@@ -24,8 +24,16 @@ def generate_domain(raw_mesh, pseudo_mesh):
     mesh = fem.IntervalMesh(len(raw_mesh) - 1, 0, 3)
     mesh.coordinates()[:] = np.array([raw_mesh]).transpose()
 
+    # Create cse mesh in the pseudo domain
+    boundary_mesh = fem.BoundaryMesh(pseudo_mesh, 'exterior')
+    cc = fem.MeshFunction('size_t', boundary_mesh, boundary_mesh.topology().dim())
+    top = fem.CompiledSubDomain('near(x[1], b, DOLFIN_EPS)', b=1.0)
+    top.mark(cc, 4)
+    pseudo_cse_mesh = fem.SubMesh(boundary_mesh, cc, 4)
+
     main_V = fem.FunctionSpace(mesh, 'Lagrange', 1)
     pseudo_V = fem.FunctionSpace(pseudo_mesh, 'Lagrange', 1)
+    pseudo_cse_V = fem.FunctionSpace(pseudo_cse_mesh, 'Lagrange', 1)
 
     # Setup subdomain markers
     neg_domain = fem.CompiledSubDomain('(x[0] >= (b1 - DOLFIN_EPS)) && (x[0] <= (b2 + DOLFIN_EPS))',
@@ -108,6 +116,29 @@ def generate_domain(raw_mesh, pseudo_mesh):
     # normal vector, pseudo dim
     pseudo_n = fem.FacetNormal(pseudo_mesh)
 
+    # Mark the subdomains, pseudo dim cse
+    pseudo_cse_domain_markers = fem.MeshFunction('size_t', pseudo_cse_mesh, pseudo_cse_mesh.topology().dim())
+    pseudo_cse_domain_markers.set_all(99)
+    pseudo_neg_domain.mark(pseudo_cse_domain_markers, 0)
+    pseudo_sep_domain.mark(pseudo_cse_domain_markers, 1)
+    pseudo_pos_domain.mark(pseudo_cse_domain_markers, 2)
+
+    # Mark the boundaries, pseudo dim cse
+    pseudo_cse_boundary_markers = fem.MeshFunction('size_t', pseudo_cse_mesh, pseudo_cse_mesh.topology().dim() - 1)
+    pseudo_cse_boundary_markers.set_all(0)
+    pseudo_b0.mark(pseudo_cse_boundary_markers, 1)
+    pseudo_b1.mark(pseudo_cse_boundary_markers, 2)
+    pseudo_b2.mark(pseudo_cse_boundary_markers, 3)
+    pseudo_b3.mark(pseudo_cse_boundary_markers, 4)
+
+    # Setup measures, pseudo dim cse
+    pseudo_cse_dx = fem.Measure('dx', domain=pseudo_cse_mesh, subdomain_data=pseudo_cse_domain_markers)
+    pseudo_cse_ds = fem.Measure('ds', domain=pseudo_cse_mesh, subdomain_data=pseudo_cse_boundary_markers)
+    pseudo_cse_dS = fem.Measure('dS', domain=pseudo_cse_mesh, subdomain_data=pseudo_cse_boundary_markers)
+
+    # normal vector, pseudo dim cse
+    pseudo_cse_n = fem.FacetNormal(pseudo_cse_mesh)
+
     # print(main_domain_markers.array())
     # print(main_boundary_markers.array())
     # fem.plot(markers)
@@ -115,7 +146,9 @@ def generate_domain(raw_mesh, pseudo_mesh):
 
     return Domain(mesh, main_V, main_dx, main_ds, main_dS, main_n, main_boundary_markers, main_domain_markers), \
            Domain(pseudo_mesh, pseudo_V, pseudo_dx, pseudo_ds, pseudo_dS, pseudo_n, pseudo_boundary_markers,
-                  pseudo_domain_markers)
+                  pseudo_domain_markers), \
+           Domain(pseudo_cse_mesh, pseudo_cse_V, pseudo_cse_dx, pseudo_cse_ds, pseudo_cse_dS, pseudo_cse_n,
+                  pseudo_cse_boundary_markers, pseudo_cse_domain_markers)
 
 
 def generate_domain2(mesh):
