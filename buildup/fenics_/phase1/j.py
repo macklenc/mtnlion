@@ -2,7 +2,6 @@ import sys
 
 import fenics as fem
 import matplotlib.pyplot as plt
-import sympy as sym
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
@@ -17,14 +16,9 @@ def run(time, return_comsol=False, engine='comsol', form='equation'):
     u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
 
-    x = sym.Symbol('x[0]')
-    uocp = sym.Piecewise((cmn.params.Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (cmn.params.Uocp_pos, x >= 2 - fem.DOLFIN_EPS),
-                         (0, True))
-    soc = fem.Expression('cse/csmax', cse=cse_c, csmax=cmn.fenics_params.csmax, degree=1)
-    cmn.fenics_params['Uocp'] = fem.Expression(sym.printing.ccode(uocp), soc=soc, degree=1)
-
     # TODO: add forms to j. I.e. equation, interpolation
-    jbar = equations.j(ce_c, cse_c, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts, form=form)
+    Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
+    jbar = equations.j(ce_c, cse_c, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts, form=form)
 
     a = fem.dot(u, v) * domain.dx((0, 2))
     L = jbar * v * domain.dx((0, 2))

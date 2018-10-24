@@ -61,32 +61,16 @@ def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
     return a - Lin
 
 
-def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp, degree=1, **kwargs):
+def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degree=1, **kwargs):
     return fem.Expression(sym.printing.ccode(_sym_j()[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
                           ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
                           R=R, Tref=Tref, Uocp=Uocp, degree=degree)
 
 
-def j_new(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, dm, V, degree=1,
-          **kwargs):
-    # return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)),
-    #                       ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
-    #                       ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
-    #                       R=R, Tref=Tref, degree=degree)
-    csmax = fem.interpolate(csmax, V)
-    ce0 = fem.interpolate(ce0, V)
-    alpha = fem.interpolate(alpha, V)
-    k_norm_ref = fem.interpolate(k_norm_ref, V)
-
-    _, sym_jeval = _sym_j(Uocp_neg, Uocp_pos)
-    return K(dm, csmax=csmax, cse=cse, ce=ce, ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, phie=phie,
-             phis=phis, R=R, F=F, Tref=Tref, j=sym_jeval, degree=1)
-
-
-def eval_j(x, ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, **kwargs):
-    _, jeval = _sym_j(Uocp_neg, Uocp_pos)
-    return jeval(csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis, x, F, R, Tref)
+def Uocp(cse, csmax, uocp_str, **kwargs):
+    soc = fem.Expression('cse/csmax', cse=cse, csmax=csmax, degree=1)
+    return fem.Expression(sym.printing.ccode(uocp_str), soc=soc, degree=1)
 
 
 def _sym_j():

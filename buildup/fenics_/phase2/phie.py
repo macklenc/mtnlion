@@ -26,7 +26,8 @@ def run(time, solver, return_comsol=False):
     newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
                   kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
 
-    j = equations.j(ce_c, cse_c, phie_c_, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
+    Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
+    j = equations.j(ce_c, cse_c, phie_c_, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                         dm=domain.domain_markers, V=domain.V)
 
     F = equations.phie(j, ce_c, phie_c_, v, domain.dx((0, 2)), kappa_eff, kappa_Deff,
