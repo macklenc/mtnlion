@@ -100,7 +100,7 @@ def _sym_j(Uocp_neg, Uocp_pos):
     sym_flux = k_norm_ref * s1 * s2
     soc = cse / csmax
 
-    tmpx = sym.Symbol('x')
+    tmpx = sym.Symbol('soc')
     # Uocp_pos = Uocp_pos * 1.00025  #########################################FIX ME!!!!!!!!!!!!!!!!!!*1.00025
 
     Uocp_neg = Uocp_neg.subs(tmpx, soc)

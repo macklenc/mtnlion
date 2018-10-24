@@ -127,8 +127,9 @@ class Common:
         self.params = collect_parameters(self.raw_params)
         self.consts = self.raw_params.const
 
-        self.params['Uocp_neg'] = self.params.Uocp[0][0]
-        self.params['Uocp_pos'] = self.params.Uocp[2][0]
+        tmpx, soc = sym.symbols('x soc')
+        self.params['Uocp_neg'] = self.params.Uocp[0][0].subs(tmpx, soc)
+        self.params['Uocp_pos'] = self.params.Uocp[2][0].subs(tmpx, soc)
         self.params['De_eff'] = self.consts.De_ref * self.params.eps_e ** self.params.brug_De
         self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
         self.params['a_s'] = 3 * np.divide(self.params.eps_s, self.params.Rs,
@@ -148,8 +149,10 @@ class Common:
         self.fenics_consts = collect_fenics_const(self.consts)
 
         # TODO: refactor
-        Rs = utilities.mkparam(self.pseudo_domain.domain_markers, *self.params.Rs)
-        Ds = utilities.mkparam(self.pseudo_domain.domain_markers, *self.params.Ds_ref)
+        Rs = utilities.mkparam(self.pseudo_domain.domain_markers, fem.Constant(self.params.Rs[0]),
+                               fem.Constant(self.params.Rs[1]), fem.Constant(self.params.Rs[2]))
+        Ds = utilities.mkparam(self.pseudo_domain.domain_markers, fem.Constant(self.params.Ds_ref[0]),
+                               fem.Constant(self.params.Ds_ref[1]), fem.Constant(self.params.Ds_ref[2]))
         self.fenics_params.Rs = Rs
         self.fenics_params.Ds_ref = Ds
 
