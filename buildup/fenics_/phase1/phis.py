@@ -16,9 +16,9 @@ def run(time, return_comsol=False):
     jbar_c, phis = utilities.create_functions(domain.V, 2)
     Iapp = fem.Constant(0)
 
-    a, L = equations.phis(jbar_c, phis_u, v, domain.dx((0, 2)), **cmn.fenics_params, **cmn.fenics_consts,
-                          neumann=Iapp / cmn.fenics_consts.Acell, ds=domain.ds(4), nonlin=False)
-    a += fem.dot(phis_u, v) * domain.dx(1)
+    F = equations.phis(jbar_c, phis_u, v, domain.dx((0, 2)), **cmn.fenics_params, **cmn.fenics_consts,
+                       neumann=Iapp / cmn.fenics_consts.Acell, ds=domain.ds(4))
+    F += fem.dot(phis_u, v) * domain.dx(1)
     # same as
     # a2, L2 = equations.phis(fem.Constant(0), phis_u, v, domain.dx(1), **cmn.params, **cmn.const, nonlin=False)
     # a += a2
@@ -29,7 +29,7 @@ def run(time, return_comsol=False):
         Iapp.assign(cmn.Iapp[i])
         bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, -1], domain.boundary_markers, 4)
 
-        fem.solve(a == L, phis, bc)
+        fem.solve(fem.lhs(F) == fem.rhs(F), phis, bc)
         phis_sol[i, :] = utilities.get_1d(phis, domain.V)
 
     if return_comsol:

@@ -25,17 +25,17 @@ def run(time, return_comsol=False):
     newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
                   kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
 
-    a, L = equations.phie(jbar_c, ce_c, phie_u, v, domain.dx, kappa_eff, kappa_Deff,
-                          **cmn.fenics_params, **cmn.fenics_consts, nonlin=False)
+    F = equations.phie(jbar_c, ce_c, phie_u, v, domain.dx, kappa_eff, kappa_Deff,
+                       **cmn.fenics_params, **cmn.fenics_consts)
 
-    a += newmann_a
-    L += newmann_L
+    F += newmann_a
+    F -= newmann_L
 
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j, comsol.data.ce], [jbar_c, ce_c], domain.V, i)
         bc = fem.DirichletBC(domain.V, comsol.data.phie[i, 0], domain.boundary_markers, 1)
 
-        fem.solve(a == L, phie, bc)
+        fem.solve(fem.lhs(F) == fem.rhs(F), phie, bc)
         phie_sol[i, :] = utilities.get_1d(phie, domain.V)
 
     if return_comsol:

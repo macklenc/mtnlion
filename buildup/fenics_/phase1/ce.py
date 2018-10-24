@@ -26,9 +26,9 @@ def run(time, dt, return_comsol=False):
               dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
               dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
 
-    a, L = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
-                                       **cmn.fenics_params, **cmn.fenics_consts, nonlin=False)
-    L += neumann
+    F = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
+                                    **cmn.fenics_params, **cmn.fenics_consts)
+    F -= neumann
 
     k = 0
     for i in range(int(len(time) / 2)):
@@ -39,7 +39,7 @@ def run(time, dt, return_comsol=False):
         bc = [fem.DirichletBC(domain.V, comsol.data.ce[i, 0], domain.boundary_markers, 1),
               fem.DirichletBC(domain.V, comsol.data.ce[i, -1], domain.boundary_markers, 4)]
 
-        fem.solve(a == L, ce, bc)
+        fem.solve(fem.lhs(F) == fem.rhs(F), ce, bc)
         ce_sol[k, :] = utilities.get_1d(ce, domain.V)
         print('t={time}: error = {error}'.format(time=time[i],
                                                  error=np.abs(ce_sol[k, :] - comsol.data.ce[i, :]).max()))

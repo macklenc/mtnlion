@@ -93,9 +93,9 @@ def main():
 
     j = equations.j(ce_f, cse_f, phie_f, phis_f, **cmn.fenics_params, **cmn.fenics_consts, dm=domain.domain_markers)
     phis_form = partial(equations.phis, j, u_phis, v_phis, domain.dx((0, 2)),
-                        **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4), nonlin=True)
+                        **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4))
     phie_form = partial(equations.phie, j, ce_f, u_phie, v_phie, domain.dx, **cmn.fenics_params, **cmn.fenics_consts,
-                        nonlin=True)
+                        )
 
     # initialize matrix to save solution results
     phis_array = np.empty((len(time_in), len(comsol.mesh)))
