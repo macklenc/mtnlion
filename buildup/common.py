@@ -162,7 +162,7 @@ class Common:
         # self.pos_V = fem.FunctionSpace(self.pos_submesh, 'Lagrange', 1)
 
         self.I_1C = 20.5
-        self.Iapp = [self.I_1C if 10 <= i <= 20 else -self.I_1C if 30 <= i <= 40 else 0 for i in time]
+        self.Iapp = [self.I_1C if 10 <= i < 20 else -self.I_1C if 30 <= i < 40 else 0 for i in time]
 
 # Notes for later, TODO: clean up
 #         boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
