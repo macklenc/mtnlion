@@ -94,10 +94,10 @@ def generate_domain(raw_mesh, pseudo_mesh):
 
     # Mark the subdomains, pseudo dim
     pseudo_domain_markers = fem.MeshFunction('size_t', pseudo_mesh, pseudo_mesh.topology().dim())
-    pseudo_domain_markers.set_all(0)
-    pseudo_sep_domain.mark(pseudo_domain_markers, 2)
-    pseudo_neg_domain.mark(pseudo_domain_markers, 1)
-    pseudo_pos_domain.mark(pseudo_domain_markers, 3)
+    pseudo_domain_markers.set_all(99)
+    pseudo_neg_domain.mark(pseudo_domain_markers, 0)
+    pseudo_sep_domain.mark(pseudo_domain_markers, 1)
+    pseudo_pos_domain.mark(pseudo_domain_markers, 2)
 
     # Mark the boundaries, pseudo dim
     pseudo_boundary_markers = fem.MeshFunction('size_t', pseudo_mesh, pseudo_mesh.topology().dim() - 1)

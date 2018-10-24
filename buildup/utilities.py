@@ -91,7 +91,7 @@ def piecewise2(V, *values):
     return fun
 
 
-def mkparam(markers, k_1=0, k_2=0, k_3=0, k_4=0):
+def mkparam(markers, k_1=fem.Constant(0), k_2=fem.Constant(0), k_3=fem.Constant(0), k_4=fem.Constant(0)):
     var = fem.Expression(cppcode=expressions.piecewise, degree=1)
     var.markers = markers
     var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
