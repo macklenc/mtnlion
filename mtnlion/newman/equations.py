@@ -61,11 +61,11 @@ def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
     return a - Lin
 
 
-def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, degree=1, **kwargs):
-    return fem.Expression(sym.printing.ccode(_sym_j(Uocp_neg, Uocp_pos)[0]),
+def j(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp, degree=1, **kwargs):
+    return fem.Expression(sym.printing.ccode(_sym_j()[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
                           ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
-                          R=R, Tref=Tref, degree=degree)
+                          R=R, Tref=Tref, Uocp=Uocp, degree=degree)
 
 
 def j_new(ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uocp_neg, Uocp_pos, dm, V, degree=1,
@@ -89,7 +89,7 @@ def eval_j(x, ce, cse, phie, phis, csmax, ce0, alpha, k_norm_ref, F, R, Tref, Uo
     return jeval(csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis, x, F, R, Tref)
 
 
-def _sym_j(Uocp_neg, Uocp_pos):
+def _sym_j():
     number = sym.Symbol('n')
     csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis = sym.symbols('csmax cse ce ce0 alpha k_norm_ref phie phis')
     x, f, r, Tref = sym.symbols('x[0], F, R, Tref')
@@ -103,10 +103,7 @@ def _sym_j(Uocp_neg, Uocp_pos):
     tmpx = sym.Symbol('soc')
     # Uocp_pos = Uocp_pos * 1.00025  #########################################FIX ME!!!!!!!!!!!!!!!!!!*1.00025
 
-    Uocp_neg = Uocp_neg.subs(tmpx, soc)
-    Uocp_pos = Uocp_pos.subs(tmpx, soc)
-
-    uocp = sym.Piecewise((Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True))
+    uocp = sym.Symbol('Uocp')
 
     eta = phis - phie - uocp
     sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
