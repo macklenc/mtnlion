@@ -91,7 +91,9 @@ def main():
     ce_f = fem.Function(domain.V)  # "previous solution"
     cse_f = fem.Function(domain.V)
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, **cmn.fenics_params, **cmn.fenics_consts, dm=domain.domain_markers)
+    Uocp = equations.Uocp(cse_f, **cmn.fenics_params)
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
+                    dm=domain.domain_markers)
     phis_form = partial(equations.phis, j, u_phis, v_phis, domain.dx((0, 2)),
                         **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4))
     phie_form = partial(equations.phie, j, ce_f, u_phie, v_phie, domain.dx, **cmn.fenics_params, **cmn.fenics_consts,

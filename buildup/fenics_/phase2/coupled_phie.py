@@ -75,9 +75,9 @@ def main():
     kappa_eff = kappa_ref * eps_e ** brug_kappa
     kappa_Deff = kappa_D * kappa_ref * eps_e
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
-                    cmn.fenics_params.Uocp[0][0],
-                    cmn.fenics_params.Uocp[2][0], dm=domain.domain_markers)
+    Uocp = equations.Uocp(cse_f, **cmn.fenics_params)
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
+                    dm=domain.domain_markers)
     # phie(jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds=0, neumann=0, nonlin=False, **kwargs):
 
     u = fem.TrialFunction(V)
@@ -152,14 +152,14 @@ def main():
         return x
 
     neg = dict(map(lambda x: (x[0], filter(x[1], 'neg')), d.items()))
-    dta = equations.eval_j(**neg, **cmn.consts)
+    # dta = equations.eval_j(**neg, **cmn.consts)
 
     utilities.report(comsol.mesh, time_in, u_array, comsol.data.phie[1::2], '$\Phi_e$')
     plt.show()
 
-    utilities.report(comsol.neg, time_in, dta,
-                     comsol.data.j[:, comsol.neg_ind][1::2], '$j^{neg}$')
-    plt.show()
+    # utilities.report(comsol.neg, time_in, dta,
+    #                  comsol.data.j[:, comsol.neg_ind][1::2], '$j^{neg}$')
+    # plt.show()
     utilities.report(comsol.pos, time_in, u_array2[:, comsol.pos_ind],
                      comsol.data.j[:, comsol.pos_ind][1::2], '$j^{pos}$')
     plt.show()

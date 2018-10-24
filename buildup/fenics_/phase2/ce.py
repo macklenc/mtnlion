@@ -25,7 +25,8 @@ def run(time, dt, return_comsol=False):
               dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
               dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
 
-    j = equations.j(ce_c_1, cse_c_1, phie_c, phis_c, **cmn.fenics_params, **cmn.fenics_consts,
+    Uocp = equations.Uocp(cse_c_1, **cmn.fenics_params)
+    j = equations.j(ce_c_1, cse_c_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
     F = equations.ce_explicit_euler(j, ce_c_1, ce_c_, v, domain.dx((0, 2)), dt,

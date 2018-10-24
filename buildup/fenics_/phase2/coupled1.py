@@ -38,9 +38,9 @@ def main():
     phis_f = fem.Function(V)  # "previous solution"
     phie_f = fem.Function(V)
 
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
-                    cmn.fenics_params.Uocp[0][0],
-                    cmn.fenics_params.Uocp[2][0], dm=domain.domain_markers)
+    Uocp = equations.Uocp(cse_f, **cmn.fenics_params)
+    j = equations.j(ce_f, cse_f, phie_f, phis_f, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
+                    dm=domain.domain_markers)
     phis_form = partial(equations.phis, j, phis_f, v, domain.dx((0, 2)),
                         **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4))
 
@@ -106,7 +106,7 @@ def main():
         return x
 
     neg = dict(map(lambda x: (x[0], filter(x[1], 'neg')), d.items()))
-    dta = equations.eval_j(**neg, **cmn.consts)
+    # dta = equations.eval_j(**neg, **cmn.consts)
 
     utilities.report(comsol.neg, time_in, u_array[:, comsol.neg_ind],
                      comsol.data.phis[:, comsol.neg_ind][1::2], '$\Phi_s^{neg}$')
@@ -115,9 +115,9 @@ def main():
                      comsol.data.phis[:, comsol.pos_ind][1::2], '$\Phi_s^{pos}$')
     plt.show()
 
-    utilities.report(comsol.neg, time_in, dta,
-                     comsol.data.j[:, comsol.neg_ind][1::2], '$j^{neg}$')
-    plt.show()
+    # utilities.report(comsol.neg, time_in, dta,
+    #                  comsol.data.j[:, comsol.neg_ind][1::2], '$j^{neg}$')
+    # plt.show()
     utilities.report(comsol.pos, time_in, u_array2[:, comsol.pos_ind],
                      comsol.data.j[:, comsol.pos_ind][1::2], '$j^{pos}$')
     plt.show()

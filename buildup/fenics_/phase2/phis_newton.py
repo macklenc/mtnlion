@@ -18,7 +18,8 @@ def run(time, solver, return_comsol=False):
     Iapp = fem.Constant(0)
 
     # TODO: Fix j
-    j = equations.j(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts)
+    Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
+    j = equations.j(ce_c, cse_c, phie_c, phis_c_, Uocp, **cmn.fenics_params, **cmn.fenics_consts)
     # j = equations.j_new(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts,
     #                     dm=domain.domain_markers, V=domain.V)
 

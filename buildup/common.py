@@ -145,7 +145,14 @@ class Common:
             domain2.generate_domain(self.comsol_solution.mesh, fem.Mesh(pseudo_mesh_file))
 
         self.V0 = fem.FunctionSpace(self.domain.mesh, 'DG', 0)
+
         self.fenics_params = collect_fenics_params(self.params, self.domain.mesh, self.domain.domain_markers, self.V0)
+        x = sym.Symbol('x[0]')
+        self.fenics_params['uocp_str'] = sym.Piecewise((self.params.Uocp_neg, x <= 1 + fem.DOLFIN_EPS),
+                                                       (self.params.Uocp_pos, x >= 2 - fem.DOLFIN_EPS),
+                                                       (0, True))
+        self.fenics_params.pop('Uocp')
+
         self.fenics_consts = collect_fenics_const(self.consts)
 
         # TODO: refactor
