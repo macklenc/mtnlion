@@ -22,9 +22,9 @@ def run(time, solver, return_comsol=False):
     # j = equations.j_new(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts,
     #                     dm=domain.domain_markers, V=domain.V)
 
-    a, L = equations.phis(j, phis_u, v, domain.dx((0, 2)), **cmn.fenics_params, **cmn.fenics_consts,
-                          neumann=Iapp / cmn.fenics_consts.Acell, ds=domain.ds(4), nonlin=False)
-    a += fem.dot(phis_u, v) * domain.dx(1)
+    F = equations.phis(j, phis_u, v, domain.dx((0, 2)), **cmn.fenics_params, **cmn.fenics_consts,
+                       neumann=Iapp / cmn.fenics_consts.Acell, ds=domain.ds(4))
+    F += fem.dot(phis_u, v) * domain.dx(1)
 
     k = 0
     for i in range(int(len(time) / 2)):
@@ -36,7 +36,7 @@ def run(time, solver, return_comsol=False):
         Iapp.assign(cmn.Iapp[i])
         bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, -1], domain.boundary_markers, 4)
 
-        solver(a == L, phis, phis_c_, bc)
+        solver(fem.lhs(F) == fem.rhs(F), phis, phis_c_, bc)
         phis_sol[k, :] = utilities.get_1d(phis, domain.V)
         k += 1
 

@@ -42,7 +42,7 @@ def main():
                     cmn.fenics_params.Uocp[0][0],
                     cmn.fenics_params.Uocp[2][0], dm=domain.domain_markers)
     phis_form = partial(equations.phis, j, phis_f, v, domain.dx((0, 2)),
-                        **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4), nonlin=True)
+                        **cmn.fenics_params, **cmn.fenics_consts, ds=domain.ds(4))
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time_in), len(comsol.mesh)))

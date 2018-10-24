@@ -1,8 +1,8 @@
 class Piecewise : public Expression
 {
     public:
-        Piecewise : Expression() {}
-        
+        Piecewise() : Expression() {}
+
         void eval(Array<double>& values, const Array<double>& x, const ufc::cell& cell) const
         {
             switch((*markers)[cell.index]){

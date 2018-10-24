@@ -30,9 +30,9 @@ def run(time, solver, return_comsol=False):
                         dm=domain.domain_markers, V=domain.V)
 
     F = equations.phie(j, ce_c, phie_c_, v, domain.dx((0, 2)), kappa_eff, kappa_Deff,
-                       **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
+                       **cmn.fenics_params, **cmn.fenics_consts)
     F += equations.phie(fem.Constant(0), ce_c, phie_c_, v, domain.dx(1), kappa_eff, kappa_Deff,
-                        **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
+                        **cmn.fenics_params, **cmn.fenics_consts)
 
     F += newmann_a - newmann_L
 

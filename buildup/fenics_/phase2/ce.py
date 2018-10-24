@@ -29,9 +29,9 @@ def run(time, dt, return_comsol=False):
                     dm=domain.domain_markers, V=domain.V)
 
     F = equations.ce_explicit_euler(j, ce_c_1, ce_c_, v, domain.dx((0, 2)), dt,
-                                    **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
+                                    **cmn.fenics_params, **cmn.fenics_consts)
     F += equations.ce_explicit_euler(fem.Constant(0), ce_c_1, ce_c_, v, domain.dx(1), dt,
-                                     **cmn.fenics_params, **cmn.fenics_consts, nonlin=True)
+                                     **cmn.fenics_params, **cmn.fenics_consts)
 
     F += neumann
 
