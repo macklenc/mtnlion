@@ -19,6 +19,8 @@ def run(time, solver, return_comsol=False):
 
     # TODO: Fix j
     Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
+    Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
+                                 cse_c, cmn.fenics_params.csmax, utilities)
     j = equations.j(ce_c, cse_c, phie_c, phis_c_, Uocp, **cmn.fenics_params, **cmn.fenics_consts)
     # j = equations.j_new(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts,
     #                     dm=domain.domain_markers, V=domain.V)
