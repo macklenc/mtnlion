@@ -9,6 +9,7 @@ import sympy as sym
 
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
+import mtnlion.loader as loader
 
 
 def gather_data():
@@ -18,7 +19,8 @@ def gather_data():
     params = engine.fetch_params(os.path.join(resources, 'GuAndWang_parameter_list.xlsx'))
     d_comsol = comsol.load(os.path.join(resources, 'guwang.npz'))
     pseudo_mesh_file = os.path.join(resources, 'comsol_solution/cs.xml')
-    return d_comsol, params, pseudo_mesh_file
+    Uocp_spline = loader.load_numpy_file(os.path.join(resources, 'Uocp_spline.npz'))
+    return d_comsol, params, pseudo_mesh_file, Uocp_spline
 
 
 def gather_expressions():
