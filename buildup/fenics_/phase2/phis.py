@@ -18,7 +18,7 @@ def run(time, solver, return_comsol=False):
     Iapp = fem.Constant(0)
 
     # TODO: Fix j
-    Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
+    # Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
     Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
                                  cse_c, cmn.fenics_params.csmax, utilities)
     j = equations.j(ce_c, cse_c, phie_c, phis_c_, Uocp, **cmn.fenics_params, **cmn.fenics_consts)
@@ -36,7 +36,7 @@ def run(time, solver, return_comsol=False):
         utilities.assign_functions([comsol.data.phis], [phis_c_], domain.V, i_1)
         utilities.assign_functions([comsol.data.phie, comsol.data.ce, comsol.data.cse],
                                    [phie_c, ce_c, cse_c], domain.V, i)
-        Iapp.assign(cmn.Iapp[i])
+        Iapp.assign(Iapp.assign(float(cmn.Iapp(time[i]))))
         bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, comsol.pos_ind][0], domain.boundary_markers, 3)
 
         solver(fem.lhs(F) == fem.rhs(F), phis, phis_c_, bc)

@@ -20,7 +20,8 @@ def gather_data():
     d_comsol = comsol.load(os.path.join(resources, 'guwang.npz'))
     pseudo_mesh_file = os.path.join(resources, 'comsol_solution/cs.xml')
     Uocp_spline = loader.load_numpy_file(os.path.join(resources, 'Uocp_spline.npz'))
-    return d_comsol, params, pseudo_mesh_file, Uocp_spline
+    input_current = loader.load_csv_file(os.path.join(resources, 'comsol_solution/input_current.csv.bz2'))
+    return d_comsol, params, pseudo_mesh_file, Uocp_spline, input_current
 
 
 def gather_expressions():
