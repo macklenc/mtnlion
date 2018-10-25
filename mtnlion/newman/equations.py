@@ -19,30 +19,6 @@ def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=
     return a - Lin
 
 
-class K(fem.Expression):
-    def __init__(self, materials, csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis, R, F, Tref, j, **kwargs):
-        self.materials = materials
-        self.csmax = csmax
-        self.cse = cse
-        self.ce = ce
-        self.ce0 = ce0
-        self.alpha = alpha
-        self.k_norm_ref = k_norm_ref
-        self.phie = phie
-        self.phis = phis
-        self.R = R
-        self.F = F
-        self.Tref = Tref
-        self.j = j
-
-    def eval_cell(self, values, x, cell):
-        if self.materials[cell.index] == 0 or self.materials[cell.index] == 2:
-            values[0] = self.j(self.csmax(x), self.cse(x), self.ce(x), self.ce0(x), self.alpha(x),
-                               self.k_norm_ref(x), self.phie(x), self.phis(x), x, self.F(x), self.R(x), self.Tref(x))
-        else:
-            values[0] = 0
-
-
 # TODO: add explicit euler class?
 def ce_explicit_euler(jbar, ce_1, ce, v, dx, dt, a_s, eps_e, De_eff, t_plus, L,
                       ds=0, neumann=0, **kwargs):
@@ -59,73 +35,6 @@ def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
     Lin = Rs * rbar2 * cs_1 * v * dx - dt * Ds_ref * rbar2 / Rs * fem.dot(cs_1.dx(1), v.dx(1)) * dx
 
     return a - Lin
-
-
-my_expression = '''
-class test : public Expression
-{
-public:
-
-  test() : Expression() { }
-
-  void eval(Array<double>& values, const Array<double>& x, const ufc::cell& cell) const
-  {
-    Array<double> cse_val(x.size()), csmax_val(x.size()), soc(x.size());
-    cse->eval(cse_val, x);
-    csmax->eval(csmax_val, x);
-    // std::vector<double> test(0.1, 0.2);
-    // boost::math::cubic_b_spline<double> spline(test.begin(), test.end(), 0, 0.1);
-
-    //if(x[0] <= 2 + DOLFIN_EPS){
-    //    values[0] = 0;
-    //    return;
-    //}
-
-
-    if(x[0] >= 2.0 && electrode == 1){
-        //std::cout << "x coord: " << x[0] << std::endl;
-        //std::cout << "cse: " << cse_val[0] << std::endl;
-        //std::cout << "csmax: " << csmax_val[0] << std::endl;
-        if(csmax_val[0] < 22860-1){
-            //std::cout << "CSMAX " << csmax_val[0] << std::endl;
-            //std::cout << (*materials)[cell.index] << std::endl;
-            //std::cout << "x: " << x[0] << std::endl;
-            csmax_val[0] = 22860;
-        }
-        for(std::size_t i = 0; i < cse_val.size(); i++){
-            soc[i] = cse_val[i]/csmax_val[i];
-            //std::cout << "soc value: " << soc[i] << std::endl;
-        }
-        Uocp->eval(values, soc);
-        //std::cout << "Uocp: " << values[0] << std::endl << std::endl;
-    } else if(x[0] <= 1.0 && electrode == 0){
-        if(csmax_val[0] < 26390){
-            //std::cout << "CSMAX " << csmax_val[0] << std::endl;
-            //std::cout << (*materials)[cell.index] << std::endl;
-            //std::cout << "x: " << x[0] << std::endl;
-            csmax_val[0] = 26390;
-        }
-       // std::cout << "x coord: " << x[0] << std::endl;
-        //std::cout << "cse: " << cse_val[0] << std::endl;
-        //std::cout << "csmax: " << csmax_val[0] << std::endl;
-        for(std::size_t i = 0; i < cse_val.size(); i++){
-            soc[i] = cse_val[i]/csmax_val[i];
-            //std::cout << "soc value: " << soc[i] << std::endl;
-        }
-        Uocp->eval(values, soc);
-        //std::cout << "Uocp: " << values[0] << std::endl << std::endl;
-    } 
-  }
-
-  std::shared_ptr<const Function> Uocp; // DOLFIN 1.4.0
-  std::shared_ptr<const Function> cse; // DOLFIN 1.4.0
-  std::shared_ptr<const Function> csmax; // DOLFIN 1.4.0
-  std::shared_ptr<MeshFunction<std::size_t>> materials;
-  std::size_t index;
-  unsigned electrode; // 0 = negative, 1 = positive
-  //boost::shared_ptr<const Function> f; // DOLFIN 1.3.0
-};
-'''
 
 
 def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degree=1, **kwargs):
@@ -155,6 +64,7 @@ def Uocp_interp(Uocp_neg_interp, Uocp_pos_interp, cse, csmax, utilities):
 
 def _sym_j():
     number = sym.Symbol('n')
+    uocp = sym.Symbol('Uocp')
     csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis = sym.symbols('csmax cse ce ce0 alpha k_norm_ref phie phis')
     x, f, r, Tref = sym.symbols('x[0], F, R, Tref')
 
@@ -162,12 +72,6 @@ def _sym_j():
     s1 = nabs.subs(number, ((csmax - cse) / csmax) * (ce / ce0)) ** (1 - alpha)
     s2 = nabs.subs(number, cse / csmax) ** alpha
     sym_flux = k_norm_ref * s1 * s2
-    soc = cse / csmax
-
-    tmpx = sym.Symbol('soc')
-    # Uocp_pos = Uocp_pos * 1.00025  #########################################FIX ME!!!!!!!!!!!!!!!!!!*1.00025
-
-    uocp = sym.Symbol('Uocp')
 
     eta = phis - phie - uocp
     sym_j = sym_flux * (sym.exp((1 - alpha) * f * eta / (r * Tref)) - sym.exp(-alpha * f * eta / (r * Tref)))
