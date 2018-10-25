@@ -4,6 +4,7 @@ import fenics as fem
 import munch
 import numpy as np
 import sympy as sym
+from scipy import interpolate as intp
 
 import domain2
 import mtnlion.comsol as comsol
@@ -111,7 +112,7 @@ class Common:
         self.time = time
 
         # Collect required data
-        comsol_data, self.raw_params, pseudo_mesh_file, Uocp_spline = utilities.gather_data()
+        comsol_data, self.raw_params, pseudo_mesh_file, Uocp_spline, input_current = utilities.gather_data()
 
         self.time_ind = engine.find_ind_near(comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(comsol_data.filter_time(self.time_ind))
@@ -172,8 +173,10 @@ class Common:
         # self.sep_V = fem.FunctionSpace(self.sep_submesh, 'Lagrange', 1)
         # self.pos_V = fem.FunctionSpace(self.pos_submesh, 'Lagrange', 1)
 
-        self.I_1C = 20.5
-        self.Iapp = [self.I_1C if 10 <= i < 20 else -self.I_1C if 30 <= i < 40 else 0 for i in time]
+        # self.I_1C = 20.5
+        # self.Iapp = [self.I_1C if 10 <= i < 20 else -self.I_1C if 30 <= i < 40 else 0 for i in time]
+        self.Iapp = intp.interp1d(input_current[:, 0], input_current[:, 1], kind='cubic')
+
 
 # Notes for later, TODO: clean up
 #         boundary_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
