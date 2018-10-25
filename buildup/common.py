@@ -106,12 +106,100 @@ def get_fenics_dofs(mesh_xml):
     return dofs
 
 
+def create_interp(input_data, output_data):
+    parse_interp = '''
+    class parse_interp : public Expression
+    {
+    public:
+
+        parse_interp() : Expression() {}
+
+        void eval(Array<double>& values, const Array<double>& x) const
+        {
+            Array<double> y_data(x.size());
+            arg->eval(y_data, x);
+            std::cout << "x: " << x << std::endl;
+            std::cout << "soc: " << y_data << std::endl;
+            interp->eval(values, y_data);
+        }
+
+        void eval(Array<double>& values, const Array<double>& x, const ufc::cell& cell) const
+        {
+            this->eval(values, x);
+        }
+
+        std::shared_ptr<const GenericFunction> arg; // DOLFIN 1.4.0
+        std::shared_ptr<const GenericFunction> interp; // DOLFIN 1.4.0
+    };
+    '''
+
+    mesh = fem.IntervalMesh(len(input_data) - 1, 0, 3)  # start and stop values don't matter
+    mesh.coordinates()[:] = np.array([input_data]).transpose()
+
+    V1 = fem.FunctionSpace(mesh, 'Lagrange', 1)
+    eref = fem.Function(V1)
+    eref.vector()[:] = output_data[fem.vertex_to_dof_map(V1)]
+
+    interp_exp = fem.Expression(cppcode=parse_interp, interp=eref, degree=1)
+    # interp_exp.arg=x_to_input_func
+
+    return interp_exp
+
+
+def create_uocp_fenics(Uocp_neg, Uocp_pos, markers, soc):
+    cppcode = """
+    class K : public Expression
+    {
+        public:
+            void eval(Array<double>& values,
+                      const Array<double>& x,
+                      const ufc::cell& cell) const
+            {
+                std::cout << "cell: " << (*markers)[cell.index] << std::endl;
+                std::cout << "SOC: " << (*markers)[cell.index] << std::endl;
+                switch((*markers)[cell.index]){
+                case 0:
+                    k_1->eval(values, x);
+                    break;
+                case 1:
+                    std::cout << "x: " << x << std::endl;
+                    k_2->eval(values, x);
+                    break;
+                case 2:
+                    k_3->eval(values, x);
+                    break;
+                default:
+                    values[0] = 100;
+                }
+            }
+
+        std::shared_ptr<MeshFunction<std::size_t>> markers;
+        std::shared_ptr<const GenericFunction> k_1, k_2, k_3;
+    };
+    """
+
+    Uocp_neg_interp = create_interp(Uocp_neg[:, 0], Uocp_neg[:, 1])
+    Uocp_pos_interp = create_interp(Uocp_pos[:, 0], Uocp_pos[:, 1])
+
+    Uocp_neg_interp.arg = soc
+    Uocp_pos_interp.arg = soc
+
+    var = fem.Expression(cppcode=cppcode, degree=1)
+    var.markers = markers
+    var.k_1 = Uocp_neg_interp
+    var.k_2 = fem.Constant(0)
+    var.k_3 = Uocp_pos_interp
+
+    return var, Uocp_neg_interp, Uocp_pos_interp
+
+
+
 class Common:
     def __init__(self, time):
         self.time = time
 
         # Collect required data
-        comsol_data, self.raw_params, pseudo_mesh_file = utilities.gather_data()
+        comsol_data, self.raw_params, pseudo_mesh_file, Uocp_spline = utilities.gather_data()
 
         self.time_ind = engine.find_ind_near(comsol_data.time_mesh, time)
         self.comsol_solution = comsol.get_standardized(comsol_data.filter_time(self.time_ind))
@@ -123,6 +211,7 @@ class Common:
         self.comsol_solution.pseudo_mesh = self.comsol_solution.pseudo_mesh[shuffle_indices]
         self.comsol_solution.data.cs = self.comsol_solution.data.cs[:, shuffle_indices]
 
+        self.Uocp_spline = munch.Munch(Uocp_spline)
 
         self.params = collect_parameters(self.raw_params)
         self.consts = self.raw_params.const

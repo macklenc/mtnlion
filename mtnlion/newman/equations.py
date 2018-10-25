@@ -61,6 +61,73 @@ def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
     return a - Lin
 
 
+my_expression = '''
+class test : public Expression
+{
+public:
+
+  test() : Expression() { }
+
+  void eval(Array<double>& values, const Array<double>& x, const ufc::cell& cell) const
+  {
+    Array<double> cse_val(x.size()), csmax_val(x.size()), soc(x.size());
+    cse->eval(cse_val, x);
+    csmax->eval(csmax_val, x);
+    // std::vector<double> test(0.1, 0.2);
+    // boost::math::cubic_b_spline<double> spline(test.begin(), test.end(), 0, 0.1);
+
+    //if(x[0] <= 2 + DOLFIN_EPS){
+    //    values[0] = 0;
+    //    return;
+    //}
+
+
+    if(x[0] >= 2.0 && electrode == 1){
+        //std::cout << "x coord: " << x[0] << std::endl;
+        //std::cout << "cse: " << cse_val[0] << std::endl;
+        //std::cout << "csmax: " << csmax_val[0] << std::endl;
+        if(csmax_val[0] < 22860-1){
+            //std::cout << "CSMAX " << csmax_val[0] << std::endl;
+            //std::cout << (*materials)[cell.index] << std::endl;
+            //std::cout << "x: " << x[0] << std::endl;
+            csmax_val[0] = 22860;
+        }
+        for(std::size_t i = 0; i < cse_val.size(); i++){
+            soc[i] = cse_val[i]/csmax_val[i];
+            //std::cout << "soc value: " << soc[i] << std::endl;
+        }
+        Uocp->eval(values, soc);
+        //std::cout << "Uocp: " << values[0] << std::endl << std::endl;
+    } else if(x[0] <= 1.0 && electrode == 0){
+        if(csmax_val[0] < 26390){
+            //std::cout << "CSMAX " << csmax_val[0] << std::endl;
+            //std::cout << (*materials)[cell.index] << std::endl;
+            //std::cout << "x: " << x[0] << std::endl;
+            csmax_val[0] = 26390;
+        }
+       // std::cout << "x coord: " << x[0] << std::endl;
+        //std::cout << "cse: " << cse_val[0] << std::endl;
+        //std::cout << "csmax: " << csmax_val[0] << std::endl;
+        for(std::size_t i = 0; i < cse_val.size(); i++){
+            soc[i] = cse_val[i]/csmax_val[i];
+            //std::cout << "soc value: " << soc[i] << std::endl;
+        }
+        Uocp->eval(values, soc);
+        //std::cout << "Uocp: " << values[0] << std::endl << std::endl;
+    } 
+  }
+
+  std::shared_ptr<const Function> Uocp; // DOLFIN 1.4.0
+  std::shared_ptr<const Function> cse; // DOLFIN 1.4.0
+  std::shared_ptr<const Function> csmax; // DOLFIN 1.4.0
+  std::shared_ptr<MeshFunction<std::size_t>> materials;
+  std::size_t index;
+  unsigned electrode; // 0 = negative, 1 = positive
+  //boost::shared_ptr<const Function> f; // DOLFIN 1.3.0
+};
+'''
+
+
 def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degree=1, **kwargs):
     return fem.Expression(sym.printing.ccode(_sym_j()[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
