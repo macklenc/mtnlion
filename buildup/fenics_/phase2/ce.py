@@ -25,7 +25,9 @@ def run(time, dt, return_comsol=False):
               dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
               dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
 
-    Uocp = equations.Uocp(cse_c_1, **cmn.fenics_params)
+    # Uocp = equations.Uocp(cse_c_1, **cmn.fenics_params)
+    Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
+                                 cse_c_1, cmn.fenics_params.csmax, utilities)
     j = equations.j(ce_c_1, cse_c_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
@@ -61,7 +63,7 @@ def run(time, dt, return_comsol=False):
 
         # solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
         ce_sol[k, :] = utilities.get_1d(ce_c_, domain.V)
-        j_sol[k, :] = utilities.get_1d(fem.interpolate(j, domain.V), domain.V)
+        # j_sol[k, :] = utilities.get_1d(fem.interpolate(j, domain.V), domain.V)
         k += 1
 
     if return_comsol:
@@ -87,12 +89,12 @@ def main():
     utilities.save_plot(__file__, 'plots/compare_ce.png')
     plt.show()
 
-    utilities.report(comsol.mesh[comsol.neg_ind], time_in, j_sol[:, comsol.neg_ind],
-                     comsol.data.j[:, comsol.neg_ind][1::2], '$j_{neg}$')
-    plt.show()
-    utilities.report(comsol.mesh[comsol.pos_ind], time_in, j_sol[:, comsol.pos_ind],
-                     comsol.data.j[:, comsol.pos_ind][1::2], '$j_{pos}$')
-    plt.show()
+    # utilities.report(comsol.mesh[comsol.neg_ind], time_in, j_sol[:, comsol.neg_ind],
+    #                  comsol.data.j[:, comsol.neg_ind][1::2], '$j_{neg}$')
+    # plt.show()
+    # utilities.report(comsol.mesh[comsol.pos_ind], time_in, j_sol[:, comsol.pos_ind],
+    #                  comsol.data.j[:, comsol.pos_ind][1::2], '$j_{pos}$')
+    # plt.show()
 
 
 if __name__ == '__main__':
