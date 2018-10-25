@@ -39,10 +39,12 @@ def make_cell() -> Union[comsol.domain.ReferenceCell, Callable]:
     :return: reference cell
     """
 
-    def cell(mesh: np.ndarray = None, time_mesh: np.ndarray = None, bound: List[float] = None, **kwargs: np.ndarray) \
-        -> comsol.domain.ReferenceCell:
+    # TODO: test pseudo mesh
+    def cell(mesh: np.ndarray = None, pseudo_mesh: np.ndarray = None, time_mesh: np.ndarray = None,
+             bound: List[float] = None, **kwargs: np.ndarray) -> comsol.domain.ReferenceCell:
         """
         Create a reference cell with default values
+        :param pseudo_mesh:
         :param mesh: space mesh
         :param time_mesh: time mesh
         :param bound: boundaries
@@ -51,12 +53,14 @@ def make_cell() -> Union[comsol.domain.ReferenceCell, Callable]:
         """
         if mesh is None:
             mesh = np.array([0, 0.5, 1, 1, 1.5, 2, 2, 2.5, 3])
+        if pseudo_mesh is None:
+            pseudo_mesh = np.array([0, 0.5, 1, 1, 1.5, 1.5, 2, 2.5])
         if time_mesh is None:
             time_mesh = np.array([0, 1])
         if bound is None:
             bound = [1, 2]
 
-        return comsol.domain.ReferenceCell(mesh, time_mesh, bound, **kwargs)
+        return comsol.domain.ReferenceCell(mesh, pseudo_mesh, time_mesh, bound, **kwargs)
 
     return cell
 
@@ -73,12 +77,13 @@ def test_remove_dup_boundary(make_cell: Union[comsol.domain.ReferenceCell, Calla
     pass
 
 
+# TODO: remove cs patch
 def test_get_standardized(make_cell: Union[comsol.domain.ReferenceCell, Callable]) -> None:
     data = np.array([range(0, 9), range(9, 18)])
     expected_data = np.array([[0, 1, 2, 4, 6, 7, 8], [9, 10, 11, 13, 15, 16, 17]])
 
-    expected = make_cell(test1=expected_data, test2=expected_data)
-    cell = make_cell(test1=data, test2=data)
+    expected = make_cell(test1=expected_data, test2=expected_data, cs=expected_data)
+    cell = make_cell(test1=data, test2=data, cs=expected_data)
     result = comsol.get_standardized(cell)
 
     assert 1 == np.array_equal(expected.data.test1, result.data.test1)
