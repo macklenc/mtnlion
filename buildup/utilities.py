@@ -83,6 +83,23 @@ def piecewise(mesh, subdomain, V0, *values):
     return k
 
 
+def fenics_interpolate(xy_values, cell_type='Lagrange', degree=1):
+    x_values = xy_values[:, 0]
+    y_values = xy_values[:, 1]
+
+    mesh = fem.IntervalMesh(len(x_values) - 1, 0, 3)  # length doesn't matter
+    mesh.coordinates()[:] = np.array([x_values]).transpose()
+
+    V1 = fem.FunctionSpace(mesh, cell_type, degree)
+    interp = fem.Function(V1)
+    interp.vector()[:] = y_values[fem.vertex_to_dof_map(V1)]
+
+    return interp
+
+
+def compose(inner, outer, degree=1):
+    return fem.Expression(cppcode=expressions.composition, inner=inner, outer=outer, degree=degree)
+
 def piecewise2(V, *values):
     x = sym.Symbol('x[0]')
     E = sym.Piecewise((values[0], x <= 1.0 + fem.DOLFIN_EPS), (values[1], sym.And(x > 1.0, x < 2.0)),

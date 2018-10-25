@@ -140,6 +140,19 @@ def Uocp(cse, csmax, uocp_str, **kwargs):
     return fem.Expression(sym.printing.ccode(uocp_str), soc=soc, degree=1)
 
 
+# TODO: refactor
+def Uocp_interp(Uocp_neg_interp, Uocp_pos_interp, cse, csmax, utilities):
+    eref_neg = utilities.fenics_interpolate(Uocp_neg_interp)
+    eref_pos = utilities.fenics_interpolate(Uocp_pos_interp)
+
+    soc = fem.Expression('cse/csmax', cse=cse, csmax=csmax, degree=1)
+    Uocp_neg = utilities.compose(soc, eref_neg)
+    Uocp_pos = utilities.compose(soc, eref_pos)
+
+    return fem.Expression('x[0] <= 1.0 + DOLFIN_EPS ? neg : (x[0] >= 2.0 - DOLFIN_EPS ? pos : sep)',
+                          neg=Uocp_neg, sep=fem.Constant(0), pos=Uocp_pos, degree=1)
+
+
 def _sym_j():
     number = sym.Symbol('n')
     csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis = sym.symbols('csmax cse ce ce0 alpha k_norm_ref phie phis')
