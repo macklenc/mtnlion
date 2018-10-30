@@ -17,7 +17,8 @@ requirements = ['Click>=6.0',
                 'munch',
                 'scipy',
                 'xlrd',
-                'sympy', ]
+                'sympy',
+                'h5py', ]
 
 setup_requirements = ['pytest-runner', ]
 
