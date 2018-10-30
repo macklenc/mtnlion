@@ -21,6 +21,8 @@ template_config = [{
     'pseudo_domain': ['cs.csv'],
     'physical_bounds': {'x': [0, 1, 2, 3]},
     'pseudo_bounds': {'x': [0, 1, 1.5, 2.5], 'y': [0, 1]},
+    'physical_subdomains': {'neg': {'x': [0, 1]}, 'sep': {'x': [1, 2]}, 'pos': {'x': [2, 3]}, },
+    'pseudo_subdomains': {'neg': {'x': [0, 1]}, 'sep': {'x': [1, 1.5]}, 'pos': {'x': [1.5, 2.5]}, },
 }]
 
 
