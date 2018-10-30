@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
 
-import h5py
-import sys
-import json
-import csv
-import re
 import bz2
 import gzip
-import numpy as np
-
+import json
+import re
+import sys
 
 import click
+import h5py
 
 from mtnlion.comsol import *
 
-template_config = {
-            'model': 'model_name',
-            'file_path': 'comsol_solution',
-            'main_domain': ['j.csv', 'phie.csv', 'phis.csv', 'ce.csv'],
-            'pseudo_domain': ['cs.csv'],
-            'time_source': 'inherit', # or 'range'
-            'main_domain_bounds': {'x': [0, 1, 2, 3]},
-            'pseudo_domain_bounds': {'x': [0, 1, 1.5, 2.5], 'y': [0, 1]},
-        }
+template_config = [{
+    'model': 'model_name',
+    'variant': 'variant_name',
+    'csv_path': 'comsol_solution',
+    'parameters_file': 'params.xlsx',
+    'parameters_file_format': 'UCCS_xlsx',
+    'physical_domain': ['j.csv', 'phie.csv', 'phis.csv', 'ce.csv'],
+    'pseudo_domain': ['cs.csv'],
+    'physical_bounds': {'x': [0, 1, 2, 3]},
+    'pseudo_bounds': {'x': [0, 1, 1.5, 2.5], 'y': [0, 1]},
+}]
 
 
 def fix_boundaries2(data: np.ndarray, boundaries: Union[float, List[int], np.ndarray], num_dim) \
@@ -152,49 +151,48 @@ def main(output: Union[click.utils.LazyFile, str],
     with open(config) as f:
         cfg = json.load(f)
 
-    main_files = append_path(cfg['file_path'], cfg['main_domain'])
-    pseudo_files = append_path(cfg['file_path'], cfg['pseudo_domain'])
+    cfg = cfg[0]
+    main_files = append_path(cfg['csv_path'], cfg['physical_domain'])
+    pseudo_files = append_path(cfg['csv_path'], cfg['pseudo_domain'])
 
-    main_domain_data = loader.collect_files(main_files, format_key=format_name, loader=loader.load_csv_file)
+    physical_domain_data = loader.collect_files(main_files, format_key=format_name, loader=loader.load_csv_file)
     pseudo_domain_data = loader.collect_files(pseudo_files, format_key=format_name, loader=loader.load_csv_file)
 
     num_dims = 1
     fixed_main = dict()
-    for k, v in main_domain_data.items():
-        fixed_main[k] = fix_boundaries2(v, np.array(cfg['main_domain_bounds']['x'][1:-1]), num_dims)
+    for k, v in physical_domain_data.items():
+        fixed_main[k] = fix_boundaries2(v, np.array(cfg['physical_bounds']['x'][1:-1]), num_dims)
 
     time = find_time_vector(main_files + pseudo_files, 10)
     mesh = find_mesh(fixed_main, num_dims).flatten()
     pseudo_mesh = find_mesh(pseudo_domain_data, 2)
 
-    def printer(name):
-        print(name)
     with h5py.File('testoutput.h5', 'w') as f:
         print(output)
         mdl = f.create_group(cfg['model'])
         mdl['time'] = time
 
-        main_domain = mdl.create_group('main_domain')
+        physical_domain = mdl.create_group('physical_domain')
         pseudo_domain = mdl.create_group('pseudo_domain')
 
-        main_domain['mesh'] = mesh
+        physical_domain['mesh'] = mesh
         pseudo_domain['mesh'] = pseudo_mesh
 
         for k, v in fixed_main.items():
-            d = main_domain.create_dataset(k, v[1:].T.shape, dtype=np.float)
+            d = physical_domain.create_dataset(k, v[1:].T.shape, dtype=np.float)
             d[...] = v[1:].T
             d.dims[0].label = 't'
             d.dims[1].label = 'x'
-            d.dims.create_scale(main_domain['mesh'], 'normalized x')
+            d.dims.create_scale(physical_domain['mesh'], 'normalized x')
             d.dims.create_scale(mdl['time'], 'time')
             d.dims[0].attach_scale(mdl['time'])
-            d.dims[1].attach_scale(main_domain['mesh'])
+            d.dims[1].attach_scale(physical_domain['mesh'])
 
         for k, v in pseudo_domain_data.items():
             d = pseudo_domain.create_dataset(k, v[2:].T.shape, dtype=np.float)
             d[...] = v[2:].T
 
-        for name in main_domain_data:
+        for name in physical_domain_data:
             print(name)
 
 
@@ -221,10 +219,10 @@ def main(output: Union[click.utils.LazyFile, str],
 
     with h5py.File(output, access) as f:
         mdl = f.create_group(model)
-        main_domain = mdl.create_group('main_domain')
+        physical_domain = mdl.create_group('physical_domain')
         pseudo_domain = mdl.create_group('pseudo_domain')
 
-    main_domain_data = loader.collect_files(main, format_key=format_name, loader=loader.load_csv_file)
+    physical_domain_data = loader.collect_files(main, format_key=format_name, loader=loader.load_csv_file)
     pseudo_domain_data = loader.collect_files(pseudo, format_key=format_name, loader=loader.load_csv_file)
 
 
