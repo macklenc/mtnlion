@@ -30,13 +30,16 @@ def run(time, dt, return_comsol=False):
     Lc = cmn.fenics_params.L
     n = domain.n
     dS = domain.dS
-    neumann = dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(2) + \
-              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(2) + \
-              dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
-              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
+    neumann = dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_u('-')), n('-')) * v('-') * dS(2) + \
+              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_u('+')), n('+')) * v('+') * dS(2) + \
+              dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_u('-')), n('-')) * v('-') * dS(3) + \
+              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_u('+')), n('+')) * v('+') * dS(3)
 
-    F = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
-                                    **cmn.fenics_params, **cmn.fenics_consts)
+    lhs = equations.euler(ce_u * cmn.fenics_params.eps_e, ce_c_1 * cmn.fenics_params.eps_e, dtc)
+    F = equations.ce(lhs, jbar_c_1, ce_u, v, domain.dx, **cmn.fenics_params, **cmn.fenics_consts)
+
+    # F = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
+    #                                 **cmn.fenics_params, **cmn.fenics_consts)
     F -= neumann
 
     ce_c_1.assign(cmn.fenics_consts.ce0)
@@ -76,8 +79,8 @@ def main():
     time[1::2] = time_in
 
     ce_sol, comsol = run(time_in, dt, return_comsol=True)
-    plt.plot(ce_sol.T)
-    # utilities.report(comsol.mesh, time_in, ce_sol, ce_sol, '$\c_e$')
+    # plt.plot(ce_sol.T)
+    utilities.report(comsol.mesh, time_in[0::50], ce_sol[0::50], comsol.data.ce[0::50], '$c_e$')
     # utilities.save_plot(__file__, 'plots/compare_ce.png')
     plt.show()
 

@@ -29,6 +29,18 @@ def ce_explicit_euler(jbar, ce_1, ce, v, dx, dt, a_s, eps_e, De_eff, t_plus, L,
     return a - Lin
 
 
+def euler(y, y_1, dt):
+    lhs = (y - y_1) / dt
+
+    return lhs
+
+
+def ce(lhs, jbar, ce, v, dx, a_s, De_eff, t_plus, L, **kwargs):
+    rhs = -De_eff / L * fem.dot(fem.grad(ce), fem.grad(v)) * dx + L * a_s * (fem.Constant(1) - t_plus) * jbar * v * dx
+    lhs = L * lhs * v * dx
+
+    return rhs - lhs
+
 def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
     rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
     a = Rs * rbar2 * cs * v * dx
