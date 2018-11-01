@@ -53,6 +53,7 @@ def run(time, dt, return_comsol=False):
                                                  error=np.abs(ce_sol[k, :] - comsol_ce(c_time)).max()))
 
         utilities.assign_functions([comsol_j(c_time)], [jbar_c_1], domain.V, ...)
+        ce_c_1.assign(ce)
         c_time += dt
         k += 1
 
@@ -75,7 +76,8 @@ def main():
     time[1::2] = time_in
 
     ce_sol, comsol = run(time_in, dt, return_comsol=True)
-    utilities.report(comsol.mesh, time_in, ce_sol, ce_sol, '$\c_e$')
+    plt.plot(ce_sol.T)
+    # utilities.report(comsol.mesh, time_in, ce_sol, ce_sol, '$\c_e$')
     # utilities.save_plot(__file__, 'plots/compare_ce.png')
     plt.show()
 
