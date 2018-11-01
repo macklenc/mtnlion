@@ -41,6 +41,8 @@ def run(time, dt, return_comsol=False):
     # F = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
     #                                 **cmn.fenics_params, **cmn.fenics_consts)
     F -= neumann
+    a = fem.lhs(F)
+    L = fem.rhs(F)
 
     ce_c_1.assign(cmn.fenics_consts.ce0)
     utilities.assign_functions([comsol_j(0)], [jbar_c_1], domain.V, ...)
@@ -50,7 +52,7 @@ def run(time, dt, return_comsol=False):
     c_time = dt
     stop_time = 50
     while c_time < stop_time:
-        fem.solve(fem.lhs(F) == fem.rhs(F), ce)
+        fem.solve(a == L, ce)
         ce_sol[k, :] = utilities.get_1d(ce, domain.V)
         print('t={time}: error = {error}'.format(time=c_time,
                                                  error=np.abs(ce_sol[k, :] - comsol_ce(c_time)).max()))
