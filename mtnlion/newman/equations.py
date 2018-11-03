@@ -41,6 +41,13 @@ def ce(lhs, jbar, ce, v, dx, a_s, De_eff, t_plus, L, **kwargs):
 
     return rhs - lhs
 
+
+def ce2(jbar, ce, v, dx, a_s, De_eff, t_plus, L, eps_e, **kwargs):
+    rhs = (-De_eff / L * fem.dot(fem.grad(ce), fem.grad(v)) * dx + L * a_s * (fem.Constant(1) - t_plus) * jbar * v * dx)
+
+    return rhs
+
+
 def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
     rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
     a = Rs * rbar2 * cs * v * dx
