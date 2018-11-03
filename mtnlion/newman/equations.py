@@ -56,6 +56,13 @@ def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
     return a - Lin
 
 
+def cs2(cs, v, dx, Rs, Ds_ref, **kwargs):
+    rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
+    rhs = -Ds_ref * rbar2 / Rs * fem.dot(cs.dx(1), v.dx(1)) * dx
+
+    return rhs
+
+
 def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degree=1, **kwargs):
     return fem.Expression(sym.printing.ccode(_sym_j()[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
