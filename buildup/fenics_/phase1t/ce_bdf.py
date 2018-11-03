@@ -13,33 +13,27 @@ def interp_time(data, time):
     return y
 
 
-# TODO: fix...
-def run(time, dt, return_comsol=False):
-    dtc = fem.Constant(dt)
-    cmn, domain, comsol = common.prepare_comsol_buildup(time)
+def run(comsol_time, return_comsol=False):
+    cmn, domain, comsol = common.prepare_comsol_buildup(comsol_time)
+    comsol_j = interp_time(comsol.data.j, comsol_time)
 
-    comsol_j = interp_time(comsol.data.j, time)
-    comsol_ce = interp_time(comsol.data.ce, time)
-
-    ce_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
     ce_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
 
-    jbar_c_1, ce_c, ce_c_1, ce = utilities.create_functions(domain.V, 4)
+    jbar, sol, ce_fem = utilities.create_functions(domain.V, 3)
 
     de_eff = cmn.fenics_params.De_eff
     Lc = cmn.fenics_params.L
     n = domain.n
     dS = domain.dS
-
-    jbar = fem.Function(domain.V)
-    sol = fem.Function(domain.V)
-    ce_fem = fem.Function(domain.V)
+    ce0 = np.empty(domain.mesh.coordinates().shape).flatten()
+    ce0.fill(cmn.consts.ce0)
 
     neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_fem('-')), n('-')) * v('-') * dS(2) + \
               de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_fem('+')), n('+')) * v('+') * dS(2) + \
               de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_fem('-')), n('-')) * v('-') * dS(3) + \
               de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_fem('+')), n('+')) * v('+') * dS(3)
+
     ce_eq = equations.ce2(jbar, ce_fem, v, domain.dx, **cmn.fenics_params, **cmn.fenics_consts) - neumann
 
     def fun(t, ce):
@@ -47,26 +41,30 @@ def run(time, dt, return_comsol=False):
         fem.solve((cmn.fenics_params.eps_e * cmn.fenics_params.L) * ce_u * v * domain.dx == ce_eq, sol)
         return utilities.get_1d(sol, domain.V)
 
-    ce_c.assign(cmn.fenics_consts.ce0)
+    ce_bdf = integrate.BDF(fun, 0, ce0, 50, atol=1e-6, rtol=1e-5)
+    # using standard lists for dynamic growth
+    ce_sol = list()
+    ce_sol.append(ce0)
+    time_vec = list()
+    time_vec.append(0)
 
-    tester = integrate.BDF(fun, 0, utilities.get_1d(ce_c, domain.V), 50, atol=1e-9, rtol=1e-6)
-    i = 0
-    asdf = np.array([utilities.get_1d(ce_c, domain.V)])
-    timevec = np.array([0])
-    while (tester.status == 'running'):
-        print('time step: {:.4e}, time: {:.4f}, order: {}, step: {}'.format(tester.h_abs, tester.t, tester.order, i))
-        tester.step()
-        timevec = np.append(timevec, tester.t)
-        asdf = np.append(asdf, [tester.dense_output()(tester.t)], axis=0)
+    # integrate._ivp.bdf.NEWTON_MAXITER = 50
+    i = 1
+    while ce_bdf.status == 'running':
+        print('comsol_time step: {:.4e}, comsol_time: {:.4f}, order: {}, step: {}'.format(ce_bdf.h_abs, ce_bdf.t,
+                                                                                          ce_bdf.order, i))
+        ce_bdf.step()
+        time_vec.append(ce_bdf.t)
+        ce_sol.append(ce_bdf.dense_output()(ce_bdf.t))
         i += 1
 
-    plttimes = np.arange(0, 50, 5)
-    plotter = interp.interp1d(timevec, asdf, axis=0, kind='cubic')
+    ce_sol = np.array(ce_sol)
+    time_vec = np.array(time_vec)
 
     if return_comsol:
-        return plotter(plttimes), comsol
+        return interp_time(ce_sol, time_vec), comsol
     else:
-        return plotter(plttimes)
+        return interp_time(ce_sol, time_vec)
 
 
 def main():
@@ -76,14 +74,12 @@ def main():
     # Times at which to run solver
     # time_in = [0.1, 5, 10, 15, 20]
     time_in = np.arange(0, 50, 0.1)
-    dt = 0.1
-    time = [None] * (len(time_in) * 2)
-    time[::2] = [t - dt for t in time_in]
-    time[1::2] = time_in
+    plot_times = np.arange(0, 50, 5)
 
-    ce_sol, comsol = run(time_in, dt, return_comsol=True)
+    ce_sol, comsol = run(time_in, return_comsol=True)
     # plt.plot(ce_sol.T)
-    utilities.report(comsol.mesh, time_in[0::50], ce_sol, comsol.data.ce[0::50], '$c_e$')
+    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times),
+                     interp_time(comsol.data.ce, time_in)(plot_times), '$c_e$')
     utilities.save_plot(__file__, 'plots/compare_ce_time.png')
     plt.show()
 
