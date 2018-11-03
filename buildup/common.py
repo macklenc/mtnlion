@@ -136,6 +136,7 @@ class Common:
         self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
         self.params['a_s'] = 3 * np.divide(self.params.eps_s, self.params.Rs,
                                            out=np.zeros_like(self.params.eps_s), where=self.params.Rs != 0)
+        self.params['cs_0'] = [self.params.csmax[0] * 0.325, 0, self.params.csmax[2] * 0.422]
 
         self.consts['F'] = 96487
         self.consts['R'] = 8.314
@@ -162,8 +163,11 @@ class Common:
                                fem.Constant(self.params.Rs[1]), fem.Constant(self.params.Rs[2]))
         Ds = utilities.mkparam(self.pseudo_domain.domain_markers, fem.Constant(self.params.Ds_ref[0]),
                                fem.Constant(self.params.Ds_ref[1]), fem.Constant(self.params.Ds_ref[2]))
+        cs_0 = utilities.mkparam(self.pseudo_domain.domain_markers, fem.Constant(self.params.cs_0[0]),
+                                 fem.Constant(self.params.cs_0[1]), fem.Constant(self.params.cs_0[2]))
         self.fenics_params.Rs = Rs
         self.fenics_params.Ds_ref = Ds
+        self.fenics_params.cs_0 = cs_0
 
         # self.neg_submesh = fem.SubMesh(self.mesh, self.dm, 0)
         # self.sep_submesh = fem.SubMesh(self.mesh, self.dm, 1)
