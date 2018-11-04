@@ -33,13 +33,13 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
     return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
 
 
-def run(comsol_time, dt, stop_time, return_comsol=False):
+def run(comsol_time, start_time, dt, stop_time, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(comsol_time)
     pseudo_domain = cmn.pseudo_domain
     cse_domain = cmn.pseudo_cse_domain
     electrode_domain = cmn.electrode_domain
-    sim_time = np.arange(0, stop_time, dt)
+    sim_time = np.arange(start_time, stop_time, dt)
 
     comsol_j = interp_time(comsol.data.j, comsol_time)
 
@@ -77,15 +77,18 @@ def run(comsol_time, dt, stop_time, return_comsol=False):
     neumann = rbar2 * jbar * v * ds(5)
 
     lhs = equations.euler(cs_u * cmn.fenics_params.Rs * rbar2, cs_1 * cmn.fenics_params.Rs * rbar2, dtc)
-    F = lhs * v * dx - equations.cs2(cs_1, v, dx, **cmn.fenics_params, **cmn.fenics_consts) + neumann
+    F = lhs * v * dx - equations.cs2(cs_u, v, dx, **cmn.fenics_params, **cmn.fenics_consts) + neumann
+
+    tmp = fem.Function(pseudo_domain.V)
 
     a = fem.lhs(F)
     L = fem.rhs(F)
-    cs_1.assign(cmn.fenics_params.cs_0)
+    # cs_1.assign(cmn.fenics_params.cs_0)
+    cs_1.vector()[:] = interp_time(comsol.data.cs, comsol_time)(start_time - dt).astype('double')
     k = 0
     for i in sim_time:
         print('time = {}'.format(i))
-        utilities.assign_functions([comsol_j(i - dt)], [jbar_c], domain.V, ...)
+        utilities.assign_functions([comsol_j(i)], [jbar_c], domain.V, ...)
         # TODO: make assignable with utilities.assign_functions
         # cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
         cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
@@ -117,7 +120,7 @@ def main():
     plot_times = np.arange(0, 50, 5)
     dt = 0.1
 
-    cs_sol, pseudo_cse_sol, cse_sol, comsol = run(time_in, 0.1, 50, return_comsol=True)
+    cs_sol, pseudo_cse_sol, cse_sol, comsol = run(time_in, 0, 0.1, 50, return_comsol=True)
 
     comsol_cs = interp_time(comsol.data.cs, time_in)
     print('cs total normalized RMSE%: {}'.format(utilities.norm_rmse(cs_sol(time_in), comsol_cs(time_in))))
