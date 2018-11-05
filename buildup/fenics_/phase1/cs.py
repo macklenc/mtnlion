@@ -70,6 +70,9 @@ def run(time, dt, return_comsol=False):
     F = equations.cs(cs_1, cs_u, v, dx, dtc, **cmn.fenics_params, **cmn.fenics_consts)
     F += neumann
 
+    a = fem.lhs(F)
+    L = fem.rhs(F)
+
     k = 0
     for i in range(int(len(time) / 2)):
         i_1 = i * 2
@@ -80,7 +83,7 @@ def run(time, dt, return_comsol=False):
         cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
         cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
-        fem.solve(fem.lhs(F) == fem.rhs(F), cs)
+        fem.solve(a == L, cs)
         cs_cse.assign(fem.interpolate(cs, cse_domain.V))
         cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
 

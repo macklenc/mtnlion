@@ -30,6 +30,9 @@ def run(time, dt, return_comsol=False):
                                     **cmn.fenics_params, **cmn.fenics_consts)
     F -= neumann
 
+    a = fem.lhs(F)
+    L = fem.rhs(F)
+
     k = 0
     for i in range(int(len(time) / 2)):
         i_1 = i * 2  # previous time step
@@ -39,7 +42,7 @@ def run(time, dt, return_comsol=False):
         bc = [fem.DirichletBC(domain.V, comsol.data.ce[i, 0], domain.boundary_markers, 1),
               fem.DirichletBC(domain.V, comsol.data.ce[i, -1], domain.boundary_markers, 4)]
 
-        fem.solve(fem.lhs(F) == fem.rhs(F), ce, bc)
+        fem.solve(a == L, ce, bc)
         ce_sol[k, :] = utilities.get_1d(ce, domain.V)
         print('t={time}: error = {error}'.format(time=time[i],
                                                  error=np.abs(ce_sol[k, :] - comsol.data.ce[i, :]).max()))

@@ -31,11 +31,14 @@ def run(time, return_comsol=False):
     F += newmann_a
     F -= newmann_L
 
+    a = fem.lhs(F)
+    L = fem.rhs(F)
+
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j, comsol.data.ce], [jbar_c, ce_c], domain.V, i)
         bc = fem.DirichletBC(domain.V, comsol.data.phie[i, 0], domain.boundary_markers, 1)
 
-        fem.solve(fem.lhs(F) == fem.rhs(F), phie, bc)
+        fem.solve(a == L, phie, bc)
         phie_sol[i, :] = utilities.get_1d(phie, domain.V)
 
     if return_comsol:
