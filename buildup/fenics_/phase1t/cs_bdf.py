@@ -72,7 +72,9 @@ def run(comsol_time, start_time, dt, stop_time, return_comsol=False):
     jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
     neumann = jbar * v * ds(5)
 
-    cs_eq = equations.cs2(cs_fem, v, pseudo_domain.dx, **cmn.fenics_params, **cmn.fenics_consts) - neumann
+    lhs, rhs = equations.cs(cs_fem, v, **cmn.fenics_params, **cmn.fenics_consts)
+    cs_eq = rhs * pseudo_domain.dx - neumann
+
     sol = fem.Function(pseudo_domain.V)
 
     def fun(t, cs):
@@ -80,7 +82,7 @@ def run(comsol_time, start_time, dt, stop_time, return_comsol=False):
         cs_fem.vector()[:] = cs.astype('double')
         cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
-        fem.solve(cs_u * cmn.fenics_params.Rs * rbar2 * v * pseudo_domain.dx == cs_eq, sol)
+        fem.solve(lhs * cs_u * pseudo_domain.dx == cs_eq, sol)
         return sol.vector().get_local()
 
     cs0 = interp_time(comsol.data.cs, comsol_time)(start_time).astype('double')

@@ -21,14 +21,15 @@ def run(time, dt, return_comsol=False):
     Lc = cmn.fenics_params.L
     n = domain.n
     dS = domain.dS
-    neumann = dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(2) + \
-              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(2) + \
-              dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
-              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
+    neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(2) + \
+              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(2) + \
+              de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
+              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
 
-    F = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
-                                    **cmn.fenics_params, **cmn.fenics_consts)
-    F -= neumann
+    # explicit euler
+    euler = equations.euler(ce_u, ce_c_1, dtc)
+    lhs, rhs = equations.ce(jbar_c_1, ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = lhs * euler * domain.dx - rhs * domain.dx - neumann
 
     a = fem.lhs(F)
     L = fem.rhs(F)
