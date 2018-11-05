@@ -4,29 +4,18 @@ import sympy as sym
 
 # TODO: add internal Neumann conditions or remove boundary Neumann conditions
 
-def phis(jbar, phis, v, dx, a_s, F, sigma_eff, L, ds=0, neumann=0, **kwargs):
-    a = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v)) * dx
-    Lin = L * a_s * F * jbar * v * dx + neumann * v * ds
+def phis(jbar, phis, v, a_s, F, sigma_eff, L, **kwargs):
+    lhs = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v))
+    rhs = L * a_s * F * jbar * v
 
-    return a - Lin
-
-
-def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=0, **kwargs):
-    a = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v)) * dx
-    Lin = L * a_s * F * jbar * v * dx - kappa_Deff / L * \
-        fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
-
-    return a - Lin
+    return lhs, rhs
 
 
-# TODO: add explicit euler class?
-def ce_explicit_euler(jbar, ce_1, ce, v, dx, dt, a_s, eps_e, De_eff, t_plus, L,
-                      ds=0, neumann=0, **kwargs):
-    a = L * eps_e * ce * v * dx
-    Lin = L * eps_e * ce_1 * v * dx - dt * De_eff / L * fem.dot(fem.grad(ce_1), fem.grad(v)) * dx + \
-          dt * L * a_s * (fem.Constant(1) - t_plus) * jbar * v * dx + neumann * v * ds
+def phie(jbar, ce, phie, v, kappa_eff, kappa_Deff, L, a_s, F, **kwargs):
+    lhs = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v))
+    rhs = L * a_s * F * jbar * v - kappa_Deff / L * fem.dot(fem.grad(fem.ln(ce)), fem.grad(v))
 
-    return a - Lin
+    return lhs, rhs
 
 
 def euler(y, y_1, dt):
@@ -35,32 +24,19 @@ def euler(y, y_1, dt):
     return lhs
 
 
-def ce(lhs, jbar, ce, v, dx, a_s, De_eff, t_plus, L, **kwargs):
-    rhs = -De_eff / L * fem.dot(fem.grad(ce), fem.grad(v)) * dx + L * a_s * (fem.Constant(1) - t_plus) * jbar * v * dx
-    lhs = L * lhs * v * dx
+def ce(jbar, ce, v, a_s, De_eff, t_plus, L, eps_e, **kwargs):
+    lhs = L * eps_e * v
+    rhs = -De_eff / L * fem.dot(fem.grad(ce), fem.grad(v)) + L * a_s * (fem.Constant(1) - t_plus) * jbar * v
 
-    return rhs - lhs
-
-
-def ce2(jbar, ce, v, dx, a_s, De_eff, t_plus, L, eps_e, **kwargs):
-    rhs = (-De_eff / L * fem.dot(fem.grad(ce), fem.grad(v)) * dx + L * a_s * (fem.Constant(1) - t_plus) * jbar * v * dx)
-
-    return rhs
+    return lhs, rhs
 
 
-def cs(cs_1, cs, v, dx, dt, Rs, Ds_ref, **kwargs):
+def cs(cs, v, Rs, Ds_ref, **kwargs):
     rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
-    a = Rs * rbar2 * cs * v * dx
-    Lin = Rs * rbar2 * cs_1 * v * dx - dt * Ds_ref * rbar2 / Rs * fem.dot(cs_1.dx(1), v.dx(1)) * dx
+    lhs = Rs * rbar2 * v
+    rhs = -Ds_ref * rbar2 / Rs * fem.dot(cs.dx(1), v.dx(1))
 
-    return a - Lin
-
-
-def cs2(cs, v, dx, Rs, Ds_ref, **kwargs):
-    rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
-    rhs = -Ds_ref * rbar2 / Rs * fem.dot(cs.dx(1), v.dx(1)) * dx
-
-    return rhs
+    return lhs, rhs
 
 
 def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degree=1, **kwargs):

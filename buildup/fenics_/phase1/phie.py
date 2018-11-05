@@ -25,11 +25,8 @@ def run(time, return_comsol=False):
     newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
                   kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
 
-    F = equations.phie(jbar_c, ce_c, phie_u, v, domain.dx, kappa_eff, kappa_Deff,
-                       **cmn.fenics_params, **cmn.fenics_consts)
-
-    F += newmann_a
-    F -= newmann_L
+    lhs, rhs = equations.phie(jbar_c, ce_c, phie_u, v, kappa_eff, kappa_Deff, **cmn.fenics_params, **cmn.fenics_consts)
+    F = (lhs - rhs) * domain.dx + newmann_a - newmann_L
 
     a = fem.lhs(F)
     L = fem.rhs(F)

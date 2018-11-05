@@ -34,8 +34,9 @@ def run(time, dt, return_comsol=False):
               dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_u('-')), n('-')) * v('-') * dS(3) + \
               dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_u('+')), n('+')) * v('+') * dS(3)
 
-    lhs = equations.euler(ce_u * cmn.fenics_params.eps_e, ce_c_1 * cmn.fenics_params.eps_e, dtc)
-    F = equations.ce(lhs, jbar_c_1, ce_u, v, domain.dx, **cmn.fenics_params, **cmn.fenics_consts)
+    euler = equations.euler(ce_u, ce_c_1, dtc)
+    lhs, rhs = equations.ce(jbar_c_1, ce_u, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = lhs * euler * domain.dx - rhs * domain.dx
 
     # F = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
     #                                 **cmn.fenics_params, **cmn.fenics_consts)
