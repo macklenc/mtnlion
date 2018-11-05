@@ -20,10 +20,10 @@ def run(time, dt, return_comsol=False):
     n = domain.n
     dS = domain.dS
 
-    neumann = dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(2) + \
-              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(2) + \
-              dtc * de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
-              dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
+    neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(2) + \
+              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(2) + \
+              de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
+              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
 
     # Uocp = equations.Uocp(cse_c_1, **cmn.fenics_params)
     Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
@@ -31,12 +31,10 @@ def run(time, dt, return_comsol=False):
     j = equations.j(ce_c_1, cse_c_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
-    F = equations.ce_explicit_euler(j, ce_c_1, ce_c_, v, domain.dx((0, 2)), dt,
-                                    **cmn.fenics_params, **cmn.fenics_consts)
-    F += equations.ce_explicit_euler(fem.Constant(0), ce_c_1, ce_c_, v, domain.dx(1), dt,
-                                     **cmn.fenics_params, **cmn.fenics_consts)
-
-    F += neumann
+    euler = equations.euler(ce_c_, ce_c_1, dtc)
+    lhs, rhs = equations.ce(j, ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
+    lhs2, rhs2 = equations.ce(fem.Constant(0), ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = (lhs * euler - rhs) * domain.dx((0, 2)) + (lhs2 * euler - rhs2) * domain.dx(1) + neumann
 
     k = 0
     for i in range(int(len(time) / 2)):

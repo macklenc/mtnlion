@@ -34,11 +34,12 @@ def run(comsol_time, return_comsol=False):
               de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_fem('-')), n('-')) * v('-') * dS(3) + \
               de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_fem('+')), n('+')) * v('+') * dS(3)
 
-    ce_eq = equations.ce2(jbar, ce_fem, v, domain.dx, **cmn.fenics_params, **cmn.fenics_consts) - neumann
+    lhs, rhs = equations.ce(jbar, ce_fem, v, **cmn.fenics_params, **cmn.fenics_consts)
+    ce_eq = rhs * domain.dx - neumann
 
     def fun(t, ce):
         utilities.assign_functions([comsol_j(t), ce], [jbar, ce_fem], domain.V, ...)
-        fem.solve((cmn.fenics_params.eps_e * cmn.fenics_params.L) * ce_u * v * domain.dx == ce_eq, sol)
+        fem.solve(lhs * ce_u * domain.dx == ce_eq, sol)
         return utilities.get_1d(sol, domain.V)
 
     ce_bdf = integrate.BDF(fun, 0, ce0, 50, atol=1e-6, rtol=1e-5)

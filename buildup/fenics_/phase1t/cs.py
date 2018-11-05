@@ -76,8 +76,9 @@ def run(comsol_time, start_time, dt, stop_time, return_comsol=False):
     jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
     neumann = rbar2 * jbar * v * ds(5)
 
-    lhs = equations.euler(cs_u * cmn.fenics_params.Rs * rbar2, cs_1 * cmn.fenics_params.Rs * rbar2, dtc)
-    F = lhs * v * dx - equations.cs2(cs_u, v, dx, **cmn.fenics_params, **cmn.fenics_consts) + neumann
+    euler = equations.euler(cs_u, cs_1, dtc)
+    lhs, rhs = equations.cs(cs_u, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = lhs * euler * dx - rhs * dx + neumann
 
     a = fem.lhs(F)
     L = fem.rhs(F)
