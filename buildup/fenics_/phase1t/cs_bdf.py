@@ -1,6 +1,7 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import integrate
 from scipy import interpolate as interp
 
 from buildup import (common, utilities)
@@ -34,24 +35,19 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
 
 
 def run(comsol_time, start_time, dt, stop_time, return_comsol=False):
-    dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(comsol_time)
     pseudo_domain = cmn.pseudo_domain
     cse_domain = cmn.pseudo_cse_domain
     electrode_domain = cmn.electrode_domain
-    sim_time = np.arange(start_time, stop_time, dt)
+
+    cs_fem = fem.Function(pseudo_domain.V)
 
     comsol_j = interp_time(comsol.data.j, comsol_time)
-
-    cs_sol = utilities.create_solution_matrices(len(sim_time), len(pseudo_domain.mesh.coordinates()), 1)[0]
-    pseudo_cse_sol = \
-        utilities.create_solution_matrices(len(sim_time), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
-    cse_sol = utilities.create_solution_matrices(len(sim_time), len(domain.mesh.coordinates()), 1)[0]
+    comsol_cse = interp_time(comsol.data.cse, comsol_time)
 
     cs_u = fem.TrialFunction(pseudo_domain.V)
     v = fem.TestFunction(pseudo_domain.V)
 
-    cs_1, cs = utilities.create_functions(pseudo_domain.V, 2)
     jbar_c = utilities.create_functions(domain.V, 1)[0]
     cse = utilities.create_functions(electrode_domain.V, 1)[0]
     cs_jbar, cs_cse = utilities.create_functions(cse_domain.V, 2)
@@ -64,7 +60,7 @@ def run(comsol_time, start_time, dt, stop_time, return_comsol=False):
                                   fem.Expression('2*x[0]-1', degree=1),
                                   fem.Expression('x[0] + 0.5', degree=1))
 
-    cs_cse_to_cse = cross_domain(cs, electrode_domain.domain_markers,
+    cs_cse_to_cse = cross_domain(cs_fem, electrode_domain.domain_markers,
                                  fem.Expression(('x[0]', '1.0'), degree=1),
                                  fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
                                  fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
@@ -74,37 +70,55 @@ def run(comsol_time, start_time, dt, stop_time, return_comsol=False):
 
     rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
     jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
-    neumann = rbar2 * jbar * v * ds(5)
+    neumann = jbar * v * ds(5)
 
-    lhs = equations.euler(cs_u * cmn.fenics_params.Rs * rbar2, cs_1 * cmn.fenics_params.Rs * rbar2, dtc)
-    F = lhs * v * dx - equations.cs2(cs_u, v, dx, **cmn.fenics_params, **cmn.fenics_consts) + neumann
+    cs_eq = equations.cs2(cs_fem, v, pseudo_domain.dx, **cmn.fenics_params, **cmn.fenics_consts) - neumann
+    sol = fem.Function(pseudo_domain.V)
 
-    a = fem.lhs(F)
-    L = fem.rhs(F)
-    # cs_1.assign(cmn.fenics_params.cs_0)
-    cs_1.vector()[:] = interp_time(comsol.data.cs, comsol_time)(start_time - dt).astype('double')
-    k = 0
-    for i in sim_time:
-        print('time = {}'.format(i))
-        utilities.assign_functions([comsol_j(i)], [jbar_c], domain.V, ...)
-        # TODO: make assignable with utilities.assign_functions
-        # cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
+    def fun(t, cs):
+        utilities.assign_functions([comsol_j(t)], [jbar_c], domain.V, ...)
+        cs_fem.vector()[:] = cs.astype('double')
         cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
-        fem.solve(a == L, cs)
-        cs_1.assign(cs)
-        cs_cse.assign(fem.interpolate(cs, cse_domain.V))
+        fem.solve(cs_u * cmn.fenics_params.Rs * rbar2 * v * pseudo_domain.dx == cs_eq, sol)
+        return sol.vector().get_local()
+
+    cs0 = interp_time(comsol.data.cs, comsol_time)(start_time).astype('double')
+    cs_bdf = integrate.BDF(fun, start_time, cs0, stop_time, atol=1e-6, rtol=1e-5, max_step=dt)
+
+    cs_sol = list()
+    cs_sol.append(cs0)
+    pseudo_cse_sol = list()
+    pseudo_cse_sol.append(np.append(comsol_cse(start_time)[comsol.neg_ind], comsol_cse(start_time)[comsol.pos_ind]))
+    cse_sol = list()
+    cse_sol.append(comsol_cse(start_time))
+    time_vec = list()
+    time_vec.append(0)
+
+    # integrate._ivp.bdf.NEWTON_MAXITER = 50
+    i = 1
+    while cs_bdf.status == 'running':
+        print('comsol_time step: {:.4e}, time: {:.4f}, order: {}, step: {}'.format(cs_bdf.h_abs, cs_bdf.t,
+                                                                                   cs_bdf.order, i))
+        cs_bdf.step()
+        time_vec.append(cs_bdf.t)
+        cs_sol.append(cs_bdf.dense_output()(cs_bdf.t))
+
+        cs_cse.assign(fem.interpolate(cs_fem, cse_domain.V))
         cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
 
-        pseudo_cse_sol[k, :] = cs_cse.vector().get_local()  # used to show that cs computed correctly
-        cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse, domain.V), domain.V)  # desired result
-        # TODO: make usable with get 1d
-        cs_sol[k, :] = cs.vector().get_local()  # used to prove that cs computed correctly
-        k += 1
+        pseudo_cse_sol.append(cs_cse.vector().get_local())  # used to show that cs computed correctly
+        cse_sol.append(utilities.get_1d(fem.interpolate(cse, domain.V), domain.V))  # desired result
+        i += 1
+
+    cs_sol = np.array(cs_sol)
+    pseudo_cse_sol = np.array(pseudo_cse_sol)
+    cse_sol = np.array(cse_sol)
+    time_vec = np.array(time_vec)
 
     if return_comsol:
-        return interp_time(cs_sol, sim_time), interp_time(pseudo_cse_sol, sim_time), interp_time(cse_sol,
-                                                                                                 sim_time), comsol
+        return interp_time(cs_sol, time_vec), interp_time(pseudo_cse_sol, time_vec), interp_time(cse_sol,
+                                                                                                 time_vec), comsol
     else:
         return cs_sol, pseudo_cse_sol, cse_sol
 
@@ -116,9 +130,9 @@ def main():
     # Times at which to run solver
     time_in = np.arange(0, 50, 0.1)
     plot_times = np.arange(0, 50, 5)
-    dt = 0.1
+    dt = np.inf
 
-    cs_sol, pseudo_cse_sol, cse_sol, comsol = run(time_in, 0, 0.1, 50, return_comsol=True)
+    cs_sol, pseudo_cse_sol, cse_sol, comsol = run(time_in, 0, dt, 50, return_comsol=True)
 
     comsol_cs = interp_time(comsol.data.cs, time_in)
     print('cs total normalized RMSE%: {}'.format(utilities.norm_rmse(cs_sol(time_in), comsol_cs(time_in))))
