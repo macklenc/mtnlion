@@ -12,7 +12,6 @@ def interp_time(data, time):
     return y
 
 
-# TODO: fix...
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(time)

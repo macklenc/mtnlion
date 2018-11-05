@@ -24,12 +24,15 @@ def run(time, return_comsol=False):
     # a += a2
     # L += L2
 
+    a = fem.lhs(F)
+    L = fem.rhs(F)
+
     for i in range(len(time)):
         utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i)
         Iapp.assign(float(cmn.Iapp(time[i])))
         bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, comsol.pos_ind][0], domain.boundary_markers, 3)
 
-        fem.solve(fem.lhs(F) == fem.rhs(F), phis, bc)
+        fem.solve(a == L, phis, bc)
         phis_sol[i, :] = utilities.get_1d(phis, domain.V)
 
     if return_comsol:
