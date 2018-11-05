@@ -16,13 +16,10 @@ def run(time, return_comsol=False):
     jbar_c, phis = utilities.create_functions(domain.V, 2)
     Iapp = fem.Constant(0.0)
 
-    F = equations.phis(jbar_c, phis_u, v, domain.dx((0, 2)), **cmn.fenics_params, **cmn.fenics_consts,
-                       neumann=Iapp / cmn.fenics_consts.Acell, ds=domain.ds(4))
-    F += fem.dot(phis_u, v) * domain.dx(1)
-    # same as
-    # a2, L2 = equations.phis(fem.Constant(0), phis_u, v, domain.dx(1), **cmn.params, **cmn.const, nonlin=False)
-    # a += a2
-    # L += L2
+    neumann = Iapp / cmn.fenics_consts.Acell * v * domain.ds(4)
+
+    lhs, rhs = equations.phis(jbar_c, phis_u, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = (lhs - rhs) * domain.dx((0, 2)) + fem.dot(phis_u, v) * domain.dx(1) - neumann
 
     a = fem.lhs(F)
     L = fem.rhs(F)
