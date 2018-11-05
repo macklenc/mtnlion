@@ -4,11 +4,11 @@ import sympy as sym
 
 # TODO: add internal Neumann conditions or remove boundary Neumann conditions
 
-def phis(jbar, phis, v, dx, a_s, F, sigma_eff, L, ds=0, neumann=0, **kwargs):
-    a = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v)) * dx
-    Lin = L * a_s * F * jbar * v * dx + neumann * v * ds
+def phis(jbar, phis, v, a_s, F, sigma_eff, L, **kwargs):
+    lhs = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v))
+    rhs = L * a_s * F * jbar * v
 
-    return a - Lin
+    return lhs, rhs
 
 
 def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=0, **kwargs):

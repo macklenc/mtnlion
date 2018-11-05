@@ -23,10 +23,10 @@ def run(time, solver, return_comsol=False):
     # j = equations.j_new(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts,
     #                     dm=domain.domain_markers, V=domain.V)
 
-    F = equations.phis(j, phis_c_, v, domain.dx((0, 2)), **cmn.fenics_params, **cmn.fenics_consts,
-                       neumann=Iapp / cmn.fenics_consts.Acell, ds=domain.ds(4))
-    F += fem.dot(phis_c_, v) * domain.dx(1)
+    neumann = Iapp / cmn.fenics_consts.Acell * v * domain.ds(4)
 
+    lhs, rhs = equations.phis(j, phis_c_, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = (lhs - rhs) * domain.dx((0, 2)) + fem.dot(phis_c_, v) * domain.dx(1) - neumann
 
     k = 0
     for i in range(int(len(time) / 2)):
@@ -35,8 +35,8 @@ def run(time, solver, return_comsol=False):
         utilities.assign_functions([comsol.data.phis], [phis_c_], domain.V, i)
         utilities.assign_functions([comsol.data.phie, comsol.data.ce, comsol.data.cse],
                                    [phie_c, ce_c, cse_c], domain.V, i)
-        Iapp.assign(cmn.Iapp[i])
-        bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, -1], domain.boundary_markers, 4)
+        Iapp.assign(float(cmn.Iapp(time[i])))
+        bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, comsol.pos_ind][0], domain.boundary_markers, 3)
 
         J = fem.derivative(F, phis_c_, phis_u)
         problem = fem.NonlinearVariationalProblem(F, phis_c_, bc, J)
