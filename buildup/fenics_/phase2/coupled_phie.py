@@ -82,8 +82,8 @@ def main():
 
     u = fem.TrialFunction(V)
     v = fem.TestFunction(V)
-    phie_form = equations.phie(j, ce_f, u, v, domain.dx, kappa_eff=kappa_eff, kappa_Deff=kappa_Deff,
-                               **cmn.fenics_params, **cmn.fenics_consts)
+    lhs, rhs = equations.phie(j, ce_f, u, v, kappa_eff, kappa_Deff, **cmn.fenics_params, **cmn.fenics_consts)
+    phie_form = (lhs - rhs) * domain.dx
 
     # initialize matrix to save solution results
     u_array = np.empty((len(time_in), len(comsol.mesh)))

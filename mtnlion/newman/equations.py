@@ -11,12 +11,11 @@ def phis(jbar, phis, v, a_s, F, sigma_eff, L, **kwargs):
     return lhs, rhs
 
 
-def phie(jbar, ce, phie, v, dx, kappa_eff, kappa_Deff, L, a_s, F, ds=0, neumann=0, **kwargs):
-    a = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v)) * dx
-    Lin = L * a_s * F * jbar * v * dx - kappa_Deff / L * \
-        fem.dot(fem.grad(fem.ln(ce)), fem.grad(v)) * dx + neumann * v * ds
+def phie(jbar, ce, phie, v, kappa_eff, kappa_Deff, L, a_s, F, **kwargs):
+    lhs = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v))
+    rhs = L * a_s * F * jbar * v - kappa_Deff / L * fem.dot(fem.grad(fem.ln(ce)), fem.grad(v))
 
-    return a - Lin
+    return lhs, rhs
 
 
 def euler(y, y_1, dt):
