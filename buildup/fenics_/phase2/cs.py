@@ -53,17 +53,20 @@ def run(time, dt, return_comsol=False):
     cse.set_allow_extrapolation(True)
     cse_1.set_allow_extrapolation(True)
 
-    Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
+    # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
     csmax = fem.Expression('x[0] <= 1.0 + DOLFIN_EPS ? neg : (x[0] >= 2.0 - DOLFIN_EPS ? pos : sep)',
                            neg=cmn.params.csmax[0],
                            sep=cmn.params.csmax[1],
                            pos=cmn.params.csmax[2], degree=1)
-    # Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
-    #                              cse_1, cmn.fenics_params.csmax, utilities)
+    asdf = utilities.piecewise(cmn.electrode_domain.mesh, cmn.electrode_domain.domain_markers, cmn.electrode_domain.V,
+                               *cmn.params.csmax)
+    cmn.fenics_params.csmax = asdf
+    Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
+                                 cse_1, cmn.fenics_params.csmax, utilities)
     j = equations.j(ce_c, cse_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
-    jbar_to_pseudo = cross_domain(j, cse_domain.domain_markers,
+    jbar_to_pseudo = cross_domain(jbar_c, cse_domain.domain_markers,
                                   fem.Expression(('x[0]', '0', '0'), degree=1),
                                   fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
                                   fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
@@ -94,6 +97,11 @@ def run(time, dt, return_comsol=False):
         utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i_1)
         utilities.assign_functions([comsol.data.ce, comsol.data.phis, comsol.data.phie],
                                    [ce_c, phis_c, phie_c], domain.V, i_1)
+        cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
+
+        # fem.plot(cs_1)
+        # plt.show()
+
         # utilities.assign_functions([comsol.data.j], [j_c_1], domain.V, i_1)
         cs_f.assign(cs_1)
         cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
@@ -105,13 +113,16 @@ def run(time, dt, return_comsol=False):
         solver = fem.NonlinearVariationalSolver(problem)
 
         prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-8
-        prm['newton_solver']['relative_tolerance'] = 1e-7
+        prm['newton_solver']['absolute_tolerance'] = 1e-12
+        prm['newton_solver']['relative_tolerance'] = 1e-12
         prm['newton_solver']['maximum_iterations'] = 5000
-        prm['newton_solver']['relaxation_parameter'] = 0.18
+        prm['newton_solver']['relaxation_parameter'] = 1.0
         solver.solve()
 
-        cs_cse.assign(fem.interpolate(cs, cse_domain.V))
+        fem.plot(cs_f)
+        plt.show()
+
+        cs_cse.assign(fem.interpolate(cs_f, cse_domain.V))
         cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
 
         pseudo_cse_sol[k, :] = cs_cse.vector().get_local()  # used to show that cs computed correctly
