@@ -27,6 +27,11 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
     return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
 
 
+def cross_domain2(func, x_bar):
+    xbar = fem.Expression(cppcode=utilities.expressions.xbar_simple, xbar=x_bar, degree=1)
+    return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
+
+
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(time)
@@ -66,10 +71,14 @@ def run(time, dt, return_comsol=False):
     j = equations.j(ce_c, cse_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
-    jbar_to_pseudo = cross_domain(j, cse_domain.domain_markers,
-                                  fem.Expression(('x[0]', '0', '0'), degree=1),
-                                  fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
-                                  fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
+    # TODO: Figure out if this can be combined
+    jneg = cross_domain2(j, fem.Expression('x[0]', degree=1))
+    jpos = cross_domain2(j, fem.Expression('x[0] + 0.5', degree=1))
+
+    # jbar_to_pseudo = cross_domain(j, pseudo_domain.boundary_markers,
+    #                               fem.Expression(('x[0]', '0', '0'), degree=1),
+    #                               fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
+    #                               fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
 
     cs_cse_to_cse = cross_domain(cs_f, electrode_domain.domain_markers,
                                  fem.Expression(('x[0]', '1.0'), degree=1),
@@ -79,9 +88,7 @@ def run(time, dt, return_comsol=False):
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
 
-    rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
-    jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
-    neumann = rbar2 * jbar * v * ds(5)
+    neumann = jneg * v * ds(5) + jpos * v * ds(6)
 
     euler = equations.euler(cs_f, cs_1, dtc)
     lhs, rhs = equations.cs(cs_1, v, **cmn.fenics_params, **cmn.fenics_consts)
@@ -102,12 +109,9 @@ def run(time, dt, return_comsol=False):
 
         cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
 
-        # fem.plot(cs_1)
-        # plt.show()
-
         # utilities.assign_functions([comsol.data.j], [j_c_1], domain.V, i_1)
         cs_f.assign(cs_1)
-        cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
+        # cs_jbar.assign(jbar_to_pseudo)
 
         J = fem.derivative(F, cs_f, cs_u)
 
@@ -121,9 +125,6 @@ def run(time, dt, return_comsol=False):
         prm['newton_solver']['maximum_iterations'] = 5000
         prm['newton_solver']['relaxation_parameter'] = 1.0
         solver.solve()
-
-        fem.plot(cs_f)
-        plt.show()
 
         cs_cse.assign(fem.interpolate(cs_f, cse_domain.V))
         cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
