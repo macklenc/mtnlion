@@ -37,6 +37,9 @@ def gather_expressions():
     with open(os.path.join(localdir, '../mtnlion/headers/piecewise.h')) as f:
         code['piecewise'] = ''.join(f.readlines())
 
+    with open(os.path.join(localdir, '../mtnlion/headers/xbar_simple.h')) as f:
+        code['xbar_simple'] = ''.join(f.readlines())
+
     return munch.Munch(code)
 
 
