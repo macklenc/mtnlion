@@ -27,11 +27,6 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
     return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
 
 
-def cross_domain2(func, x_bar):
-    xbar = fem.Expression(cppcode=utilities.expressions.xbar_simple, xbar=x_bar, degree=1)
-    return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
-
-
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(time)
@@ -49,20 +44,14 @@ def run(time, dt, return_comsol=False):
     v = fem.TestFunction(pseudo_domain.V)
 
     cs_1, cs, cs_f = utilities.create_functions(pseudo_domain.V, 3)
-    jbar_c = utilities.create_functions(domain.V, 1)[0]
     cse_1, cse = utilities.create_functions(electrode_domain.V, 2)
-    cs_jbar, cs_cse = utilities.create_functions(cse_domain.V, 2)
+    cs_cse = utilities.create_functions(cse_domain.V, 1)[0]
     phis_c, phie_c, ce_c = utilities.create_functions(domain.V, 3)
 
-    cs_jbar.set_allow_extrapolation(True)
     cse.set_allow_extrapolation(True)
     cse_1.set_allow_extrapolation(True)
 
     # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
-    csmax = fem.Expression('x[0] <= 1.0 + DOLFIN_EPS ? neg : (x[0] >= 2.0 - DOLFIN_EPS ? pos : sep)',
-                           neg=cmn.params.csmax[0],
-                           sep=cmn.params.csmax[1],
-                           pos=cmn.params.csmax[2], degree=1)
     asdf = utilities.piecewise(cmn.electrode_domain.mesh, cmn.electrode_domain.domain_markers, cmn.electrode_domain.V,
                                *cmn.params.csmax)
     cmn.fenics_params.csmax = asdf
@@ -71,14 +60,10 @@ def run(time, dt, return_comsol=False):
     j = equations.j(ce_c, cse_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
-    # TODO: Figure out if this can be combined
-    jneg = cross_domain2(j, fem.Expression('x[0]', degree=1))
-    jpos = cross_domain2(j, fem.Expression('x[0] + 0.5', degree=1))
-
-    jbar_to_pseudo = cross_domain(j, pseudo_domain.domain_markers,
-                                  fem.Expression(('x[0]', '0', '0'), degree=1),
-                                  fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
-                                  fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
+    jhat = cross_domain(j, pseudo_domain.domain_markers,
+                        fem.Expression(('x[0]', '0', '0'), degree=1),
+                        fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
+                        fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
 
     cs_cse_to_cse = cross_domain(cs_f, electrode_domain.domain_markers,
                                  fem.Expression(('x[0]', '1.0'), degree=1),
@@ -88,8 +73,7 @@ def run(time, dt, return_comsol=False):
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
 
-    # neumann = jneg * v * ds(5) + jpos * v * ds(6)
-    neumann = jbar_to_pseudo * v * ds(7)
+    neumann = jhat * v * ds(5)
 
     euler = equations.euler(cs_f, cs_1, dtc)
     lhs, rhs = equations.cs(cs_1, v, **cmn.fenics_params, **cmn.fenics_consts)
@@ -101,7 +85,6 @@ def run(time, dt, return_comsol=False):
     for i in range(int(len(time) / 2)):
         i_1 = i * 2  # previous time step
         i = i * 2 + 1  # current time step
-        utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i_1)
         utilities.assign_functions([comsol.data.ce, comsol.data.phis, comsol.data.phie],
                                    [ce_c, phis_c, phie_c], domain.V, i_1)
         utilities.assign_functions(
@@ -112,7 +95,6 @@ def run(time, dt, return_comsol=False):
 
         # utilities.assign_functions([comsol.data.j], [j_c_1], domain.V, i_1)
         cs_f.assign(cs_1)
-        # cs_jbar.assign(jbar_to_pseudo)
 
         J = fem.derivative(F, cs_f, cs_u)
 
