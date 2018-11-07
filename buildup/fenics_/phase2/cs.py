@@ -75,10 +75,10 @@ def run(time, dt, return_comsol=False):
     jneg = cross_domain2(j, fem.Expression('x[0]', degree=1))
     jpos = cross_domain2(j, fem.Expression('x[0] + 0.5', degree=1))
 
-    # jbar_to_pseudo = cross_domain(j, pseudo_domain.boundary_markers,
-    #                               fem.Expression(('x[0]', '0', '0'), degree=1),
-    #                               fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
-    #                               fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
+    jbar_to_pseudo = cross_domain(j, pseudo_domain.domain_markers,
+                                  fem.Expression(('x[0]', '0', '0'), degree=1),
+                                  fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
+                                  fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
 
     cs_cse_to_cse = cross_domain(cs_f, electrode_domain.domain_markers,
                                  fem.Expression(('x[0]', '1.0'), degree=1),
@@ -88,7 +88,8 @@ def run(time, dt, return_comsol=False):
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
 
-    neumann = jneg * v * ds(5) + jpos * v * ds(6)
+    # neumann = jneg * v * ds(5) + jpos * v * ds(6)
+    neumann = jbar_to_pseudo * v * ds(7)
 
     euler = equations.euler(cs_f, cs_1, dtc)
     lhs, rhs = equations.cs(cs_1, v, **cmn.fenics_params, **cmn.fenics_consts)

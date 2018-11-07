@@ -71,6 +71,7 @@ def generate_domain(raw_mesh, pseudo_mesh):
                                     b2=1.0)  # pseudo dim only
     cse_pos = fem.CompiledSubDomain('on_boundary && near(x[1], b, DOLFIN_EPS) && (x[0] >= (b2 - DOLFIN_EPS))', b=1,
                                     b2=1.5)  # pseudo dim only
+    cse_wat = fem.CompiledSubDomain('on_boundary && near(x[1], b, DOLFIN_EPS)', b=1)  # pseudo dim only
 
     # Mark the subdomains, main dim
     main_domain_markers = fem.MeshFunction('size_t', mesh, mesh.topology().dim())
@@ -111,6 +112,7 @@ def generate_domain(raw_mesh, pseudo_mesh):
     pseudo_b3.mark(pseudo_boundary_markers, 4)
     cse_neg.mark(pseudo_boundary_markers, 5)
     cse_pos.mark(pseudo_boundary_markers, 6)
+    cse_wat.mark(pseudo_boundary_markers, 7)
 
     # Setup measures, pseudo dim
     pseudo_dx = fem.Measure('dx', domain=pseudo_mesh, subdomain_data=pseudo_domain_markers)
