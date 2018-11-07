@@ -66,12 +66,12 @@ def run(time, dt, return_comsol=False):
     j = equations.j(ce_c, cse_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
-    jbar_to_pseudo = cross_domain(jbar_c, cse_domain.domain_markers,
+    jbar_to_pseudo = cross_domain(j, cse_domain.domain_markers,
                                   fem.Expression(('x[0]', '0', '0'), degree=1),
                                   fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
                                   fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
 
-    cs_cse_to_cse = cross_domain(cs, electrode_domain.domain_markers,
+    cs_cse_to_cse = cross_domain(cs_f, electrode_domain.domain_markers,
                                  fem.Expression(('x[0]', '1.0'), degree=1),
                                  fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
                                  fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
@@ -87,7 +87,6 @@ def run(time, dt, return_comsol=False):
     lhs, rhs = equations.cs(cs_1, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = lhs * euler * dx - rhs * dx + neumann
 
-    utilities.assign_functions([np.append(comsol.data.cse[:, comsol.neg_ind], comsol.data.cse[:, comsol.pos_ind], axis=1)], [cse_1], electrode_domain.V, 0)
     # cse_1.vector()[:] = np.append(comsol.data.cse[0, comsol.neg_ind], comsol.data.cse[0, comsol.pos_ind])
 
     k = 0
@@ -97,6 +96,10 @@ def run(time, dt, return_comsol=False):
         utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i_1)
         utilities.assign_functions([comsol.data.ce, comsol.data.phis, comsol.data.phie],
                                    [ce_c, phis_c, phie_c], domain.V, i_1)
+        utilities.assign_functions(
+            [np.append(comsol.data.cse[:, comsol.neg_ind], comsol.data.cse[:, comsol.pos_ind], axis=1)], [cse_1],
+            electrode_domain.V, i_1)
+
         cs_1.vector()[:] = comsol.data.cs[i_1].astype('double')
 
         # fem.plot(cs_1)
