@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import munch
 import numpy as np
 import sympy as sym
+from scipy import interpolate
 
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
@@ -99,6 +100,11 @@ def fenics_interpolate(xy_values, cell_type='Lagrange', degree=1):
     interp.vector()[:] = y_values[fem.vertex_to_dof_map(V1)]
 
     return interp
+
+
+def interp_time(time, data):
+    y = interpolate.interp1d(time, data, axis=0, fill_value='extrapolate')
+    return y
 
 
 def compose(inner, outer, degree=1):
