@@ -51,18 +51,18 @@ def run(time, dt, return_comsol=False):
     cse.set_allow_extrapolation(True)
     cse_1.set_allow_extrapolation(True)
 
-    cs_cse_to_cse = cross_domain(cs_f, electrode_domain.domain_markers,
-                                 fem.Expression(('x[0]', '1.0'), degree=1),
-                                 fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
-                                 fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
+    cse_f = cross_domain(cs_f, electrode_domain.domain_markers,
+                         fem.Expression(('x[0]', '1.0'), degree=1),
+                         fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
+                         fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
 
     # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
     asdf = utilities.piecewise(cmn.electrode_domain.mesh, cmn.electrode_domain.domain_markers, cmn.electrode_domain.V,
                                *cmn.params.csmax)
     cmn.fenics_params.csmax = asdf
     Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
-                                 cse_1, cmn.fenics_params.csmax, utilities)
-    j = equations.j(ce_c, cse_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
+                                 cse_f, cmn.fenics_params.csmax, utilities)
+    j = equations.j(ce_c, cse_f, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                     dm=domain.domain_markers, V=domain.V)
 
     jhat = cross_domain(j, pseudo_domain.domain_markers,
@@ -70,15 +70,13 @@ def run(time, dt, return_comsol=False):
                         fem.Expression('2*x[0]-1', degree=1),
                         fem.Expression('x[0] + 0.5', degree=1))
 
-
-
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
 
     neumann = jhat * v * ds(5)
 
     euler = equations.euler(cs_f, cs_1, dtc)
-    lhs, rhs = equations.cs(cs_1, v, **cmn.fenics_params, **cmn.fenics_consts)
+    lhs, rhs = equations.cs(cs_f, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = lhs * euler * dx - rhs * dx + neumann
 
     # cse_1.vector()[:] = np.append(comsol.data.cse[0, comsol.neg_ind], comsol.data.cse[0, comsol.pos_ind])
@@ -88,7 +86,7 @@ def run(time, dt, return_comsol=False):
         i_1 = i * 2  # previous time step
         i = i * 2 + 1  # current time step
         utilities.assign_functions([comsol.data.ce, comsol.data.phis, comsol.data.phie],
-                                   [ce_c, phis_c, phie_c], domain.V, i_1)
+                                   [ce_c, phis_c, phie_c], domain.V, i)
         utilities.assign_functions(
             [np.append(comsol.data.cse[:, comsol.neg_ind], comsol.data.cse[:, comsol.pos_ind], axis=1)], [cse_1],
             electrode_domain.V, i_1)
@@ -112,7 +110,7 @@ def run(time, dt, return_comsol=False):
         solver.solve()
 
         cs_cse.assign(fem.interpolate(cs_f, cse_domain.V))
-        cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
+        cse.assign(fem.interpolate(cse_f, electrode_domain.V))
 
         pseudo_cse_sol[k, :] = cs_cse.vector().get_local()  # used to show that cs computed correctly
         cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse, domain.V), domain.V)  # desired result
