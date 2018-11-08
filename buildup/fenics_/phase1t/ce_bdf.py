@@ -2,20 +2,16 @@ import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import integrate
-from scipy import interpolate as interp
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
-def interp_time(data, time):
-    y = interp.interp1d(time, data, axis=0, fill_value='extrapolate')
-    return y
+def run(start_time, dt, stop_time, return_comsol=False):
+    cmn, domain, comsol = common.prepare_comsol_buildup()
 
-
-def run(comsol_time, return_comsol=False):
-    cmn, domain, comsol = common.prepare_comsol_buildup(comsol_time)
-    comsol_j = interp_time(comsol.data.j, comsol_time)
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
     ce_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
@@ -26,8 +22,12 @@ def run(comsol_time, return_comsol=False):
     Lc = cmn.fenics_params.L
     n = domain.n
     dS = domain.dS
-    ce0 = np.empty(domain.mesh.coordinates().shape).flatten()
-    ce0.fill(cmn.consts.ce0)
+
+    if start_time < dt:
+        ce0 = np.empty(domain.mesh.coordinates().shape).flatten()
+        ce0.fill(cmn.consts.ce0)
+    else:
+        ce0 = comsol_ce(start_time)
 
     neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_fem('-')), n('-')) * v('-') * dS(2) + \
               de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_fem('+')), n('+')) * v('+') * dS(2) + \
@@ -43,6 +43,7 @@ def run(comsol_time, return_comsol=False):
         return utilities.get_1d(sol, domain.V)
 
     ce_bdf = integrate.BDF(fun, 0, ce0, 50, atol=1e-6, rtol=1e-5)
+
     # using standard lists for dynamic growth
     ce_sol = list()
     ce_sol.append(ce0)
@@ -63,9 +64,9 @@ def run(comsol_time, return_comsol=False):
     time_vec = np.array(time_vec)
 
     if return_comsol:
-        return interp_time(ce_sol, time_vec), comsol
+        return utilities.interp_time(time_vec, ce_sol), comsol
     else:
-        return interp_time(ce_sol, time_vec)
+        return utilities.interp_time(time_vec, ce_sol)
 
 
 def main():
@@ -73,15 +74,14 @@ def main():
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    # time_in = [0.1, 5, 10, 15, 20]
-    time_in = np.arange(0, 50, 0.1)
+    [sim_start_time, sim_dt, sim_stop_time] = [0, 0.1, 50]
     plot_times = np.arange(0, 50, 5)
 
-    ce_sol, comsol = run(time_in, return_comsol=True)
-    # plt.plot(ce_sol.T)
-    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times),
-                     interp_time(comsol.data.ce, time_in)(plot_times), '$c_e$')
-    utilities.save_plot(__file__, 'plots/compare_ce_time.png')
+    ce_sol, comsol = run(sim_start_time, sim_dt, sim_stop_time, return_comsol=True)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
+
+    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times), comsol_ce(plot_times), '$c_e$')
+    utilities.save_plot(__file__, 'plots/compare_ce_bdf.png')
     plt.show()
 
 

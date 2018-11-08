@@ -6,7 +6,10 @@ from mtnlion.newman import equations
 
 
 def run(time, return_comsol=False):
-    cmn, domain, comsol = common.prepare_comsol_buildup(time)
+    cmn, domain, comsol = common.prepare_comsol_buildup()
+
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
+    comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
 
     phis_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
     bc = [fem.DirichletBC(domain.V, 0.0, domain.boundary_markers, 1), 0]
@@ -24,31 +27,34 @@ def run(time, return_comsol=False):
     a = fem.lhs(F)
     L = fem.rhs(F)
 
-    for i in range(len(time)):
-        utilities.assign_functions([comsol.data.j], [jbar_c], domain.V, i)
-        Iapp.assign(float(cmn.Iapp(time[i])))
-        bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, comsol.pos_ind][0], domain.boundary_markers, 3)
+    for k, t in enumerate(time):
+        utilities.assign_functions([comsol_j(t)], [jbar_c], domain.V, ...)
+        Iapp.assign(float(cmn.Iapp(t)))
+        bc[1] = fem.DirichletBC(domain.V, comsol_phis(t)[comsol.pos_ind][0], domain.boundary_markers, 3)
 
         fem.solve(a == L, phis, bc)
-        phis_sol[i, :] = utilities.get_1d(phis, domain.V)
+        phis_sol[k, :] = utilities.get_1d(phis, domain.V)
 
     if return_comsol:
-        return phis_sol, comsol
+        return utilities.interp_time(time, phis_sol), comsol
     else:
-        return phis_sol
+        return utilities.interp_time(time, phis_sol)
 
 
 def main():
     # Times at which to run solver
     time = [0, 5, 10, 15, 20]
+    plot_time = time
 
     phis_sol, comsol = run(time, return_comsol=True)
-    utilities.report(comsol.neg, time, phis_sol[:, comsol.neg_ind],
-                     comsol.data.phis[:, comsol.neg_ind], '$\Phi_s^{neg}$')
+    comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
+
+    utilities.report(comsol.neg, time, phis_sol(plot_time)[:, comsol.neg_ind],
+                     comsol_phis(plot_time)[:, comsol.neg_ind], '$\Phi_s^{neg}$')
     utilities.save_plot(__file__, 'plots/compare_phis_neg.png')
     plt.show()
-    utilities.report(comsol.pos, time, phis_sol[:, comsol.pos_ind],
-                     comsol.data.phis[:, comsol.pos_ind], '$\Phi_s^{pos}$')
+    utilities.report(comsol.pos, time, phis_sol(plot_time)[:, comsol.pos_ind],
+                     comsol_phis(plot_time)[:, comsol.pos_ind], '$\Phi_s^{pos}$')
     utilities.save_plot(__file__, 'plots/compare_phis_pos.png')
     plt.show()
 

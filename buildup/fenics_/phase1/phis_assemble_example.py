@@ -6,6 +6,9 @@ import common
 import utilities
 
 
+# NOTE: DOES NOT WORK
+# TODO: update for new API
+
 class Phis():
     def __init__(self, domain, Acell, sigma_eff, L, a_s, F, dirichlet, neumann):
         self.dirichlet = dirichlet
