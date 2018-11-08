@@ -135,20 +135,20 @@ def main():
 
     utilities.report(xcoor[neg_ind], plot_times, pseudo_cse_sol(plot_times)[:, neg_ind],
                      cse(plot_times)[:, neg_ind], 'pseudo $c_{s,e}^{neg}$')
-    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_neg.png')
+    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_neg_bdf.png')
 
     utilities.report(xcoor[pos_ind], plot_times, pseudo_cse_sol(plot_times)[:, pos_ind],
                      cse(plot_times)[:, pos_ind], 'pseudo $c_{s,e}^{pos}$')
-    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_pos.png')
+    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_pos_bdf.png')
 
     utilities.report(comsol.mesh[comsol.neg_ind], plot_times, cse_sol(plot_times)[:, comsol.neg_ind],
                      comsol_cse(plot_times)[:, comsol.neg_ind], '$c_{s,e}$')
-    utilities.save_plot(__file__, 'plots/compare_cse_neg.png')
+    utilities.save_plot(__file__, 'plots/compare_cse_neg_bdf.png')
     plt.show()
 
     utilities.report(comsol.mesh[comsol.pos_ind], plot_times, cse_sol(plot_times)[:, comsol.pos_ind],
                      comsol_cse(plot_times)[:, comsol.pos_ind], '$c_{s,e}$')
-    utilities.save_plot(__file__, 'plots/compare_cse_pos.png')
+    utilities.save_plot(__file__, 'plots/compare_cse_pos_bdf.png')
     plt.show()
 
 

@@ -74,15 +74,14 @@ def main():
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    # time_in = [0.1, 5, 10, 15, 20]
-    time_in = np.arange(0, 50, 0.1)
+    [sim_start_time, sim_dt, sim_stop_time] = [0, 0.1, 50]
     plot_times = np.arange(0, 50, 5)
 
-    ce_sol, comsol = run(time_in, return_comsol=True)
-    # plt.plot(ce_sol.T)
-    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times),
-                     utilities.interp_time(time_in, comsol.data.ce)(plot_times), '$c_e$')
-    utilities.save_plot(__file__, 'plots/compare_ce_time.png')
+    ce_sol, comsol = run(sim_start_time, sim_dt, sim_stop_time, return_comsol=True)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
+
+    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times), comsol_ce(plot_times), '$c_e$')
+    utilities.save_plot(__file__, 'plots/compare_ce_bdf.png')
     plt.show()
 
 

@@ -71,7 +71,7 @@ def main():
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
     utilities.report(comsol.mesh, plot_times, ce_sol(plot_times), comsol_ce(plot_times), '$c_e$')
-    utilities.save_plot(__file__, 'plots/compare_ce.png')
+    utilities.save_plot(__file__, 'plots/compare_ce_euler.png')
     plt.show()
 
 
