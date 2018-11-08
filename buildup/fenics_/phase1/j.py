@@ -8,11 +8,15 @@ from mtnlion.newman import equations
 
 
 def run(time, return_comsol=False, form='equation'):
-    cmn, domain, comsol = common.prepare_comsol_buildup(time)
+    cmn, domain, comsol = common.prepare_comsol_buildup()
 
     j_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
-
     phis_c, phie_c, cse_c, ce_c, sol = utilities.create_functions(domain.V, 5)
+
+    comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
+    comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
+    comsol_cse = utilities.interp_time(comsol.time_mesh, comsol.data.cse)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
     u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
@@ -26,35 +30,37 @@ def run(time, return_comsol=False, form='equation'):
         return
 
     jbar = equations.j(ce_c, cse_c, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts)
-    #
+
     a = fem.dot(u, v) * domain.dx((0, 2))
     L = jbar * v * domain.dx((0, 2))
 
-    for i in range(len(time)):
-        utilities.assign_functions([comsol.data.phis, comsol.data.phie, comsol.data.cse, comsol.data.ce],
-                                   [phis_c, phie_c, cse_c, ce_c], domain.V, i)
+    for k, t in enumerate(time):
+        utilities.assign_functions([comsol_phis(t), comsol_phie(t), comsol_cse(t), comsol_ce(t)],
+                                   [phis_c, phie_c, cse_c, ce_c], domain.V, ...)
 
         fem.solve(a == L, sol)
-        j_sol[i, :] = utilities.get_1d(fem.interpolate(sol, domain.V), domain.V)
+        j_sol[k, :] = utilities.get_1d(fem.interpolate(sol, domain.V), domain.V)
 
     if return_comsol:
-        return j_sol, comsol
+        return utilities.interp_time(time, j_sol), comsol
     else:
-        return j_sol
+        return utilities.interp_time(time, j_sol)
 
 
 def main():
     # Times at which to run solver
     time = [0, 5, 10, 15, 20]
+    plot_times = time
 
     j_sol, comsol = run(time, return_comsol=True, form='interp')
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
 
-    utilities.report(comsol.mesh[comsol.neg_ind], time, j_sol[:, comsol.neg_ind],
-                     comsol.data.j[:, comsol.neg_ind], '$j_{neg}$')
+    utilities.report(comsol.mesh[comsol.neg_ind], time, j_sol(plot_times)[:, comsol.neg_ind],
+                     comsol_j(plot_times)[:, comsol.neg_ind], '$j_{neg}$')
     utilities.save_plot(__file__, 'plots/compare_j_neg.png')
     plt.show()
-    utilities.report(comsol.mesh[comsol.pos_ind], time, j_sol[:, comsol.pos_ind],
-                     comsol.data.j[:, comsol.pos_ind], '$j_{pos}$')
+    utilities.report(comsol.mesh[comsol.pos_ind], time, j_sol(plot_times)[:, comsol.pos_ind],
+                     comsol_j(plot_times)[:, comsol.pos_ind], '$j_{pos}$')
     utilities.save_plot(__file__, 'plots/comsol_compare_j_pos.png')
 
     plt.show()

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import munch
 import numpy as np
 import sympy as sym
+from scipy import interpolate
 
 import mtnlion.comsol as comsol
 import mtnlion.engine as engine
@@ -99,6 +100,24 @@ def fenics_interpolate(xy_values, cell_type='Lagrange', degree=1):
     interp.vector()[:] = y_values[fem.vertex_to_dof_map(V1)]
 
     return interp
+
+
+def interp_time(time, data):
+    y = interpolate.interp1d(time, data, axis=0, fill_value='extrapolate')
+    return y
+
+
+def find_cse_from_cs(comsol):
+    data = np.append(comsol.pseudo_mesh, comsol.data.cs.T, axis=1)  # grab cs for each time
+    indices = np.where(np.abs(data[:, 1] - 1.0) <= 1e-5)[0]  # find the indices of the solution where r=1 (cse)
+    data = data[indices]  # reduce data set to only show cse
+    data = data[data[:, 0].argsort()]  # organize the coordinates for monotonicity
+    xcoor = data[:, 0]  # x coordinates are in the first column, y should always be 1 now
+    neg_ind = np.where(xcoor <= 1)[0]  # using the pseudo dims definition of neg and pos electrodes
+    pos_ind = np.where(xcoor >= 1.5)[0]
+    cse = data[:, 2:]  # first two columns are the coordinates
+
+    return xcoor, cse.T, neg_ind, pos_ind
 
 
 def compose(inner, outer, degree=1):

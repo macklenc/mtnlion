@@ -7,9 +7,15 @@ from mtnlion.newman import equations
 
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
-    cmn, domain, comsol = common.prepare_comsol_buildup(time)
+    cmn, domain, comsol = common.prepare_comsol_buildup()
 
-    ce_sol, j_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.mesh), 2)
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
+    comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
+    comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
+    comsol_cse = utilities.interp_time(comsol.time_mesh, comsol.data.cse)
+
+    ce_sol, j_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 2)
     ce_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
 
@@ -36,15 +42,12 @@ def run(time, dt, return_comsol=False):
     lhs2, rhs2 = equations.ce(fem.Constant(0), ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = (lhs * euler - rhs) * domain.dx((0, 2)) + (lhs2 * euler - rhs2) * domain.dx(1) + neumann
 
-    k = 0
-    for i in range(int(len(time) / 2)):
-        i_1 = i * 2  # previous time step
-        i = i * 2 + 1  # current time step
-        utilities.assign_functions([comsol.data.ce, comsol.data.cse, comsol.data.phis, comsol.data.phie],
-                                   [ce_c_1, cse_c_1, phis_c, phie_c], domain.V, i_1)
-        utilities.assign_functions([comsol.data.j], [j_c_1], domain.V, i_1)
+    for k, t in enumerate(time):
+        utilities.assign_functions([comsol_ce(t - dt), comsol_cse(t - dt), comsol_phis(t - dt), comsol_phie(t - dt)],
+                                   [ce_c_1, cse_c_1, phis_c, phie_c], domain.V, ...)
+        utilities.assign_functions([comsol_j(t - dt)], [j_c_1], domain.V, ...)
         ce_c_.assign(ce_c_1)
-        bc = fem.DirichletBC(domain.V, comsol.data.ce[i, 0], domain.boundary_markers, 1)
+        bc = fem.DirichletBC(domain.V, comsol_ce(t)[0], domain.boundary_markers, 1)
 
         J = fem.derivative(F, ce_c_, ce_u)
 
@@ -62,37 +65,27 @@ def run(time, dt, return_comsol=False):
         # solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
         ce_sol[k, :] = utilities.get_1d(ce_c_, domain.V)
         # j_sol[k, :] = utilities.get_1d(fem.interpolate(j, domain.V), domain.V)
-        k += 1
 
     if return_comsol:
-        return ce_sol, comsol, j_sol
+        return utilities.interp_time(time, ce_sol), comsol
     else:
-        return ce_sol
+        return utilities.interp_time(time, ce_sol)
 
 
 def main():
-    # Quiet
     fem.set_log_level(fem.INFO)
 
     # Times at which to run solver
     time_in = [0.1, 5, 10, 15, 20]
-    # time_in = np.arange(0.1, 50, 0.1)
+    plot_times = time_in
     dt = 0.1
-    time = [None] * (len(time_in) * 2)
-    time[::2] = [t - dt for t in time_in]
-    time[1::2] = time_in
 
-    ce_sol, comsol, j_sol = run(time, dt, return_comsol=True)
-    utilities.report(comsol.mesh, time_in, ce_sol, comsol.data.ce[1::2], '$\c_e$')
+    ce_sol, comsol = run(time_in, dt, return_comsol=True)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
+
+    utilities.report(comsol.mesh, time_in, ce_sol(plot_times), comsol_ce(plot_times), '$\c_e$')
     utilities.save_plot(__file__, 'plots/compare_ce.png')
     plt.show()
-
-    # utilities.report(comsol.mesh[comsol.neg_ind], time_in, j_sol[:, comsol.neg_ind],
-    #                  comsol.data.j[:, comsol.neg_ind][1::2], '$j_{neg}$')
-    # plt.show()
-    # utilities.report(comsol.mesh[comsol.pos_ind], time_in, j_sol[:, comsol.pos_ind],
-    #                  comsol.data.j[:, comsol.pos_ind][1::2], '$j_{pos}$')
-    # plt.show()
 
 
 if __name__ == '__main__':

@@ -6,7 +6,11 @@ from mtnlion.newman import equations
 
 
 def run(time, return_comsol=False):
-    cmn, domain, comsol = common.prepare_comsol_buildup(time)
+    cmn, domain, comsol = common.prepare_comsol_buildup()
+
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
+    comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
 
     phie_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
     phie_u = fem.TrialFunction(domain.V)
@@ -31,25 +35,28 @@ def run(time, return_comsol=False):
     a = fem.lhs(F)
     L = fem.rhs(F)
 
-    for i in range(len(time)):
-        utilities.assign_functions([comsol.data.j, comsol.data.ce], [jbar_c, ce_c], domain.V, i)
-        bc = fem.DirichletBC(domain.V, comsol.data.phie[i, 0], domain.boundary_markers, 1)
+    for k, t in enumerate(time):
+        utilities.assign_functions([comsol_j(t), comsol_ce(t)], [jbar_c, ce_c], domain.V, ...)
+        bc = fem.DirichletBC(domain.V, comsol_phie(t)[0], domain.boundary_markers, 1)
 
         fem.solve(a == L, phie, bc)
-        phie_sol[i, :] = utilities.get_1d(phie, domain.V)
+        phie_sol[k, :] = utilities.get_1d(phie, domain.V)
 
     if return_comsol:
-        return phie_sol, comsol
+        return utilities.interp_time(time, phie_sol), comsol
     else:
-        return phie_sol
+        return utilities.interp_time(time, phie_sol)
 
 
 def main():
     # Times at which to run solver
     time = [0, 5, 10, 15, 20]
+    plot_time = time
 
     phie_sol, comsol = run(time, return_comsol=True)
-    utilities.report(comsol.mesh, time, phie_sol, comsol.data.phie, '$\Phi_e$')
+    comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
+
+    utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
     utilities.save_plot(__file__, 'plots/compare_phie.png')
     plt.show()
 
