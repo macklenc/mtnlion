@@ -1,18 +1,18 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import interpolate as interp
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
-def run(time, dt, return_comsol=False):
+def run(start_time, dt, stop_time, return_comsol=False):
+    time = np.arange(start_time, stop_time + dt, dt)
     dtc = fem.Constant(dt)
-    cmn, domain, comsol = common.prepare_comsol_buildup(time)
+    cmn, domain, comsol = common.prepare_comsol_buildup()
 
-    comsol_j = utilities.interp_time(time, comsol.data.j)
-    comsol_ce = utilities.interp_time(time, comsol.data.ce)
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
     ce_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
     ce_u = fem.TrialFunction(domain.V)
@@ -33,34 +33,30 @@ def run(time, dt, return_comsol=False):
     lhs, rhs = equations.ce(jbar_c_1, ce_u, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = lhs * euler * domain.dx - rhs * domain.dx
 
-    # F = equations.ce_explicit_euler(jbar_c_1, ce_c_1, ce_u, v, domain.dx, dt,
-    #                                 **cmn.fenics_params, **cmn.fenics_consts)
     F -= neumann
     a = fem.lhs(F)
     L = fem.rhs(F)
 
-    ce_c_1.assign(cmn.fenics_consts.ce0)
-    utilities.assign_functions([comsol_j(0)], [jbar_c_1], domain.V, ...)
-    ce_sol[0, :] = cmn.consts.ce0
+    if start_time < dt:
+        ce_c_1.assign(cmn.fenics_consts.ce0)
+    else:
+        utilities.assign_functions([comsol_ce(start_time)], [ce_c_1], domain.V, ...)
 
-    k = 1
-    c_time = dt
-    stop_time = 50
-    while c_time < stop_time:
+    ce_sol[0, :] = utilities.get_1d(ce_c_1, domain.V)
+
+    for k, t in enumerate(time[1:], 1):
+        utilities.assign_functions([comsol_j(t)], [jbar_c_1], domain.V, ...)
+
         fem.solve(a == L, ce)
         ce_sol[k, :] = utilities.get_1d(ce, domain.V)
-        print('t={time}: error = {error}'.format(time=c_time,
-                                                 error=np.abs(ce_sol[k, :] - comsol_ce(c_time)).max()))
+        print('t={time}: error = {error}'.format(time=t, error=np.abs(ce_sol[k, :] - comsol_ce(t)).max()))
 
-        utilities.assign_functions([comsol_j(c_time)], [jbar_c_1], domain.V, ...)
         ce_c_1.assign(ce)
-        c_time += dt
-        k += 1
 
     if return_comsol:
-        return ce_sol, comsol
+        return utilities.interp_time(time, ce_sol), comsol
     else:
-        return ce_sol
+        return utilities.interp_time(time, ce_sol)
 
 
 def main():
@@ -68,17 +64,14 @@ def main():
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    # time_in = [0.1, 5, 10, 15, 20]
-    time_in = np.arange(0, 50, 0.1)
-    dt = 0.1
-    time = [None] * (len(time_in) * 2)
-    time[::2] = [t - dt for t in time_in]
-    time[1::2] = time_in
+    [sim_start_time, sim_dt, sim_stop_time] = [0, 0.1, 50]
+    plot_times = np.arange(0, 50, 5)
 
-    ce_sol, comsol = run(time_in, dt, return_comsol=True)
-    # plt.plot(ce_sol.T)
-    utilities.report(comsol.mesh, time_in[0::50], ce_sol[0::50], comsol.data.ce[0::50], '$c_e$')
-    # utilities.save_plot(__file__, 'plots/compare_ce.png')
+    ce_sol, comsol = run(sim_start_time, sim_dt, sim_stop_time, return_comsol=True)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
+
+    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times), comsol_ce(plot_times), '$c_e$')
+    utilities.save_plot(__file__, 'plots/compare_ce.png')
     plt.show()
 
 

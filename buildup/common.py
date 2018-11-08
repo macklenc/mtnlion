@@ -12,8 +12,9 @@ import mtnlion.engine as engine
 import utilities
 
 
-def prepare_comsol_buildup(time):
-    cmn = Common(time)
+def prepare_comsol_buildup():
+    # cmn = Common(time)
+    cmn = Common()
     domain = cmn.domain
     comsol = cmn.comsol_solution
 
@@ -108,13 +109,14 @@ def get_fenics_dofs(mesh_xml):
 
 
 class Common:
-    def __init__(self, time):
-        self.time = time
+    def __init__(self):
+        # self.time = time
 
         # Collect required data
         comsol_data, self.raw_params, pseudo_mesh_file, Uocp_spline, input_current = utilities.gather_data()
 
-        self.time_ind = engine.find_ind_near(comsol_data.time_mesh, time)
+        self.time = comsol_data.time_mesh
+        self.time_ind = engine.find_ind_near(comsol_data.time_mesh, self.time)
         self.comsol_solution = comsol.get_standardized(comsol_data.filter_time(self.time_ind))
         self.comsol_solution.data.cse[np.isnan(self.comsol_solution.data.cse)] = 0
         self.comsol_solution.data.phis[np.isnan(self.comsol_solution.data.phis)] = 0
