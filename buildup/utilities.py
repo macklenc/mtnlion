@@ -107,6 +107,19 @@ def interp_time(time, data):
     return y
 
 
+def find_cse_from_cs(comsol):
+    data = np.append(comsol.pseudo_mesh, comsol.data.cs.T, axis=1)  # grab cs for each time
+    indices = np.where(np.abs(data[:, 1] - 1.0) <= 1e-5)[0]  # find the indices of the solution where r=1 (cse)
+    data = data[indices]  # reduce data set to only show cse
+    data = data[data[:, 0].argsort()]  # organize the coordinates for monotonicity
+    xcoor = data[:, 0]  # x coordinates are in the first column, y should always be 1 now
+    neg_ind = np.where(xcoor <= 1)[0]  # using the pseudo dims definition of neg and pos electrodes
+    pos_ind = np.where(xcoor >= 1.5)[0]
+    cse = data[:, 2:]  # first two columns are the coordinates
+
+    return xcoor, cse.T, neg_ind, pos_ind
+
+
 def compose(inner, outer, degree=1):
     return fem.Expression(cppcode=expressions.composition, inner=inner, outer=outer, degree=degree)
 

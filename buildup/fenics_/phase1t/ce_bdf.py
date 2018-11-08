@@ -2,15 +2,16 @@ import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import integrate
-from scipy import interpolate as interp
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
-def run(comsol_time, return_comsol=False):
-    cmn, domain, comsol = common.prepare_comsol_buildup(comsol_time)
-    comsol_j = utilities.interp_time(comsol_time, comsol.data.j)
+def run(start_time, dt, stop_time, return_comsol=False):
+    cmn, domain, comsol = common.prepare_comsol_buildup()
+
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
     ce_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
@@ -21,8 +22,12 @@ def run(comsol_time, return_comsol=False):
     Lc = cmn.fenics_params.L
     n = domain.n
     dS = domain.dS
-    ce0 = np.empty(domain.mesh.coordinates().shape).flatten()
-    ce0.fill(cmn.consts.ce0)
+
+    if start_time < dt:
+        ce0 = np.empty(domain.mesh.coordinates().shape).flatten()
+        ce0.fill(cmn.consts.ce0)
+    else:
+        ce0 = comsol_ce(start_time)
 
     neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_fem('-')), n('-')) * v('-') * dS(2) + \
               de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_fem('+')), n('+')) * v('+') * dS(2) + \
@@ -38,6 +43,7 @@ def run(comsol_time, return_comsol=False):
         return utilities.get_1d(sol, domain.V)
 
     ce_bdf = integrate.BDF(fun, 0, ce0, 50, atol=1e-6, rtol=1e-5)
+
     # using standard lists for dynamic growth
     ce_sol = list()
     ce_sol.append(ce0)
