@@ -30,8 +30,8 @@ def run(time, dt, return_comsol=False):
 
     # explicit euler
     euler = equations.euler(ce_u, ce_c_1, dtc)
-    lhs, rhs = equations.ce(jbar_c_1, ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
-    F = lhs * euler * domain.dx - rhs * domain.dx - neumann
+    lhs, rhs1, rhs2 = equations.ce(jbar_c_1, ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = (lhs * euler - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) - neumann
 
     a = fem.lhs(F)
     L = fem.rhs(F)
