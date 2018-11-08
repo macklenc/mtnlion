@@ -66,7 +66,7 @@ def run(time, dt, return_comsol=False):
     for k, t in enumerate(time):
         utilities.assign_functions([comsol_j(t - dt)], [jbar_c], domain.V, ...)
         # TODO: make assignable with utilities.assign_functions
-        cs_1.vector()[:] = comsol_cs(t).astype('double')
+        cs_1.vector()[:] = comsol_cs(t - dt).astype('double')
         cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
         fem.solve(a == L, cs)
