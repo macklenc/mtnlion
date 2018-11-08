@@ -5,38 +5,36 @@ from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
-def run(time, solver, return_comsol=False):
-    cmn, domain, comsol = common.prepare_comsol_buildup(time)
+def run(time, dt, return_comsol=False):
+    cmn, domain, comsol = common.prepare_comsol_buildup()
 
-    phis_sol = utilities.create_solution_matrices(int(len(time) / 2), len(comsol.mesh), 1)[0]
+    comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
+    comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
+    comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
+    comsol_cse = utilities.interp_time(comsol.time_mesh, comsol.data.cse)
+
+    phis_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
     bc = [fem.DirichletBC(domain.V, 0.0, domain.boundary_markers, 1), 0]
     phis_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
 
     phis_c_, phie_c, ce_c, cse_c = utilities.create_functions(domain.V, 4)
-    phis = utilities.create_functions(domain.V, 1)[0]
     Iapp = fem.Constant(0)
 
-    # TODO: Fix j
     Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
     j = equations.j(ce_c, cse_c, phie_c, phis_c_, Uocp, **cmn.fenics_params, **cmn.fenics_consts)
-    # j = equations.j_new(ce_c, cse_c, phie_c, phis_c_, **cmn.fenics_params, **cmn.fenics_consts,
-    #                     dm=domain.domain_markers, V=domain.V)
 
     neumann = Iapp / cmn.fenics_consts.Acell * v * domain.ds(4)
 
     lhs, rhs = equations.phis(j, phis_c_, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = (lhs - rhs) * domain.dx((0, 2)) + fem.dot(phis_c_, v) * domain.dx(1) - neumann
 
-    k = 0
-    for i in range(int(len(time) / 2)):
-        i_1 = i * 2  # previous time step
-        i = i * 2 + 1  # current time step
-        utilities.assign_functions([comsol.data.phis], [phis_c_], domain.V, i_1)
-        utilities.assign_functions([comsol.data.phie, comsol.data.ce, comsol.data.cse],
-                                   [phie_c, ce_c, cse_c], domain.V, i)
-        Iapp.assign(float(cmn.Iapp(time[i])))
-        bc[1] = fem.DirichletBC(domain.V, comsol.data.phis[i, comsol.pos_ind][0], domain.boundary_markers, 3)
+    for k, t in enumerate(time):
+        utilities.assign_functions([comsol_phis(t - dt)], [phis_c_], domain.V, ...)
+        utilities.assign_functions([comsol_phie(t), comsol_ce(t), comsol_cse(t)],
+                                   [phie_c, ce_c, cse_c], domain.V, ...)
+        Iapp.assign(float(cmn.Iapp(t)))
+        bc[1] = fem.DirichletBC(domain.V, comsol_phis(t)[comsol.pos_ind][0], domain.boundary_markers, 3)
 
         J = fem.derivative(F, phis_c_, phis_u)
         problem = fem.NonlinearVariationalProblem(F, phis_c_, bc, J)
@@ -51,34 +49,31 @@ def run(time, solver, return_comsol=False):
 
         # solver(a == L, phis, phis_c_, bc)
         phis_sol[k, :] = utilities.get_1d(phis_c_, domain.V)
-        k += 1
 
     if return_comsol:
-        return phis_sol, comsol
+        return utilities.interp_time(time, phis_sol), comsol
     else:
-        return phis_sol
+        return utilities.interp_time(time, phis_sol)
 
 
 def main():
-    # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.INFO)
 
     # Times at which to run solver
-    time_in = [0.1, 5, 10, 15, 20]
-    # time_in = np.arange(0.1, 50, 0.1)
-    dt = 0.1
-    time = [None] * (len(time_in) * 2)
-    time[::2] = [t - dt for t in time_in]
-    time[1::2] = time_in
+    time = [0, 5, 10, 15, 20]
+    sim_dt = 0.1
+    plot_time = time
 
-    phis_sol, comsol = run(time, utilities.picard_solver, return_comsol=True)
-    utilities.report(comsol.neg, time_in, phis_sol[:, comsol.neg_ind],
-                     comsol.data.phis[:, comsol.neg_ind][1::2], '$\Phi_s^{neg}$')
-    utilities.save_plot(__file__, 'plots/compare_phis_neg.png')
+    phis_sol, comsol = run(time, sim_dt, return_comsol=True)
+    comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
+
+    utilities.report(comsol.neg, time, phis_sol(plot_time)[:, comsol.neg_ind],
+                     comsol_phis(plot_time)[:, comsol.neg_ind], '$\Phi_s^{neg}$')
+    utilities.save_plot(__file__, 'plots/compare_phis_neg_newton.png')
     plt.show()
-    utilities.report(comsol.pos, time_in, phis_sol[:, comsol.pos_ind],
-                     comsol.data.phis[:, comsol.pos_ind][1::2], '$\Phi_s^{pos}$')
-    utilities.save_plot(__file__, 'plots/compare_phis_pos.png')
+    utilities.report(comsol.pos, time, phis_sol(plot_time)[:, comsol.pos_ind],
+                     comsol_phis(plot_time)[:, comsol.pos_ind], '$\Phi_s^{pos}$')
+    utilities.save_plot(__file__, 'plots/compare_phis_pos_newton.png')
     plt.show()
 
 
