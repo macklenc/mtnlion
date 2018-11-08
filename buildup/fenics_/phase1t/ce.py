@@ -18,7 +18,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
     ce_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
 
-    jbar_c_1, ce_c, ce_c_1, ce = utilities.create_functions(domain.V, 4)
+    jbar_c, ce_c, ce_c_1, ce = utilities.create_functions(domain.V, 4)
 
     de_eff = cmn.fenics_params.De_eff
     Lc = cmn.fenics_params.L
@@ -30,7 +30,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
               dtc * de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_u('+')), n('+')) * v('+') * dS(3)
 
     euler = equations.euler(ce_u, ce_c_1, dtc)
-    lhs, rhs = equations.ce(jbar_c_1, ce_u, v, **cmn.fenics_params, **cmn.fenics_consts)
+    lhs, rhs = equations.ce(jbar_c, ce_u, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = lhs * euler * domain.dx - rhs * domain.dx
 
     F -= neumann
@@ -45,7 +45,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
     ce_sol[0, :] = utilities.get_1d(ce_c_1, domain.V)
 
     for k, t in enumerate(time[1:], 1):
-        utilities.assign_functions([comsol_j(t)], [jbar_c_1], domain.V, ...)
+        utilities.assign_functions([comsol_j(t)], [jbar_c], domain.V, ...)
 
         fem.solve(a == L, ce)
         ce_sol[k, :] = utilities.get_1d(ce, domain.V)
