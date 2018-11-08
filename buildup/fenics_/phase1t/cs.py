@@ -104,7 +104,7 @@ def main():
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    [sim_start_time, sim_dt, sim_stop_time] = [0, 0.1, 50]
+    [sim_start_time, sim_dt, sim_stop_time] = [0, 0.01, 50]
     plot_times = np.arange(0, 50, 5)
 
     cs_sol, pseudo_cse_sol, cse_sol, comsol = run(sim_start_time, sim_dt, sim_stop_time, return_comsol=True)
