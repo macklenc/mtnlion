@@ -40,7 +40,7 @@ def run(time, dt, return_comsol=False):
         utilities.create_solution_matrices(int(len(time) / 2), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
     cse_sol = utilities.create_solution_matrices(int(len(time) / 2), len(domain.mesh.coordinates()), 1)[0]
 
-    cs_u = fem.TrialFunction(pseudo_domain.V)
+    d_cs = fem.TrialFunction(pseudo_domain.V)
     v = fem.TestFunction(pseudo_domain.V)
 
     cs_1, cs, cs_f = utilities.create_functions(pseudo_domain.V, 3)
@@ -50,6 +50,11 @@ def run(time, dt, return_comsol=False):
 
     cse.set_allow_extrapolation(True)
     cse_1.set_allow_extrapolation(True)
+
+    cs_cse_to_cse = cross_domain(cs_f, electrode_domain.domain_markers,
+                                 fem.Expression(('x[0]', '1.0'), degree=1),
+                                 fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
+                                 fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
 
     # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
     asdf = utilities.piecewise(cmn.electrode_domain.mesh, cmn.electrode_domain.domain_markers, cmn.electrode_domain.V,
@@ -61,14 +66,11 @@ def run(time, dt, return_comsol=False):
                     dm=domain.domain_markers, V=domain.V)
 
     jhat = cross_domain(j, pseudo_domain.domain_markers,
-                        fem.Expression(('x[0]', '0', '0'), degree=1),
-                        fem.Expression(('2*x[0]-1', '0', '0'), degree=1),
-                        fem.Expression(('x[0] + 0.5', '0', '0'), degree=1))
+                        fem.Expression('x[0]', degree=1),
+                        fem.Expression('2*x[0]-1', degree=1),
+                        fem.Expression('x[0] + 0.5', degree=1))
 
-    cs_cse_to_cse = cross_domain(cs_f, electrode_domain.domain_markers,
-                                 fem.Expression(('x[0]', '1.0'), degree=1),
-                                 fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
-                                 fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
+
 
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
@@ -96,7 +98,7 @@ def run(time, dt, return_comsol=False):
         # utilities.assign_functions([comsol.data.j], [j_c_1], domain.V, i_1)
         cs_f.assign(cs_1)
 
-        J = fem.derivative(F, cs_f, cs_u)
+        J = fem.derivative(F, cs_f, d_cs)
 
         # utilities.newton_solver(F, phie_c_, bc, J, domain.V, relaxation=0.1)
         problem = fem.NonlinearVariationalProblem(F, cs_f, J=J)
