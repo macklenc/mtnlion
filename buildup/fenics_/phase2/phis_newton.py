@@ -32,7 +32,7 @@ def run(time, solver, return_comsol=False):
     for i in range(int(len(time) / 2)):
         i_1 = i * 2  # previous time step
         i = i * 2 + 1  # current time step
-        utilities.assign_functions([comsol.data.phis], [phis_c_], domain.V, i)
+        utilities.assign_functions([comsol.data.phis], [phis_c_], domain.V, i_1)
         utilities.assign_functions([comsol.data.phie, comsol.data.ce, comsol.data.cse],
                                    [phie_c, ce_c, cse_c], domain.V, i)
         Iapp.assign(float(cmn.Iapp(time[i])))
