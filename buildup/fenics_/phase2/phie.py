@@ -36,10 +36,9 @@ def run(time, dt, return_comsol=False):
     j = equations.j(ce_c, cse_c, phie_c_, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
                         dm=domain.domain_markers, V=domain.V)
 
-    lhs, rhs = equations.phie(j, ce_c, phie_c_, v, kappa_eff, kappa_Deff, **cmn.fenics_params, **cmn.fenics_consts)
-    lhs2, rhs2 = equations.phie(fem.Constant(0), ce_c, phie_c_, v, kappa_eff, kappa_Deff, **cmn.fenics_params,
-                                **cmn.fenics_consts)
-    F = (lhs - rhs) * domain.dx((0, 2)) + (lhs2 - rhs2) * domain.dx(1) + newmann_a - newmann_L
+    lhs, rhs1, rhs2 = equations.phie(j, ce_c, phie_c_, v, kappa_eff, kappa_Deff,
+                                     **cmn.fenics_params, **cmn.fenics_consts)
+    F = (lhs - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) + newmann_a - newmann_L
 
     for k, t in enumerate(time):
         utilities.assign_functions([comsol_phie(t - dt)], [phie_c_], domain.V, ...)
