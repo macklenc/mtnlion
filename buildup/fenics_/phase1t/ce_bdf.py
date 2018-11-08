@@ -8,14 +8,9 @@ from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
-def interp_time(data, time):
-    y = interp.interp1d(time, data, axis=0, fill_value='extrapolate')
-    return y
-
-
 def run(comsol_time, return_comsol=False):
     cmn, domain, comsol = common.prepare_comsol_buildup(comsol_time)
-    comsol_j = interp_time(comsol.data.j, comsol_time)
+    comsol_j = utilities.interp_time(comsol_time, comsol.data.j)
 
     ce_u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
@@ -63,9 +58,9 @@ def run(comsol_time, return_comsol=False):
     time_vec = np.array(time_vec)
 
     if return_comsol:
-        return interp_time(ce_sol, time_vec), comsol
+        return utilities.interp_time(time_vec, ce_sol), comsol
     else:
-        return interp_time(ce_sol, time_vec)
+        return utilities.interp_time(time_vec, ce_sol)
 
 
 def main():
@@ -80,7 +75,7 @@ def main():
     ce_sol, comsol = run(time_in, return_comsol=True)
     # plt.plot(ce_sol.T)
     utilities.report(comsol.mesh, plot_times, ce_sol(plot_times),
-                     interp_time(comsol.data.ce, time_in)(plot_times), '$c_e$')
+                     utilities.interp_time(time_in, comsol.data.ce)(plot_times), '$c_e$')
     utilities.save_plot(__file__, 'plots/compare_ce_time.png')
     plt.show()
 

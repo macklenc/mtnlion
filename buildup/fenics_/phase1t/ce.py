@@ -7,17 +7,12 @@ from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
-def interp_time(data, time):
-    y = interp.interp1d(time, data, axis=0, fill_value='extrapolate')
-    return y
-
-
 def run(time, dt, return_comsol=False):
     dtc = fem.Constant(dt)
     cmn, domain, comsol = common.prepare_comsol_buildup(time)
 
-    comsol_j = interp_time(comsol.data.j, time)
-    comsol_ce = interp_time(comsol.data.ce, time)
+    comsol_j = utilities.interp_time(time, comsol.data.j)
+    comsol_ce = utilities.interp_time(time, comsol.data.ce)
 
     ce_sol = utilities.create_solution_matrices(len(time), len(comsol.mesh), 1)[0]
     ce_u = fem.TrialFunction(domain.V)
