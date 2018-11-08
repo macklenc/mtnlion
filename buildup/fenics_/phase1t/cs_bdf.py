@@ -32,23 +32,19 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
     jbar_c = utilities.create_functions(domain.V, 1)[0]
     cse = utilities.create_functions(electrode_domain.V, 1)[0]
-    cs_jbar, cs_cse = utilities.create_functions(cse_domain.V, 2)
+    cs_cse = utilities.create_functions(cse_domain.V, 1)[0]
 
-    cs_jbar.set_allow_extrapolation(True)
     cse.set_allow_extrapolation(True)
 
-    jbar_to_pseudo = cross_domain(jbar_c, cse_domain.domain_markers,
-                                  fem.Expression('x[0]', degree=1),
-                                  fem.Expression('2*x[0]-1', degree=1),
-                                  fem.Expression('x[0] + 0.5', degree=1))
+    jhat = cross_domain(jbar_c, pseudo_domain.domain_markers,
+                        fem.Expression('x[0]', degree=1),
+                        fem.Expression('2*x[0]-1', degree=1),
+                        fem.Expression('x[0] + 0.5', degree=1))
 
-    cs_cse_to_cse = cross_domain(cs_fem, electrode_domain.domain_markers,
-                                 fem.Expression(('x[0]', '1.0'), degree=1),
-                                 fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
-                                 fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
-
-    ds = pseudo_domain.ds
-    dx = pseudo_domain.dx
+    cse_f = cross_domain(cs_fem, electrode_domain.domain_markers,
+                         fem.Expression(('x[0]', '1.0'), degree=1),
+                         fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
+                         fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
 
     if start_time < dt:  # TODO implement real cs0 here
         # cs0 = np.empty(domain.mesh.coordinates().shape).flatten()
@@ -59,9 +55,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
         cs0 = comsol_cs(start_time)
         cse0 = comsol_cse(start_time)
 
-    rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
-    jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
-    neumann = jbar * v * ds(5)
+    neumann = jhat * v * pseudo_domain.ds(5)
 
     lhs, rhs = equations.cs(cs_fem, v, **cmn.fenics_params, **cmn.fenics_consts)
     cs_eq = rhs * pseudo_domain.dx - neumann
@@ -71,7 +65,6 @@ def run(start_time, dt, stop_time, return_comsol=False):
     def fun(t, cs):
         utilities.assign_functions([comsol_j(t)], [jbar_c], domain.V, ...)
         cs_fem.vector()[:] = cs.astype('double')
-        cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
         fem.solve(lhs * cs_u * pseudo_domain.dx == cs_eq, sol)
         return sol.vector().get_local()
@@ -97,7 +90,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
         cs_sol.append(cs_bdf.dense_output()(cs_bdf.t))
 
         cs_cse.assign(fem.interpolate(cs_fem, cse_domain.V))
-        cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
+        cse.assign(fem.interpolate(cse_f, electrode_domain.V))
 
         pseudo_cse_sol.append(cs_cse.vector().get_local())  # used to show that cs computed correctly
         cse_sol.append(utilities.get_1d(fem.interpolate(cse, domain.V), domain.V))  # desired result
