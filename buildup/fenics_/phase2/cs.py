@@ -1,6 +1,5 @@
 import fenics as fem
 import matplotlib.pyplot as plt
-import numpy as np
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
@@ -37,12 +36,11 @@ def run(time, dt, return_comsol=False):
     v = fem.TestFunction(pseudo_domain.V)
 
     cs_1, cs, cs_f = utilities.create_functions(pseudo_domain.V, 3)
-    cse_1, cse = utilities.create_functions(electrode_domain.V, 2)
+    cse = utilities.create_functions(electrode_domain.V, 1)[0]
     cs_cse = utilities.create_functions(cse_domain.V, 1)[0]
     phis_c, phie_c, ce_c = utilities.create_functions(domain.V, 3)
 
     cse.set_allow_extrapolation(True)
-    cse_1.set_allow_extrapolation(True)
 
     cse_f = cross_domain(cs_f, electrode_domain.domain_markers,
                          fem.Expression(('x[0]', '1.0'), degree=1),
@@ -68,32 +66,24 @@ def run(time, dt, return_comsol=False):
     euler = equations.euler(cs_f, cs_1, dtc)
     lhs, rhs = equations.cs(cs_f, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = lhs * euler * dx - rhs * dx + neumann
+    J = fem.derivative(F, cs_f, d_cs)
+    problem = fem.NonlinearVariationalProblem(F, cs_f, J=J)
+    solver = fem.NonlinearVariationalSolver(problem)
+
+    prm = solver.parameters
+    prm['newton_solver']['absolute_tolerance'] = 1e-12
+    prm['newton_solver']['relative_tolerance'] = 1e-12
+    prm['newton_solver']['maximum_iterations'] = 5000
+    prm['newton_solver']['relaxation_parameter'] = 1.0
 
     # cse_1.vector()[:] = np.append(comsol.data.cse[0, comsol.neg_ind], comsol.data.cse[0, comsol.pos_ind])
 
     for k, t in enumerate(time):
         utilities.assign_functions([comsol_ce(t), comsol_phis(t), comsol_phie(t)],
                                    [ce_c, phis_c, phie_c], domain.V, ...)
-        utilities.assign_functions(
-            [np.append(comsol_cse(t - dt)[comsol.neg_ind], comsol_cse(t - dt)[comsol.pos_ind], axis=0)], [cse_1],
-            electrode_domain.V, ...)
-
         cs_1.vector()[:] = comsol_cs(t - dt).astype('double')
 
-        # utilities.assign_functions([comsol.data.j], [j_c_1], domain.V, i_1)
         cs_f.assign(cs_1)
-
-        J = fem.derivative(F, cs_f, d_cs)
-
-        # utilities.newton_solver(F, phie_c_, bc, J, domain.V, relaxation=0.1)
-        problem = fem.NonlinearVariationalProblem(F, cs_f, J=J)
-        solver = fem.NonlinearVariationalSolver(problem)
-
-        prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-12
-        prm['newton_solver']['relative_tolerance'] = 1e-12
-        prm['newton_solver']['maximum_iterations'] = 5000
-        prm['newton_solver']['relaxation_parameter'] = 1.0
         solver.solve()
 
         cs_cse.assign(fem.interpolate(cs_f, cse_domain.V))
@@ -102,7 +92,7 @@ def run(time, dt, return_comsol=False):
         pseudo_cse_sol[k, :] = cs_cse.vector().get_local()  # used to show that cs computed correctly
         cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse, domain.V), domain.V)  # desired result
         # TODO: make usable with get 1d
-        cs_sol[k, :] = cs.vector().get_local()  # used to prove that cs computed correctly
+        cs_sol[k, :] = cs_f.vector().get_local()  # used to prove that cs computed correctly
 
     if return_comsol:
         return utilities.interp_time(time, cs_sol), utilities.interp_time(time, pseudo_cse_sol), utilities.interp_time(
