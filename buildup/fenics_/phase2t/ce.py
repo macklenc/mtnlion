@@ -41,6 +41,15 @@ def run(start_time, dt, stop_time, return_comsol=False):
     euler = equations.euler(ce_c_, ce_c_1, dtc)
     lhs, rhs1, rhs2 = equations.ce(j, ce_c_, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = (lhs * euler - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) + neumann
+    J = fem.derivative(F, ce_c_, ce_u)
+    problem = fem.NonlinearVariationalProblem(F, ce_c_, J=J)
+    solver = fem.NonlinearVariationalSolver(problem)
+
+    prm = solver.parameters
+    prm['newton_solver']['absolute_tolerance'] = 1e-8
+    prm['newton_solver']['relative_tolerance'] = 1e-7
+    prm['newton_solver']['maximum_iterations'] = 5000
+    prm['newton_solver']['relaxation_parameter'] = 0.18
 
     if start_time < dt:
         ce_c_1.assign(cmn.fenics_consts.ce0)
@@ -54,18 +63,6 @@ def run(start_time, dt, stop_time, return_comsol=False):
         utilities.assign_functions([comsol_cse(t), comsol_phis(t), comsol_phie(t)],
                                    [cse_c, phis_c, phie_c], domain.V, ...)
 
-        bc = fem.DirichletBC(domain.V, comsol_ce(t)[0], domain.boundary_markers, 1)
-        J = fem.derivative(F, ce_c_, ce_u)
-
-        # utilities.newton_solver(F, phie_c_, bc, J, domain.V, relaxation=0.1)
-        problem = fem.NonlinearVariationalProblem(F, ce_c_, bc, J)
-        solver = fem.NonlinearVariationalSolver(problem)
-
-        prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-8
-        prm['newton_solver']['relative_tolerance'] = 1e-7
-        prm['newton_solver']['maximum_iterations'] = 5000
-        prm['newton_solver']['relaxation_parameter'] = 0.18
         iterations, converged = solver.solve()
 
         ce_c_1.assign(ce_c_)
