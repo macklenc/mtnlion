@@ -6,19 +6,6 @@ from buildup import (common, utilities)
 from mtnlion.newman import equations
 
 
-def find_cse_from_cs(comsol):
-    data = np.append(comsol.pseudo_mesh, comsol.data.cs.T, axis=1)  # grab cs for each time
-    indices = np.where(np.abs(data[:, 1] - 1.0) <= 1e-5)[0]  # find the indices of the solution where r=1 (cse)
-    data = data[indices]  # reduce data set to only show cse
-    data = data[data[:, 0].argsort()]  # organize the coordinates for monotonicity
-    xcoor = data[:, 0]  # x coordinates are in the first column, y should always be 1 now
-    neg_ind = np.where(xcoor <= 1)[0]  # using the pseudo dims definition of neg and pos electrodes
-    pos_ind = np.where(xcoor >= 1.5)[0]
-    cse = data[:, 2:]  # first two columns are the coordinates
-
-    return xcoor, cse.T, neg_ind, pos_ind
-
-
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
 def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
@@ -50,20 +37,19 @@ def run(start_time, dt, stop_time, return_comsol=False):
     cs_1, cs = utilities.create_functions(pseudo_domain.V, 2)
     jbar_c = utilities.create_functions(domain.V, 1)[0]
     cse = utilities.create_functions(electrode_domain.V, 1)[0]
-    cs_jbar, cs_cse = utilities.create_functions(cse_domain.V, 2)
+    cs_cse = utilities.create_functions(cse_domain.V, 1)[0]
 
-    cs_jbar.set_allow_extrapolation(True)
     cse.set_allow_extrapolation(True)
 
-    jbar_to_pseudo = cross_domain(jbar_c, cse_domain.domain_markers,
-                                  fem.Expression('x[0]', degree=1),
-                                  fem.Expression('2*x[0]-1', degree=1),
-                                  fem.Expression('x[0] + 0.5', degree=1))
+    jhat = cross_domain(jbar_c, pseudo_domain.domain_markers,
+                        fem.Expression('x[0]', degree=1),
+                        fem.Expression('2*x[0]-1', degree=1),
+                        fem.Expression('x[0] + 0.5', degree=1))
 
-    cs_cse_to_cse = cross_domain(cs, electrode_domain.domain_markers,
-                                 fem.Expression(('x[0]', '1.0'), degree=1),
-                                 fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
-                                 fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
+    cse_f = cross_domain(cs, electrode_domain.domain_markers,
+                         fem.Expression(('x[0]', '1.0'), degree=1),
+                         fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
+                         fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
 
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
@@ -78,9 +64,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
         cs0 = comsol_cs(start_time)
         cse0 = comsol_cse(start_time)
 
-    rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
-    jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
-    neumann = rbar2 * jbar * v * ds(5)
+    neumann = jhat * v * ds(5)
 
     euler = equations.euler(cs_u, cs_1, dtc)
     lhs, rhs = equations.cs(cs_u, v, **cmn.fenics_params, **cmn.fenics_consts)
@@ -97,12 +81,11 @@ def run(start_time, dt, stop_time, return_comsol=False):
     for k, t in enumerate(time[1:], 1):
         print('time = {}'.format(t))
         utilities.assign_functions([comsol_j(t)], [jbar_c], domain.V, ...)
-        cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
         fem.solve(a == L, cs)
         cs_1.assign(cs)
         cs_cse.assign(fem.interpolate(cs, cse_domain.V))
-        cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
+        cse.assign(fem.interpolate(cse_f, electrode_domain.V))
 
         pseudo_cse_sol[k, :] = cs_cse.vector().get_local()  # used to show that cs computed correctly
         cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse, domain.V), domain.V)  # desired result

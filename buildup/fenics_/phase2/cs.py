@@ -50,9 +50,6 @@ def run(time, dt, return_comsol=False):
                          fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
 
     # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
-    asdf = utilities.piecewise(cmn.electrode_domain.mesh, cmn.electrode_domain.domain_markers, cmn.electrode_domain.V,
-                               *cmn.params.csmax)
-    cmn.fenics_params.csmax = asdf
     Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
                                  cse_f, cmn.fenics_params.csmax, utilities)
     j = equations.j(ce_c, cse_f, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,

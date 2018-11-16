@@ -34,31 +34,25 @@ def run(time, dt, return_comsol=False):
     cs_1, cs = utilities.create_functions(pseudo_domain.V, 2)
     jbar_c = utilities.create_functions(domain.V, 1)[0]
     cse = utilities.create_functions(electrode_domain.V, 1)[0]
-    cs_jbar, cs_cse = utilities.create_functions(cse_domain.V, 2)
+    cs_cse = utilities.create_functions(cse_domain.V, 1)[0]
 
-    cs_jbar.set_allow_extrapolation(True)
     cse.set_allow_extrapolation(True)
 
-    jbar_to_pseudo = cross_domain(jbar_c, cse_domain.domain_markers,
-                                  fem.Expression('x[0]', degree=1),
-                                  fem.Expression('2*x[0]-1', degree=1),
-                                  fem.Expression('x[0] + 0.5', degree=1))
+    jhat = cross_domain(jbar_c, pseudo_domain.domain_markers,
+                        fem.Expression('x[0]', degree=1),
+                        fem.Expression('2*x[0]-1', degree=1),
+                        fem.Expression('x[0] + 0.5', degree=1))
 
-    cs_cse_to_cse = cross_domain(cs, electrode_domain.domain_markers,
-                                 fem.Expression(('x[0]', '1.0'), degree=1),
-                                 fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
-                                 fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
+    cse_f = cross_domain(cs, electrode_domain.domain_markers,
+                         fem.Expression(('x[0]', '1.0'), degree=1),
+                         fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
+                         fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
 
-    ds = pseudo_domain.ds
-    dx = pseudo_domain.dx
-
-    rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
-    jbar = fem.Expression('j', j=cs_jbar, degree=1)  # HACK! TODO: figure out a way to make fenics happy with cs_jbar
-    neumann = rbar2 * jbar * v * ds(5)
+    neumann = jhat * v * pseudo_domain.ds(5)
 
     euler = equations.euler(cs_u, cs_1, dtc)
     lhs, rhs = equations.cs(cs_1, v, **cmn.fenics_params, **cmn.fenics_consts)
-    F = lhs * euler * dx - rhs * dx + neumann
+    F = (lhs * euler - rhs) * pseudo_domain.dx + neumann
 
     a = fem.lhs(F)
     L = fem.rhs(F)
@@ -67,11 +61,10 @@ def run(time, dt, return_comsol=False):
         utilities.assign_functions([comsol_j(t - dt)], [jbar_c], domain.V, ...)
         # TODO: make assignable with utilities.assign_functions
         cs_1.vector()[:] = comsol_cs(t - dt).astype('double')
-        cs_jbar.assign(fem.interpolate(jbar_to_pseudo, cse_domain.V))
 
         fem.solve(a == L, cs)
         cs_cse.assign(fem.interpolate(cs, cse_domain.V))
-        cse.assign(fem.interpolate(cs_cse_to_cse, electrode_domain.V))
+        cse.assign(fem.interpolate(cse_f, electrode_domain.V))
 
         pseudo_cse_sol[k, :] = cs_cse.vector().get_local()  # used to show that cs computed correctly
         cse_sol[k, :] = utilities.get_1d(fem.interpolate(cse, domain.V), domain.V)  # desired result
