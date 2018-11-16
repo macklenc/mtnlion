@@ -12,10 +12,11 @@ def phis(jbar, phis, v, a_s, F, sigma_eff, L, **kwargs):
 
 
 def phie(jbar, ce, phie, v, kappa_eff, kappa_Deff, L, a_s, F, **kwargs):
-    lhs = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v))
-    rhs = L * a_s * F * jbar * v - kappa_Deff / L * fem.dot(fem.grad(fem.ln(ce)), fem.grad(v))
+    lhs = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v))  # all domains
+    rhs1 = - kappa_Deff / L * fem.dot(fem.grad(fem.ln(ce)), fem.grad(v))  # all domains
+    rhs2 = L * a_s * F * jbar * v  # electrodes
 
-    return lhs, rhs
+    return lhs, rhs1, rhs2
 
 
 def euler(y, y_1, dt):
@@ -25,10 +26,11 @@ def euler(y, y_1, dt):
 
 
 def ce(jbar, ce, v, a_s, De_eff, t_plus, L, eps_e, **kwargs):
-    lhs = L * eps_e * v
-    rhs = -De_eff / L * fem.dot(fem.grad(ce), fem.grad(v)) + L * a_s * (fem.Constant(1) - t_plus) * jbar * v
+    lhs = L * eps_e * v  # all domains
+    rhs1 = -De_eff / L * fem.dot(fem.grad(ce), fem.grad(v))  # all domains
+    rhs2 = L * a_s * (fem.Constant(1) - t_plus) * jbar * v  # electrodes
 
-    return lhs, rhs
+    return lhs, rhs1, rhs2
 
 
 def cs(cs, v, Rs, Ds_ref, **kwargs):

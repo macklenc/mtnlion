@@ -32,15 +32,12 @@ def collect_fenics_const(const):
     return munch.Munch(n_dict)
 
 
-def collect_fenics_params(params, mesh, dm, V):
+def collect_fenics_params(params, func):
     n_dict = dict()
 
     for k, v in params.items():
         if isinstance(v, np.ndarray):
-            try:
-                n_dict[k] = utilities.piecewise(mesh, dm, V, *v)
-            except TypeError:
-                n_dict[k] = v
+            n_dict[k] = func(v)
         else:
             n_dict[k] = v
 
@@ -150,8 +147,19 @@ class Common:
             domain2.generate_domain(self.comsol_solution.mesh, fem.Mesh(pseudo_mesh_file))
 
         self.V0 = fem.FunctionSpace(self.domain.mesh, 'DG', 0)
+        self.V0_electrode = fem.FunctionSpace(self.electrode_domain.mesh, 'DG', 0)
 
-        self.fenics_params = collect_fenics_params(self.params, self.domain.mesh, self.domain.domain_markers, self.V0)
+        def fenics_params_func(v):
+            try:
+                if v[1] != 0:
+                    return utilities.piecewise(self.domain.mesh, self.domain.domain_markers, self.V0, *v)
+                else:
+                    return utilities.piecewise(self.electrode_domain.mesh, self.electrode_domain.domain_markers,
+                                               self.V0_electrode, *v)
+            except TypeError:
+                return v
+
+        self.fenics_params = collect_fenics_params(self.params, fenics_params_func)
         x = sym.Symbol('x[0]')
         self.fenics_params['uocp_str'] = sym.Piecewise((self.params.Uocp_neg, x <= 1 + fem.DOLFIN_EPS),
                                                        (self.params.Uocp_pos, x >= 2 - fem.DOLFIN_EPS),

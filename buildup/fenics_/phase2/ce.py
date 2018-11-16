@@ -38,9 +38,8 @@ def run(time, dt, return_comsol=False):
                     dm=domain.domain_markers, V=domain.V)
 
     euler = equations.euler(ce_c_, ce_c_1, dtc)
-    lhs, rhs = equations.ce(j, ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
-    lhs2, rhs2 = equations.ce(fem.Constant(0), ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
-    F = (lhs * euler - rhs) * domain.dx((0, 2)) + (lhs2 * euler - rhs2) * domain.dx(1) + neumann
+    lhs, rhs1, rhs2 = equations.ce(j, ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
+    F = (lhs * euler - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) + neumann
 
     for k, t in enumerate(time):
         utilities.assign_functions([comsol_ce(t - dt), comsol_cse(t - dt), comsol_phis(t - dt), comsol_phie(t - dt)],
