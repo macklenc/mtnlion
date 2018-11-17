@@ -1,7 +1,7 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import integrate
+from scipy import integrate, interpolate
 
 from buildup import (common, utilities)
 from mtnlion.newman import equations
@@ -74,7 +74,13 @@ def run(start_time, dt, stop_time, return_comsol=False):
     cs_sol = list()
     cs_sol.append(cs0)
     pseudo_cse_sol = list()
-    pseudo_cse_sol.append(np.append(comsol_cse(start_time)[comsol.neg_ind], comsol_cse(start_time)[comsol.pos_ind]))
+
+    cse_x = interpolate.interp1d(comsol.mesh, comsol_cse(start_time), fill_value='extrapolate')
+    cse_coor = cse_domain.mesh.coordinates()[fem.dof_to_vertex_map(cse_domain.V)]
+    cse_tr_coor = np.array(
+        [cse_coor[i, 0] if cse_coor[i, 0] <= 1 else cse_coor[i, 0] + 0.5 for i in range(len(cse_coor[:, 0]))])
+
+    pseudo_cse_sol.append(cse_x(cse_tr_coor))
     cse_sol = list()
     cse_sol.append(cse0)
     time_vec = list()
