@@ -18,10 +18,10 @@ def gather_data():
     localdir = os.path.dirname(__file__)
     resources = os.path.join(localdir, 'reference/')
     params = engine.fetch_params(os.path.join(resources, 'GuAndWang_parameter_list.xlsx'))
-    d_comsol = comsol.load(os.path.join(resources, 'guwang.npz'))
-    pseudo_mesh_file = os.path.join(resources, 'comsol_solution/cs.xml')
+    d_comsol = comsol.load(os.path.join(resources, 'guwang_hifi.npz'))
+    pseudo_mesh_file = os.path.join(resources, 'comsol_solution/hifi/cs.xml')
     Uocp_spline = loader.load_numpy_file(os.path.join(resources, 'Uocp_spline.npz'))
-    input_current = loader.load_csv_file(os.path.join(resources, 'comsol_solution/input_current.csv.bz2'))
+    input_current = loader.load_csv_file(os.path.join(resources, 'comsol_solution/hifi/input_current.csv.bz2'))
     return d_comsol, params, pseudo_mesh_file, Uocp_spline, input_current
 
 
