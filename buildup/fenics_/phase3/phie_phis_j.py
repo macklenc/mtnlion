@@ -30,7 +30,7 @@ def run(time, dt, return_comsol=False):
     j_sol = utilities.create_solution_matrices(len(time), len(domain.mesh.coordinates()), 1)[0]
     bc = [fem.DirichletBC(W.sub(0), 0.0, domain.boundary_markers, 1), 0, 0]
 
-    phis_c_, phie_c, ce_c, cse_c, j_c = utilities.create_functions(domain.V, 5)
+    phis_c_, phie_c_, ce_c, cse_c, j_c = utilities.create_functions(domain.V, 5)
     Iapp = fem.Constant(0)
 
     # Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
@@ -58,6 +58,7 @@ def run(time, dt, return_comsol=False):
 
     F = (phis_lhs - phis_rhs) * domain.dx((0, 2)) + fem.dot(phis, v_phis) * domain.dx(1) - phis_neumann
     F += (phie_lhs - phie_rhs1) * domain.dx - phie_rhs2 * domain.dx((0, 2)) + phie_newmann_a - phie_newmann_L
+    J = fem.derivative(F, u, du)
 
     # for evaluating j
     u_j = fem.TrialFunction(domain.V)
@@ -66,16 +67,15 @@ def run(time, dt, return_comsol=False):
     L_j = j * v_j * domain.dx((0, 2))
 
     for k, t in enumerate(time):
-        utilities.assign_functions([comsol_phis(t - dt), comsol_phie(t - dt)], [phis_c_, phie_c], domain.V, ...)
+        utilities.assign_functions([comsol_phis(t - dt), comsol_phie(t - dt)], [phis_c_, phie_c_], domain.V, ...)
         utilities.assign_functions([comsol_ce(t), comsol_cse(t), comsol_j(t)],
                                    [ce_c, cse_c, j_c], domain.V, ...)
         fem.assign(u.sub(0), phis_c_)
-        fem.assign(u.sub(1), phie_c)
+        fem.assign(u.sub(1), phie_c_)
         Iapp.assign(float(cmn.Iapp(t)))
         bc[1] = fem.DirichletBC(W.sub(0), comsol_phis(t)[comsol.pos_ind][0], domain.boundary_markers, 3)
         bc[2] = fem.DirichletBC(W.sub(1), comsol_phie(t)[0], domain.boundary_markers, 1)
 
-        J = fem.derivative(F, u, du)
         problem = fem.NonlinearVariationalProblem(F, u, bc, J)
         solver = fem.NonlinearVariationalSolver(problem)
 
@@ -89,19 +89,19 @@ def run(time, dt, return_comsol=False):
         fem.solve(a_j == L_j, j_c)
 
         phis_c_.assign(u.sub(0, True))
-        phie_c.assign(u.sub(1, True))
+        phie_c_.assign(u.sub(1, True))
 
         # solver(a == L, phis, phis_c_, bc)
         phis_sol[k, :] = utilities.get_1d(phis_c_, domain.V)
-        phie_sol[k, :] = utilities.get_1d(phie_c, domain.V)
+        phie_sol[k, :] = utilities.get_1d(phie_c_, domain.V)
         j_sol[k, :] = utilities.get_1d(fem.interpolate(j_c, domain.V), domain.V)
 
     if return_comsol:
-        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol), utilities.interp_time(time,
-                                                                                                                   j_sol), comsol
+        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol), \
+               utilities.interp_time(time, j_sol), comsol
     else:
-        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol), utilities.interp_time(time,
-                                                                                                                   j_sol)
+        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol), \
+               utilities.interp_time(time, j_sol)
 
 
 def main():
