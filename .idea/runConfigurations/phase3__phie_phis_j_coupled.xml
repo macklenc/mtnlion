@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="phase3: phie phis coupled" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="phase3: phie phis j coupled" type="PythonConfigurationType" factoryName="Python">
     <module name="mtnlion" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
