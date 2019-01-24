@@ -32,10 +32,12 @@ def run(time, dt, return_comsol=False):
     phis_c_, phie_c, ce_c, cse_c, j_c = utilities.create_functions(domain.V, 5)
     Iapp = fem.Constant(0)
 
-    Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
-    j = equations.j(ce_c, cse_c, phie_c, u.sub(0), Uocp, **cmn.fenics_params, **cmn.fenics_consts)
+    # Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
+    Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
+                                 cse_c, cmn.fenics_params.csmax, utilities)
+    j = equations.j(ce_c, cse_c, u.sub(1), u.sub(0), Uocp, **cmn.fenics_params, **cmn.fenics_consts)
     kappa_eff, kappa_Deff = common.kappa_Deff(ce_c, **cmn.fenics_params, **cmn.fenics_consts)
-    j = j_c
+    # j = j_c
 
     Lc = cmn.fenics_params.L
 
@@ -71,10 +73,10 @@ def run(time, dt, return_comsol=False):
         solver = fem.NonlinearVariationalSolver(problem)
 
         prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-7
-        prm['newton_solver']['relative_tolerance'] = 1e-7
+        prm['newton_solver']['absolute_tolerance'] = 1e-8
+        prm['newton_solver']['relative_tolerance'] = 1e-8
         prm['newton_solver']['maximum_iterations'] = 1000
-        prm['newton_solver']['relaxation_parameter'] = 1.0
+        prm['newton_solver']['relaxation_parameter'] = 0.18
         solver.solve()
 
         phis_c_.assign(u.sub(0, True))
