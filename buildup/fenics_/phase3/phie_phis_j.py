@@ -27,6 +27,7 @@ def run(time, dt, return_comsol=False):
 
     phis_sol = utilities.create_solution_matrices(len(time), len(domain.mesh.coordinates()), 1)[0]
     phie_sol = utilities.create_solution_matrices(len(time), len(domain.mesh.coordinates()), 1)[0]
+    j_sol = utilities.create_solution_matrices(len(time), len(domain.mesh.coordinates()), 1)[0]
     bc = [fem.DirichletBC(W.sub(0), 0.0, domain.boundary_markers, 1), 0, 0]
 
     phis_c_, phie_c, ce_c, cse_c, j_c = utilities.create_functions(domain.V, 5)
@@ -58,6 +59,12 @@ def run(time, dt, return_comsol=False):
     F = (phis_lhs - phis_rhs) * domain.dx((0, 2)) + fem.dot(phis, v_phis) * domain.dx(1) - phis_neumann
     F += (phie_lhs - phie_rhs1) * domain.dx - phie_rhs2 * domain.dx((0, 2)) + phie_newmann_a - phie_newmann_L
 
+    # for evaluating j
+    u_j = fem.TrialFunction(domain.V)
+    v_j = fem.TestFunction(domain.V)
+    a_j = fem.dot(u_j, v_j) * domain.dx((0, 2))
+    L_j = j * v_j * domain.dx((0, 2))
+
     for k, t in enumerate(time):
         utilities.assign_functions([comsol_phis(t - dt), comsol_phie(t - dt)], [phis_c_, phie_c], domain.V, ...)
         utilities.assign_functions([comsol_ce(t), comsol_cse(t), comsol_j(t)],
@@ -79,17 +86,22 @@ def run(time, dt, return_comsol=False):
         prm['newton_solver']['relaxation_parameter'] = 0.18
         solver.solve()
 
+        fem.solve(a_j == L_j, j_c)
+
         phis_c_.assign(u.sub(0, True))
         phie_c.assign(u.sub(1, True))
 
         # solver(a == L, phis, phis_c_, bc)
         phis_sol[k, :] = utilities.get_1d(phis_c_, domain.V)
         phie_sol[k, :] = utilities.get_1d(phie_c, domain.V)
+        j_sol[k, :] = utilities.get_1d(fem.interpolate(j_c, domain.V), domain.V)
 
     if return_comsol:
-        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol), comsol
+        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol), utilities.interp_time(time,
+                                                                                                                   j_sol), comsol
     else:
-        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol)
+        return utilities.interp_time(time, phis_sol), utilities.interp_time(time, phie_sol), utilities.interp_time(time,
+                                                                                                                   j_sol)
 
 
 def main():
@@ -100,21 +112,31 @@ def main():
     sim_dt = 0.1
     plot_time = time
 
-    phis_sol, phie_sol, comsol = run(time, sim_dt, return_comsol=True)
+    phis_sol, phie_sol, j_sol, comsol = run(time, sim_dt, return_comsol=True)
     comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
     comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
+    comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
 
     utilities.report(comsol.neg, time, phis_sol(plot_time)[:, comsol.neg_ind],
                      comsol_phis(plot_time)[:, comsol.neg_ind], '$\Phi_s^{neg}$')
-    utilities.save_plot(__file__, 'plots/compare_phis_neg_newton.png')
+    utilities.save_plot(__file__, 'plots/coupled_phie_phis_j/compare_phis_neg_newton.png')
     plt.show()
     utilities.report(comsol.pos, time, phis_sol(plot_time)[:, comsol.pos_ind],
                      comsol_phis(plot_time)[:, comsol.pos_ind], '$\Phi_s^{pos}$')
-    utilities.save_plot(__file__, 'plots/compare_phis_pos_newton.png')
+    utilities.save_plot(__file__, 'plots/coupled_phie_phis_j/compare_phis_pos_newton.png')
     plt.show()
 
     utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
-    utilities.save_plot(__file__, 'plots/compare_phie.png')
+    utilities.save_plot(__file__, 'plots/coupled_phie_phis_j/compare_phie.png')
+    plt.show()
+
+    utilities.report(comsol.neg, time, j_sol(plot_time)[:, comsol.neg_ind],
+                     comsol_j(plot_time)[:, comsol.neg_ind], '$j^{neg}$')
+    utilities.save_plot(__file__, 'plots/coupled_phie_phis_j/compare_j_neg_newton.png')
+    plt.show()
+    utilities.report(comsol.pos, time, j_sol(plot_time)[:, comsol.pos_ind],
+                     comsol_j(plot_time)[:, comsol.pos_ind], '$j^{pos}$')
+    utilities.save_plot(__file__, 'plots/coupled_phie_phis_j/compare_j_pos_newton.png')
     plt.show()
 
 
