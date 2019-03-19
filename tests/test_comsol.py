@@ -4,15 +4,15 @@
 """Tests for `comsol` module."""
 
 import os
-from typing import List, Union, Callable
+from typing import Callable, List, Union
 
+from mtnlion import comsol
 import numpy as np
 import pytest
 
-from mtnlion import comsol
-
 
 def test_fix_boundaries() -> None:
+    """Test the removal of duplicate boundaries and the addition of missing boundaries."""
     boundaries = [4, 5, 6]
     test1_mesh = np.arange(0, 10)
     test2_mesh = np.insert(test1_mesh, [4, 5], [4, 5])
@@ -35,15 +35,16 @@ def test_fix_boundaries() -> None:
 @pytest.fixture()
 def make_cell() -> Union[comsol.domain.ReferenceCell, Callable]:
     """
-    Create a reference cell
+    Create a reference cell.
+
     :return: reference cell
     """
-
     # TODO: test pseudo mesh
     def cell(mesh: np.ndarray = None, pseudo_mesh: np.ndarray = None, time_mesh: np.ndarray = None,
              bound: List[float] = None, **kwargs: np.ndarray) -> comsol.domain.ReferenceCell:
         """
-        Create a reference cell with default values
+        Create a reference cell with default values.
+
         :param pseudo_mesh:
         :param mesh: space mesh
         :param time_mesh: time mesh
@@ -66,6 +67,7 @@ def make_cell() -> Union[comsol.domain.ReferenceCell, Callable]:
 
 
 def test_remove_dup_boundary(make_cell: Union[comsol.domain.ReferenceCell, Callable]) -> None:
+    """Test the removal of duplicate boundary values."""
     data = np.array([range(0, 9), range(9, 18)])
     expected = np.array([[0, 1, 2, 4, 6, 7, 8], [9, 10, 11, 13, 15, 16, 17]])
 
@@ -79,6 +81,7 @@ def test_remove_dup_boundary(make_cell: Union[comsol.domain.ReferenceCell, Calla
 
 # TODO: remove cs patch
 def test_get_standardized(make_cell: Union[comsol.domain.ReferenceCell, Callable]) -> None:
+    """Test that the correct reference cells are created."""
     data = np.array([range(0, 9), range(9, 18)])
     expected_data = np.array([[0, 1, 2, 4, 6, 7, 8], [9, 10, 11, 13, 15, 16, 17]])
 
@@ -91,6 +94,7 @@ def test_get_standardized(make_cell: Union[comsol.domain.ReferenceCell, Callable
 
 
 def test_format_data() -> None:
+    """Test that the supplied COMSOL data is formatted correctly."""
     data_dict = dict()
 
     mesh1 = np.array([0, 0.5, 1, 1, 1.5, 2, 2, 2.5, 3])
@@ -121,7 +125,7 @@ def test_format_data() -> None:
     assert np.array_equal(expected['d3'], result['d3'])
 
     data_dict.pop('mesh')
-    with pytest.raises(Exception) as ex:
+    with pytest.raises(Exception):
         comsol.format_2d_data(data_dict, bound)
 
 
