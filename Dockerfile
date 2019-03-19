@@ -1,24 +1,49 @@
-FROM quay.io/fenicsproject/stable:2017.2.0
+FROM quay.io/fenicsproject/stable:2017.2.0 as deploy
 
-RUN apt-get -y update
+# Dependencies
+RUN apt-get update -y &&\
+    apt-get install -y python3-tk git
 
+# Shell
+RUN apt-get install -y zsh
+
+# Interface
+RUN useradd --create-home --shell /bin/zsh --gid users --groups sudo,docker_env,fenics mtnlion
+RUN echo "mtnlion ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+USER mtnlion
+WORKDIR /home/mtnlion
+
+# Install mtnlion
+RUN GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/macklenc/mtnlion.git
+RUN cd mtnlion && sudo -E python3 setup.py install && cd ..
+
+# Nice shell
+RUN wget -O .zshrc https://git.grml.org/f/grml-etc-core/etc/zsh/zshrc &&\
+    wget -O .zshrc.local  https://git.grml.org/f/grml-etc-core/etc/skel/.zshrc
+
+FROM deploy as test
+
+RUN sudo sh -c "echo 'export PYTHONPATH=$PYTHONPATH:$HOME/mtnlion/buildup' >> /etc/profile"
+RUN cd mtnlion &&\
+    sudo -EH pip3 install -r requirements_dev.txt &&\
+    git lfs pull &&\
+    cd ..
+
+FROM test as sde
+
+USER root
+
+# Fetch pycharm
 RUN wget https://download.jetbrains.com/python/pycharm-professional-2018.3.5.tar.gz
 
-RUN apt-get install -y xauth xorg openbox
-
-# Install git and git flow
-RUN apt-get -y install git &&\
-    wget --no-check-certificate -q  https://raw.githubusercontent.com/petervanderdoes/gitflow-avh/develop/contrib/gitflow-installer.sh &&\
+# Install git flow
+RUN wget https://raw.githubusercontent.com/petervanderdoes/gitflow-avh/develop/contrib/gitflow-installer.sh &&\
     bash gitflow-installer.sh install stable &&\
     rm gitflow-installer.sh
 
 # Install gvim
 RUN apt-get install -y vim-gtk3
-
-# Install zsh
-RUN wget -O .zshrc https://git.grml.org/f/grml-etc-core/etc/zsh/zshrc &&\
-    wget -O .zshrc.local  https://git.grml.org/f/grml-etc-core/etc/skel/.zshrc &&\
-    apt-get install -y zsh
 
 # Install sublime
 RUN wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add - &&\
@@ -33,6 +58,6 @@ RUN tar xfz pycharm-*.tar.gz -C /opt/ &&\
     cd /usr/bin &&\
     ln -s /opt/pycharm-*/bin/pycharm.sh pycharm
 
-RUN git clone https://github.com/macklenc/mtnlion /home/fenics/mtnlion
+USER mtnlion
 
-CMD ["/bin/zsh"]
+ENTRYPOINT ["/bin/zsh"]
