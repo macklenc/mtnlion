@@ -3,7 +3,7 @@ class XBar : public Expression
 public:
 	XBar() : Expression() {}
 
-	void eval(Array<double>& values, const Array<double>& x, const ufc::cell& c) const {
+	void eval(Eigen::Ref<Eigen::VectorXd>& values, Eigen::Ref<const Eigen::VectorXd>& x, const ufc::cell& c) const {
 		switch((*markers)[c.index]){
 			case 0:
 				neg->eval(values, x, c);
