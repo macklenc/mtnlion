@@ -1,3 +1,4 @@
+"""Provides isothermal Newman cell model."""
 import fenics as fem
 import sympy as sym
 
@@ -5,6 +6,7 @@ import sympy as sym
 # TODO: add internal Neumann conditions or remove boundary Neumann conditions
 
 def phis(jbar, phis, v, a_s, F, sigma_eff, L, **kwargs):
+    """Charge conservation in the solid."""
     lhs = -sigma_eff / L * fem.dot(fem.grad(phis), fem.grad(v))
     rhs = L * a_s * F * jbar * v
 
@@ -12,6 +14,7 @@ def phis(jbar, phis, v, a_s, F, sigma_eff, L, **kwargs):
 
 
 def phie(jbar, ce, phie, v, kappa_eff, kappa_Deff, L, a_s, F, **kwargs):
+    """Charge conservation in the electrolyte."""
     lhs = kappa_eff / L * fem.dot(fem.grad(phie), fem.grad(v))  # all domains
     rhs1 = - kappa_Deff / L * fem.dot(fem.grad(fem.ln(ce)), fem.grad(v))  # all domains
     rhs2 = L * a_s * F * jbar * v  # electrodes
@@ -20,12 +23,14 @@ def phie(jbar, ce, phie, v, kappa_eff, kappa_Deff, L, a_s, F, **kwargs):
 
 
 def euler(y, y_1, dt):
+    """Create FFL expression for euler explicit/implicit time stepping."""
     lhs = (y - y_1) / dt
 
     return lhs
 
 
 def ce(jbar, ce, v, a_s, De_eff, t_plus, L, eps_e, **kwargs):
+    """Concentration of lithium in the electrolyte."""
     lhs = L * eps_e * v  # all domains
     rhs1 = -De_eff / L * fem.dot(fem.grad(ce), fem.grad(v))  # all domains
     rhs2 = L * a_s * (fem.Constant(1) - t_plus) * jbar * v  # electrodes
@@ -34,6 +39,7 @@ def ce(jbar, ce, v, a_s, De_eff, t_plus, L, eps_e, **kwargs):
 
 
 def cs(cs, v, Rs, Ds_ref, **kwargs):
+    """Concentration of lithium in the solid."""
     rbar2 = fem.Expression('pow(x[1], 2)', degree=1)
     lhs = Rs * rbar2 * v
     rhs = -Ds_ref * rbar2 / Rs * fem.dot(cs.dx(1), v.dx(1))
@@ -42,6 +48,7 @@ def cs(cs, v, Rs, Ds_ref, **kwargs):
 
 
 def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degree=1, **kwargs):
+    """Flux through the boundary of the solid."""
     return fem.Expression(sym.printing.ccode(_sym_j()[0]),
                           ce=ce, cse=cse, phie=phie, phis=phis, csmax=csmax,
                           ce0=ce0, alpha=alpha, k_norm_ref=k_norm_ref, F=F,
@@ -49,12 +56,14 @@ def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degr
 
 
 def Uocp(cse, csmax, uocp_str, **kwargs):
+    """Open circuit potential, explicit calculation."""
     soc = fem.Expression('cse/csmax', cse=cse, csmax=csmax, degree=1)
     return fem.Expression(sym.printing.ccode(uocp_str), soc=soc, degree=1)
 
 
 # TODO: refactor
 def Uocp_interp(Uocp_neg_interp, Uocp_pos_interp, cse, csmax, utilities):
+    """Create an interpolator expression for the open circuit potential."""
     eref_neg = utilities.fenics_interpolate(Uocp_neg_interp)
     eref_pos = utilities.fenics_interpolate(Uocp_pos_interp)
 
@@ -67,6 +76,7 @@ def Uocp_interp(Uocp_neg_interp, Uocp_pos_interp, cse, csmax, utilities):
 
 
 def _sym_j():
+    """Define the symbolic form and evaluator for the lithium flux."""
     number = sym.Symbol('n')
     uocp = sym.Symbol('Uocp')
     csmax, cse, ce, ce0, alpha, k_norm_ref, phie, phis = sym.symbols('csmax cse ce ce0 alpha k_norm_ref phie phis')

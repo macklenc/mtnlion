@@ -1,9 +1,7 @@
-"""
-Utilities for loading/saving files in various formats.
-"""
+"""This module provides utilities for loading and saving data in various file formats."""
 import logging
 import os
-from typing import List, Dict, Callable
+from typing import Callable, Dict, List
 
 import numpy as np
 
@@ -53,7 +51,8 @@ def load_csv_file(filename: str, comments: str = '%', delimiter: str = ',', d_ty
 
 def format_name(name: str) -> str:
     """
-    Default function for formatting variable names from filenames
+    Do nothing for formatting names and log the event.
+
     :param name: filename
     :return: variable name
     """
@@ -65,6 +64,8 @@ def format_name(name: str) -> str:
 def collect_files(file_list: List[str], format_key: Callable = format_name, loader: Callable = load_numpy_file,
                   **kwargs) -> Dict[str, np.ndarray]:
     """
+    Collect files using the provided loader.
+
     Collect files given as a list of filenames using the function loader to load the file and the function format_key
     to format the variable name.
     :param file_list: list of filenames
