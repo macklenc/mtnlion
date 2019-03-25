@@ -3,12 +3,10 @@
 
 """Tests for `mtnlion` package."""
 
-import pytest
-
 from click.testing import CliRunner
-
-from mtnlion import mtnlion
 from mtnlion import cli
+import pytest
+# from mtnlion import mtnlion
 
 
 @pytest.fixture

@@ -1,8 +1,6 @@
-"""
-Equation solver
-"""
+"""Equation solver."""
 import logging
-from typing import Union, Dict, List, Callable
+from typing import Callable, Dict, List, Union
 
 import munch
 import numpy as np
@@ -14,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 def rmse(estimated: np.ndarray, true: np.ndarray) -> Union[np.ndarray, None]:
     """
-    Calculate the root-mean-squared error between two arrays
+    Calculate the root-mean-squared error between two arrays.
+
     :param estimated: estimated solution
     :param true: 'true' solution
     :return: root-mean-squared error
@@ -23,7 +22,7 @@ def rmse(estimated: np.ndarray, true: np.ndarray) -> Union[np.ndarray, None]:
 
 
 def fetch_params(filename: str) -> Union[Dict[str, Dict[str, float]], None, munch.DefaultMunch]:
-    """TODO: read template from config file"""
+    """TODO: read template from config file."""
     print('Loading Cell Parameters')
     params = dict()
     sheet = ldp.read_excel(filename, 0)
@@ -39,6 +38,7 @@ def fetch_params(filename: str) -> Union[Dict[str, Dict[str, float]], None, munc
 def find_ind(data: np.ndarray, value: Union[List[int], List[float]]) -> np.ndarray:
     """
     Find the indices of the values given in the data.
+
     :param data: data to find indices in
     :param value: values to find indices with
     :return: indices of value in data
@@ -49,30 +49,27 @@ def find_ind(data: np.ndarray, value: Union[List[int], List[float]]) -> np.ndarr
 def find_ind_near(data: np.ndarray, value: Union[List[int], List[float]]) -> np.ndarray:
     """
     Find the indices of the closest values given in the data.
+
     :param data: data to find indices in
     :param value: values to find indices with
     :return: indices of value in data
     """
-
     return np.array([(np.abs(data - v)).argmin() for v in value])
 
 
 # TODO: move subdomain logic here
 class Mountain:
-    """
-    Container for holding n-variable n-dimensional data in space and time.
-    """
+    """Container for holding n-variable n-dimensional data in space and time."""
 
     def __init__(self, mesh: np.ndarray, pseudo_dim_mesh: np.ndarray, time_mesh: np.ndarray,
                  boundaries: Union[np.ndarray, List[float]], **kwargs: np.ndarray) -> None:
         """
-        Store the solutions to each given parameter
+        Store the solutions to each given parameter.
 
         :param mesh: Solution mesh
         :param boundaries: internal boundaries in the mesh
         :param kwargs: arrays for each solution
         """
-
         logger.info('Initializing solution data...')
         self.data = munch.Munch(kwargs)
         self.mesh = mesh
@@ -82,7 +79,8 @@ class Mountain:
 
     def to_dict(self) -> Dict[str, np.ndarray]:
         """
-        Retrieve dictionary of Mountain to serialize
+        Retrieve dictionary of Mountain to serialize.
+
         :return: data dictionary
         """
         d = {'mesh': self.mesh, 'pseudo_mesh': self.pseudo_mesh, 'time_mesh': self.time_mesh,
@@ -92,7 +90,8 @@ class Mountain:
     @classmethod
     def from_dict(cls, data: Dict[str, np.ndarray]) -> 'Mountain':
         """
-        Convert dictionary to SolutionData
+        Convert dictionary to SolutionData.
+
         :param data: dictionary of formatted data
         :return: consolidated simulation data
         """
@@ -102,16 +101,18 @@ class Mountain:
             -> Dict[str, np.ndarray]:
         """
         Filter through dictionary to collect sections of the contained ndarrays.
+
         :param index: subset of arrays to collect
         :param func: function to call on every variable in data
         :return: dictionary of reduced arrays
         """
-
         return {k: func(v[index]) for k, v in self.data.items() if not np.isscalar(v)}
 
     def filter_time(self, index: Union[List['ellipsis'], List[int], slice], func: Callable = lambda x: x) -> 'Mountain':
         """
-        Filter the Mountain for a subset of time indices. For example::
+        Filter the Mountain for a subset of time indices.
+
+        For example::
             solution.filter_time(slice(0,5))
             solution.filter_time([0, 3, 5])
             solution.filter_time(slice(step=-1))
@@ -128,7 +129,9 @@ class Mountain:
     def filter_space(self, index: Union[List['ellipsis'], List[int], slice],
                      func: Callable = lambda x: x) -> 'Mountain':
         """
-        Filter the Mountain for a subset of space indices. For example::
+        Filter the Mountain for a subset of space indices.
+
+        For example::
             solution.filter_time([slice(0,5), 4]) # for 2D space
             solution.filter_time([0, 3, 5])
             solution.filter_time(slice(step=-1))
@@ -144,6 +147,6 @@ class Mountain:
         # TODO: FIXME, shouldn't know anything about cs
         cs = self.data.cs
         tmp = type(self)(func(self.mesh[index]), self.pseudo_mesh, self.time_mesh, self.boundaries,
-                          **self.filter([...] + index, func=func))
+                         **self.filter([...] + index, func=func))
         tmp.data.cs = cs
         return tmp
