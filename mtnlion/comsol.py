@@ -1,6 +1,9 @@
 """
-COMSOL Data Handling. This module is designed to load 1D solution data from a Gu & Wang reference model from COMSOL as
-CSV files. The idea is that CSV files take a long time to load, so it is more efficient to convert the data to a binary
+COMSOL Data Handling.
+
+This module is designed to load 1D solution data from a Gu & Wang reference model from COMSOL as
+CSV files.
+The idea is that CSV files take a long time to load, so it is more efficient to convert the data to a binary
 (npz) format before processing.
 
 COMSOL now saves it's data as a 2D matrix, however it still only uses repeated x values when the boundary solves for
@@ -9,7 +12,7 @@ repeated x values, such that the y values are duplicated.
 """
 import logging
 import os
-from typing import List, Union, Dict, Callable
+from typing import Callable, Dict, List, Union
 
 import numpy as np
 
@@ -22,6 +25,8 @@ logger = logging.getLogger(__name__)
 def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: Union[float, List[int], np.ndarray]) \
         -> Union[None, np.ndarray]:
     """
+    Adjust COMSOL's interpretation of two-sided boundaries.
+
     When COMSOL outputs data from the reference model there are two solutions at every internal boundary, which causes
     COMSOL to have repeated domain values; one for the right and one for the left of the boundary. If there is only one
     internal boundary on the variable mesh at a given time, then a duplicate is added.
@@ -48,6 +53,7 @@ def fix_boundaries(mesh: np.ndarray, data: np.ndarray, boundaries: Union[float, 
 def remove_dup_boundary(data: domain.ReferenceCell, item: np.ndarray) -> Union[np.ndarray, None]:
     """
     Remove points at boundaries where two values exist at the same coordinate, favor electrodes over separator.
+
     :param data: data in which to reference the mesh and separator indices from
 
     :param item: item to apply change to
@@ -61,7 +67,7 @@ def remove_dup_boundary(data: domain.ReferenceCell, item: np.ndarray) -> Union[n
 
 def get_standardized(cell: domain.ReferenceCell) -> Union[domain.ReferenceCell, None]:
     """
-    Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries)
+    Convert COMSOL solutions to something more easily fed into FEniCS (remove repeated coordinates at boundaries).
 
     :param cell: reference cell to remove double boundary values from
     :return: Simplified solution cell
@@ -75,8 +81,10 @@ def get_standardized(cell: domain.ReferenceCell) -> Union[domain.ReferenceCell, 
 
 # TODO generalize the formatting of data for mesh name and arbitrary dimensions
 def format_2d_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]]) \
-    -> Union[Dict[str, np.ndarray], None]:
+        -> Union[Dict[str, np.ndarray], None]:
     """
+    Format COMSOL stacked 1D data into a 2D matrix.
+
     Collect single-column 2D data from COMSOL CSV format and convert into 2D matrix for easy access, where the
     first dimension is time and the second is the solution in space. Each solution has it's own entry in a
     dictionary where the key is the name of the variable. The time step size (dt) and mesh have their own keys.
@@ -85,7 +93,6 @@ def format_2d_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, Lis
     :param boundaries: internal boundary locations
     :return: convenient dictionary of non-stationary solutions
     """
-
     logger.info('Reformatting 2D data')
     data = dict()
     try:
@@ -122,8 +129,15 @@ def format_2d_data(raw_data: Dict[str, np.ndarray], boundaries: Union[float, Lis
 
 # TODO generalize the formatting of data for mesh name and arbitrary dimensions, also fix tools
 def format_pseudo_dim(raw_data: Dict[str, np.ndarray], boundaries: Union[float, List[int]],
-                      shuffle: Callable = lambda x: range(len(x))) \
-    -> Union[Dict[str, np.ndarray], None]:
+                      shuffle: Callable = lambda x: range(len(x))) -> Union[Dict[str, np.ndarray], None]:
+    """
+    Attempt to reorganize COMSOL output for the two-dimensional domain to a FEniCS friendly organization.
+
+    :param raw_data: COMSOL output data
+    :param boundaries: Domain boundaries
+    :param shuffle: Function to re-organize indices
+    :return: Formatted data
+    """
     logger.info('Reformatting 3D data')
     data = dict()
 
@@ -153,13 +167,13 @@ def format_name(name: str) -> str:
     :param name: filename
     :return: variable name
     """
-    varName = os.path.splitext(os.path.basename(name))[0]
+    var_name = os.path.splitext(os.path.basename(name))[0]
     if '.CSV' not in name.upper():
         logger.warning('{} does not have a CSV extension'.format(name))
     else:
-        varName = varName.split('.', 1)[0]
+        var_name = var_name.split('.', 1)[0]
 
-    return varName
+    return var_name
 
 
 def load(filename: str) -> domain.ReferenceCell:
