@@ -2,6 +2,7 @@
 
 """Console script for mtnlion."""
 import sys
+
 import click
 
 
