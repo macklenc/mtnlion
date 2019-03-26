@@ -51,21 +51,29 @@ def run(time, dt, return_comsol=False):
         return utilities.interp_time(time, ce_sol)
 
 
-def main():
+def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     # Quiet
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    time_in = [0.1, 5, 10, 15, 20]
-    plot_times = time_in
-    dt = 0.1
+    if time is None:
+        time = [0, 5, 10, 15, 20]
+    if dt is None:
+        dt = 0.1
+    if plot_time is None:
+        plot_time = time
 
-    ce_sol, comsol = run(time_in, dt, return_comsol=True)
+    ce_sol, comsol = run(time, dt, return_comsol=True)
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
-    utilities.report(comsol.mesh, time_in, ce_sol(plot_times), comsol_ce(plot_times), '$\c_e$')
-    utilities.save_plot(__file__, 'plots/compare_ce.png')
-    plt.show()
+    if not get_test_stats:
+        utilities.report(comsol.mesh, time, ce_sol(plot_time), comsol_ce(plot_time), '$\c_e$')
+        utilities.save_plot(__file__, 'plots/compare_ce.png')
+        plt.show()
+    else:
+        data = utilities.generate_test_stats(time, comsol, ce_sol, comsol_ce)
+
+        return data
 
 
 if __name__ == '__main__':

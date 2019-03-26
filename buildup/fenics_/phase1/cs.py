@@ -79,40 +79,52 @@ def run(time, dt, return_comsol=False):
             time, cse_sol)
 
 
-def main():
+def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     # Quiet
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    time_in = [15, 25, 35, 45]
-    plot_times = time_in
-    dt = 0.1
+    if time is None:
+        time = [0, 5, 10, 15, 20]
+    if dt is None:
+        dt = 0.1
+    if plot_time is None:
+        plot_time = time
 
-    cs_sol, pseudo_cse_sol, cse_sol, comsol = run(time_in, dt, return_comsol=True)
+    cs_sol, pseudo_cse_sol, cse_sol, comsol = run(time, dt, return_comsol=True)
     comsol_cse = utilities.interp_time(comsol.time_mesh, comsol.data.cse)
     comsol_cs = utilities.interp_time(comsol.time_mesh, comsol.data.cs)
 
-    print('cs total normalized RMSE%: {}'.format(utilities.norm_rmse(cs_sol(plot_times), comsol_cs(plot_times))))
+    if not get_test_stats:
+        print('cs total normalized RMSE%: {}'.format(utilities.norm_rmse(cs_sol(plot_time), comsol_cs(plot_time))))
 
-    xcoor, cse, neg_ind, pos_ind = utilities.find_cse_from_cs(comsol)
-    comsol_pseudo_cse = utilities.interp_time(comsol.time_mesh, cse)
+        xcoor, cse, neg_ind, pos_ind = utilities.find_cse_from_cs(comsol)
+        comsol_pseudo_cse = utilities.interp_time(comsol.time_mesh, cse)
 
-    utilities.report(xcoor[neg_ind], plot_times, pseudo_cse_sol(plot_times)[:, neg_ind],
-                     comsol_pseudo_cse(plot_times)[:, neg_ind], 'pseudo $c_{s,e}^{neg}$')
-    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_neg.png')
-    utilities.report(xcoor[pos_ind], plot_times, pseudo_cse_sol(plot_times)[:, pos_ind],
-                     comsol_pseudo_cse(plot_times)[:, pos_ind], 'pseudo $c_{s,e}^{pos}$')
-    utilities.save_plot(__file__, 'plots/compare_pseudo_cse_pos.png')
+        utilities.report(xcoor[neg_ind], plot_time, pseudo_cse_sol(plot_time)[:, neg_ind],
+                         comsol_pseudo_cse(plot_time)[:, neg_ind], 'pseudo $c_{s,e}^{neg}$')
+        utilities.save_plot(__file__, 'plots/compare_pseudo_cse_neg.png')
+        utilities.report(xcoor[pos_ind], plot_time, pseudo_cse_sol(plot_time)[:, pos_ind],
+                         comsol_pseudo_cse(plot_time)[:, pos_ind], 'pseudo $c_{s,e}^{pos}$')
+        utilities.save_plot(__file__, 'plots/compare_pseudo_cse_pos.png')
 
-    utilities.report(comsol.mesh[comsol.neg_ind], plot_times, cse_sol(plot_times)[:, comsol.neg_ind],
-                     comsol_cse(plot_times)[:, comsol.neg_ind], '$c_{s,e}$')
-    utilities.save_plot(__file__, 'plots/compare_cse_neg.png')
-    plt.show()
-    utilities.report(comsol.mesh[comsol.pos_ind], plot_times, cse_sol(plot_times)[:, comsol.pos_ind],
-                     comsol_cse(plot_times)[:, comsol.pos_ind], '$c_{s,e}$')
-    utilities.save_plot(__file__, 'plots/compare_cse_pos.png')
+        utilities.report(comsol.mesh[comsol.neg_ind], plot_time, cse_sol(plot_time)[:, comsol.neg_ind],
+                         comsol_cse(plot_time)[:, comsol.neg_ind], '$c_{s,e}$')
+        utilities.save_plot(__file__, 'plots/compare_cse_neg.png')
+        plt.show()
+        utilities.report(comsol.mesh[comsol.pos_ind], plot_time, cse_sol(plot_time)[:, comsol.pos_ind],
+                         comsol_cse(plot_time)[:, comsol.pos_ind], '$c_{s,e}$')
+        utilities.save_plot(__file__, 'plots/compare_cse_pos.png')
 
-    plt.show()
+        plt.show()
+    else:
+        data = utilities.generate_test_stats(time, comsol, cs_sol, comsol_cs)
+
+        # Separator info is garbage:
+        for d in data:
+            d[1, ...] = 0
+
+        return data
 
 
 if __name__ == '__main__':
