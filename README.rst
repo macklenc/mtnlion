@@ -15,8 +15,8 @@ Mountian Lion CSS
         :target: https://travis-ci.org/macklenc/mtnlion
 .. |pyup| image:: https://pyup.io/repos/github/macklenc/mtnlion/shield.svg
         :target: https://pyup.io/repos/github/macklenc/mtnlion/
-                Mountain Lion Continuum-Scale Lithium-Ion Cell Simulator uses FEniCS to solve partial differential equation models for lithium-ion cells.
-
+                
+Mountain Lion Continuum-Scale Lithium-Ion Cell Simulator uses FEniCS to solve partial differential equation models for lithium-ion cells.
 
 * Free software: MIT license
 * Documentation: https://mtnlion.readthedocs.io.
