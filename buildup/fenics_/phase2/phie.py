@@ -56,7 +56,7 @@ def run(time, dt, return_comsol=False):
         prm['newton_solver']['absolute_tolerance'] = 1e-8
         prm['newton_solver']['relative_tolerance'] = 1e-7
         prm['newton_solver']['maximum_iterations'] = 5000
-        prm['newton_solver']['relaxation_parameter'] = 0.18
+        prm['newton_solver']['relaxation_parameter'] = 0.17
         solver.solve()
 
         # solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
@@ -69,20 +69,30 @@ def run(time, dt, return_comsol=False):
         return utilities.interp_time(time, phie_sol)
 
 
-def main():
-    fem.set_log_level(fem.INFO)
+def main(time=None, dt=None, plot_time=None, get_test_stats=False):
+    # Quiet
+    fem.set_log_level(fem.ERROR)
+    import numpy as np
 
     # Times at which to run solver
-    time = [0, 5, 10, 15, 20]
-    sim_dt = 0.1
-    plot_time = time
+    if time is None:
+        time = np.arange(0.1, 50, 1)
+    if dt is None:
+        dt = 0.1
+    if plot_time is None:
+        plot_time = time
 
-    phie_sol, comsol = run(time, sim_dt, return_comsol=True)
+    phie_sol, comsol = run(time, dt, return_comsol=True)
     comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
+    if not get_test_stats:
+        utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
+        utilities.save_plot(__file__, 'plots/compare_phie.png')
+        plt.show()
+    else:
+        data = utilities.generate_test_stats(time, comsol, phie_sol, comsol_phie)
 
-    utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
-    utilities.save_plot(__file__, 'plots/compare_phie.png')
-    plt.show()
+        return data
+
 
 if __name__ == '__main__':
     main()
