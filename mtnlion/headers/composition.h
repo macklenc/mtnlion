@@ -3,7 +3,7 @@ class Composition : public Expression
 public:
     Composition() : Expression() {}
 
-    void eval(Array<double>& values, const Array<double>& x, const ufc::cell& c) const
+    void eval(Eigen::Ref<Eigen::VectorXd>& values, Eigen::Ref<const Eigen::VectorXd>& x, const ufc::cell& c) const
     {
         Array<double> val(3);
         inner->eval(val, x, c);
