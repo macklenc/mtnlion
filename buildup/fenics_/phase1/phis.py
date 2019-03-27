@@ -43,7 +43,7 @@ def run(time, return_comsol=False):
 
 def main(time=None, plot_time=None, get_test_stats=False):
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
     if time is None:
