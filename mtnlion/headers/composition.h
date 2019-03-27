@@ -5,9 +5,10 @@ namespace py = pybind11;
 #include <dolfin/function/Expression.h>
 #include <dolfin/function/GenericFunction.h>
 
-class Composition : public dolfin::Expression {
- public:
-  Composition() : dolfin::Expression() {}
+class Composition : public dolfin::Expression
+{
+public:
+    Composition() : dolfin::Expression() {}
 
     void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& c) const
     {
@@ -16,12 +17,12 @@ class Composition : public dolfin::Expression {
         outer->eval(values, val, c);
     }
 
-  void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x) const
-    {
-        Eigen::VectorXd val(3);
-        inner->eval(val, x);
-        outer->eval(values, val);
-    }
+//  void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x) const
+//    {
+//        Eigen::VectorXd val(3);
+//        inner->eval(val, x);
+//        outer->eval(values, val);
+//    }
 
     std::shared_ptr<dolfin::GenericFunction> outer;
     std::shared_ptr<dolfin::GenericFunction> inner;

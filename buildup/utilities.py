@@ -127,7 +127,6 @@ def compose(inner, outer, degree=1):
                            outer=outer.cpp_object(),
                            degree=degree)
 
-
 def piecewise2(V, *values):
     x = sym.Symbol('x[0]')
     E = sym.Piecewise((values[0], x <= 1.0 + fem.DOLFIN_EPS), (values[1], sym.And(x > 1.0, x < 2.0)),
