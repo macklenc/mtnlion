@@ -123,10 +123,13 @@ def find_cse_from_cs(comsol):
 
 # TODO: add builder method for creating expression wrappers
 def compose(inner, outer, degree=1):
-    return fem.CompiledExpression(fem.compile_cpp_code(expressions.composition).Composition(),
-                           inner=inner.cpp_object(),
-                           outer=outer.cpp_object(),
-                           degree=degree)
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(expressions.composition).Composition(),
+        inner=inner.cpp_object(),
+        outer=outer.cpp_object(),
+        degree=degree,
+    )
+
 
 
 def piecewise2(V, *values):
