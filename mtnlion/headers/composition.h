@@ -9,16 +9,22 @@ class Composition : public dolfin::Expression {
  public:
   Composition() : dolfin::Expression() {}
 
-  void eval(Eigen::Ref<Eigen::VectorXd> values,
-            Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& c) const {
-    py::print("HERE!");
+    void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& c) const
+    {
         Eigen::VectorXd val(3);
         inner->eval(val, x, c);
         outer->eval(values, val, c);
     }
 
-  std::shared_ptr<dolfin::GenericFunction> outer;
-  std::shared_ptr<dolfin::GenericFunction> inner;
+  void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x) const
+    {
+        Eigen::VectorXd val(3);
+        inner->eval(val, x);
+        outer->eval(values, val);
+    }
+
+    std::shared_ptr<dolfin::GenericFunction> outer;
+    std::shared_ptr<dolfin::GenericFunction> inner;
 };
 
 PYBIND11_MODULE(SIGNATURE, m) {
