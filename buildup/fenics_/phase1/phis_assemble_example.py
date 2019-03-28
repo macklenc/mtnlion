@@ -9,8 +9,7 @@ import utilities
 # NOTE: DOES NOT WORK
 # NOTE: Deprecated
 
-
-class Phis:
+class Phis():
     def __init__(self, domain, Acell, sigma_eff, L, a_s, F, dirichlet, neumann):
         self.dirichlet = dirichlet
         self.neumann = neumann
@@ -48,7 +47,7 @@ def solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, true_sol):
     jbar = fem.Function(domain.V)
 
     for i, j in enumerate(true_sol.data.j):
-        jbar.vector()[:] = j[fem.dof_to_vertex_map(domain.V)].astype("double")
+        jbar.vector()[:] = j[fem.dof_to_vertex_map(domain.V)].astype('double')
 
         # Solve
         phi_s.dirichlet[1] = fem.DirichletBC(domain.V, true_sol.data.phis[i, -1], domain.boundary_markers, 4)
@@ -68,22 +67,23 @@ def main():
     cmn = common.Common(time)
     domain = cmn.domain
 
-    L, a_s, sigma_eff = common.collect(cmn.params, "L", "a_s", "sigma_eff")
-    F, Acell = common.collect(cmn.const, "F", "Acell")
+    L, a_s, sigma_eff = common.collect(cmn.params, 'L', 'a_s', 'sigma_eff')
+    F, Acell = common.collect(cmn.const, 'F', 'Acell')
 
     with utilities.Timer() as t:
-        fenics, comsol = solve(time, domain, Acell, sigma_eff, L, a_s, F, Iapp, cmn.comsol_solution)
+        fenics, comsol = solve(time, domain, Acell, sigma_eff, L,
+                               a_s, F, Iapp, cmn.comsol_solution)
 
-    print("Runtime: {}s".format(t.interval))
-    utilities.report(comsol.neg, time, fenics[:, comsol.neg_ind], comsol.data.phis[:, comsol.neg_ind], "$\Phi_s^{neg}$")
-    plt.savefig("comsol_compare_phis_neg.png")
+    print('Runtime: {}s'.format(t.interval))
+    utilities.report(comsol.neg, time, fenics[:, comsol.neg_ind], comsol.data.phis[:, comsol.neg_ind], '$\Phi_s^{neg}$')
+    plt.savefig('comsol_compare_phis_neg.png')
     plt.show()
 
-    utilities.report(comsol.pos, time, fenics[:, comsol.pos_ind], comsol.data.phis[:, comsol.pos_ind], "$\Phi_s^{neg}$")
-    plt.savefig("comsol_compare_phis_pos.png")
+    utilities.report(comsol.pos, time, fenics[:, comsol.pos_ind], comsol.data.phis[:, comsol.pos_ind], '$\Phi_s^{neg}$')
+    plt.savefig('comsol_compare_phis_pos.png')
     plt.show()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
     exit(0)
