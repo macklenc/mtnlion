@@ -1,6 +1,6 @@
 import sys
 
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 
 from buildup import (common, utilities)

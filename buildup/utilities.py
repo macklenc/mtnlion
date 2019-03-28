@@ -1,7 +1,7 @@
 import os
 import time
 
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import munch
 import numpy as np
