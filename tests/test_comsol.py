@@ -45,7 +45,7 @@ def make_cell() -> Union[comsol.domain.ReferenceCell, Callable]:
         pseudo_mesh: np.ndarray = None,
         time_mesh: np.ndarray = None,
         bound: List[float] = None,
-        **kwargs: np.ndarray
+        **kwargs: np.ndarray,
     ) -> comsol.domain.ReferenceCell:
         """
         Create a reference cell with default values.

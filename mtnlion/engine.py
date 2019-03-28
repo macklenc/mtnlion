@@ -67,7 +67,7 @@ class Mountain:
         pseudo_dim_mesh: np.ndarray,
         time_mesh: np.ndarray,
         boundaries: Union[np.ndarray, List[float]],
-        **kwargs: np.ndarray
+        **kwargs: np.ndarray,
     ) -> None:
         """
         Store the solutions to each given parameter.
@@ -164,7 +164,7 @@ class Mountain:
             self.pseudo_mesh,
             self.time_mesh,
             self.boundaries,
-            **self.filter([...] + index, func=func)
+            **self.filter([...] + index, func=func),
         )
         tmp.data.cs = cs
         return tmp

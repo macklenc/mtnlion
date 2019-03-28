@@ -46,7 +46,7 @@ def run(time, dt, return_comsol=False):
         **cmn.fenics_params,
         **cmn.fenics_consts,
         dm=domain.domain_markers,
-        V=domain.V
+        V=domain.V,
     )
 
     euler = equations.euler(ce_c_, ce_c_1, dtc)
