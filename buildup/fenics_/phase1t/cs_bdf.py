@@ -1,4 +1,4 @@
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import integrate, interpolate
