@@ -1,6 +1,7 @@
 # mtnlion
 plots/
 .~lock*
+*jitfailure*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
