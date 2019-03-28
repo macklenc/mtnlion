@@ -12,10 +12,16 @@ public:
 
     void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& c) const
     {
-        py::print("HERE!");
         Eigen::VectorXd val(3);
         inner->eval(val, x, c);
         outer->eval(values, val, c);
+    }
+
+    void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x) const
+    {
+        Eigen::VectorXd val(3);
+        inner->eval(val, x);
+        outer->eval(values, val);
     }
 
     std::shared_ptr<dolfin::GenericFunction> outer;
