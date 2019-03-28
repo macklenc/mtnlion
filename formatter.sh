@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-IGNOREDIRS="-type f -path *jitfailure* -prune -o -path .tox -prune"
+IGNOREDIRS="-type f -path *jitfailure* -prune -o -path ${SCRIPTPATH}/build -prune -o -path ${SCRIPTPATH}/.eggs -prune -o -path ${SCRIPTPATH}/.tox -prune"
 
 function help {
 	echo "$0 - A tool for checking and applying format rules"
@@ -19,7 +19,7 @@ function help {
 function eval {
 	echo "*** EXECUTING Python Evaluator ***"
 	declare -a PYFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -iname \*.py \) -print))
-	black --check --py36 "${PYFILES[@]}"
+	black --check --target-version py36 "${PYFILES[@]}"
 
 	echo "*** EXECUTING C++ Evaluator ***"
 	declare -a CPPFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -name \*.h -o -name \*.cpp \) -print))
