@@ -19,4 +19,4 @@ black
 cpplint
 pylint
 pre-commit
-mypy
+mypy==0.670
