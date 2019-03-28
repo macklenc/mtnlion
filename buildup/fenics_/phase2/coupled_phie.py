@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sym
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -21,7 +21,7 @@ def picard_solver(a, lin, estimated, previous, bc):
         diff = estimated.vector().get_local() - previous.vector().get_local()
         eps = np.linalg.norm(diff, ord=np.Inf)
 
-        print('iter={}, norm={}'.format(iter, eps))
+        print("iter={}, norm={}".format(iter, eps))
 
         # set previous solution
         previous.assign(estimated)
@@ -44,18 +44,20 @@ def main():
     cmn = common.Common(time)
     domain = cmn.domain
     comsol = cmn.comsol_solution
-    k_norm_ref, csmax, alpha, L, a_s, sigma_eff = \
-        common.collect(cmn.fenics_params, 'k_norm_ref', 'csmax', 'alpha', 'L', 'a_s', 'sigma_eff')
-    F, R, Tref, ce0, Acell = common.collect(cmn.fenics_consts, 'F', 'R', 'Tref', 'ce0', 'Acell')
-    Lc, a_s, eps_e, sigma_eff, brug_kappa = common.collect(cmn.fenics_params, 'L', 'a_s', 'eps_e', 'sigma_eff',
-                                                           'brug_kappa')
-    F, t_plus, R, T = common.collect(cmn.fenics_consts, 'F', 't_plus', 'R', 'Tref')
+    k_norm_ref, csmax, alpha, L, a_s, sigma_eff = common.collect(
+        cmn.fenics_params, "k_norm_ref", "csmax", "alpha", "L", "a_s", "sigma_eff"
+    )
+    F, R, Tref, ce0, Acell = common.collect(cmn.fenics_consts, "F", "R", "Tref", "ce0", "Acell")
+    Lc, a_s, eps_e, sigma_eff, brug_kappa = common.collect(
+        cmn.fenics_params, "L", "a_s", "eps_e", "sigma_eff", "brug_kappa"
+    )
+    F, t_plus, R, T = common.collect(cmn.fenics_consts, "F", "t_plus", "R", "Tref")
 
-    x = sym.Symbol('ce')
-    y = sym.Symbol('x')
+    x = sym.Symbol("ce")
+    y = sym.Symbol("x")
     kp = cmn.fenics_consts.kappa_ref.subs(y, x)
 
-    dfdc = sym.Symbol('dfdc')
+    dfdc = sym.Symbol("dfdc")
     # dfdc = 0
     kd = fem.Constant(2) * R * T / F * (fem.Constant(1) + dfdc) * (t_plus - fem.Constant(1))
     kappa_D = fem.Expression(sym.printing.ccode(kd), dfdc=0, degree=1)
@@ -76,8 +78,9 @@ def main():
     kappa_Deff = kappa_D * kappa_ref * eps_e
 
     Uocp = equations.Uocp(cse_f, **cmn.fenics_params)
-    j = equations.j(ce_f, cse_f, phie_f, phis_f, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref,
-                    dm=domain.domain_markers)
+    j = equations.j(
+        ce_f, cse_f, phie_f, phis_f, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, dm=domain.domain_markers
+    )
     # phie(jbar, ce, phie, v, dx, L, a_s, F, kappa_eff, kappa_Deff, ds=0, neumann=0, nonlin=False, **kwargs):
 
     u = fem.TrialFunction(V)
@@ -94,11 +97,11 @@ def main():
         i_1 = i * 2  # previous time step
         i = i * 2 + 1  # current time step
 
-        cse_f.vector()[:] = comsol.data.cse[i][fem.dof_to_vertex_map(V)].astype('double')
-        ce_f.vector()[:] = comsol.data.ce[i][fem.dof_to_vertex_map(V)].astype('double')
-        phie_f.vector()[:] = comsol.data.phie[i][fem.dof_to_vertex_map(V)].astype('double')
-        phis_f.vector()[:] = comsol.data.phis[i][fem.dof_to_vertex_map(V)].astype('double')
-        jbar.vector()[:] = comsol.data.j[i][fem.dof_to_vertex_map(V)].astype('double')
+        cse_f.vector()[:] = comsol.data.cse[i][fem.dof_to_vertex_map(V)].astype("double")
+        ce_f.vector()[:] = comsol.data.ce[i][fem.dof_to_vertex_map(V)].astype("double")
+        phie_f.vector()[:] = comsol.data.phie[i][fem.dof_to_vertex_map(V)].astype("double")
+        phis_f.vector()[:] = comsol.data.phis[i][fem.dof_to_vertex_map(V)].astype("double")
+        jbar.vector()[:] = comsol.data.j[i][fem.dof_to_vertex_map(V)].astype("double")
 
         bc = [fem.DirichletBC(V, comsol.data.phie[i, 0], domain.boundary_markers, 1)]
         Feq = phie_form
@@ -123,17 +126,17 @@ def main():
         k += 1
 
     d = dict()
-    d['x'] = comsol.mesh
-    d['ce'] = comsol.data.ce[1::2]
-    d['cse'] = comsol.data.cse[1::2]
-    d['phie'] = u_array
-    d['phis'] = comsol.data.phis[1::2]
+    d["x"] = comsol.mesh
+    d["ce"] = comsol.data.ce[1::2]
+    d["cse"] = comsol.data.cse[1::2]
+    d["phie"] = u_array
+    d["phis"] = comsol.data.phis[1::2]
 
     neg_params = {k: v[0] if isinstance(v, np.ndarray) else v for k, v in cmn.params.items()}
     d = dict(d, **neg_params)
 
-    def filter(x, sel='neg'):
-        if sel is 'neg':
+    def filter(x, sel="neg"):
+        if sel is "neg":
             ind0 = 0
             ind1 = cmn.comsol_solution.neg_ind
         else:
@@ -151,21 +154,22 @@ def main():
 
         return x
 
-    neg = dict(map(lambda x: (x[0], filter(x[1], 'neg')), d.items()))
+    neg = dict(map(lambda x: (x[0], filter(x[1], "neg")), d.items()))
     # dta = equations.eval_j(**neg, **cmn.consts)
 
-    utilities.report(comsol.mesh, time_in, u_array, comsol.data.phie[1::2], '$\Phi_e$')
+    utilities.report(comsol.mesh, time_in, u_array, comsol.data.phie[1::2], "$\Phi_e$")
     plt.show()
 
     # utilities.report(comsol.neg, time_in, dta,
     #                  comsol.data.j[:, comsol.neg_ind][1::2], '$j^{neg}$')
     # plt.show()
-    utilities.report(comsol.pos, time_in, u_array2[:, comsol.pos_ind],
-                     comsol.data.j[:, comsol.pos_ind][1::2], '$j^{pos}$')
+    utilities.report(
+        comsol.pos, time_in, u_array2[:, comsol.pos_ind], comsol.data.j[:, comsol.pos_ind][1::2], "$j^{pos}$"
+    )
     plt.show()
 
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -1,7 +1,7 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -26,24 +26,40 @@ def run(time, dt, return_comsol=False):
     n = domain.n
     dS = domain.dS
 
-    neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(2) + \
-              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(2) + \
-              de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_c_1('-')), n('-')) * v('-') * dS(3) + \
-              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_c_1('+')), n('+')) * v('+') * dS(3)
+    neumann = (
+        de_eff("-") / Lc("-") * fem.inner(fem.grad(ce_c_1("-")), n("-")) * v("-") * dS(2)
+        + de_eff("+") / Lc("+") * fem.inner(fem.grad(ce_c_1("+")), n("+")) * v("+") * dS(2)
+        + de_eff("-") / Lc("-") * fem.inner(fem.grad(ce_c_1("-")), n("-")) * v("-") * dS(3)
+        + de_eff("+") / Lc("+") * fem.inner(fem.grad(ce_c_1("+")), n("+")) * v("+") * dS(3)
+    )
 
     # Uocp = equations.Uocp(cse_c_1, **cmn.fenics_params)
-    Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
-                                 cse_c_1, cmn.fenics_params.csmax, utilities)
-    j = equations.j(ce_c_1, cse_c_1, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
-                    dm=domain.domain_markers, V=domain.V)
+    Uocp = equations.Uocp_interp(
+        cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_c_1, cmn.fenics_params.csmax, utilities
+    )
+    j = equations.j(
+        ce_c_1,
+        cse_c_1,
+        phie_c,
+        phis_c,
+        Uocp,
+        **cmn.fenics_params,
+        **cmn.fenics_consts,
+        dm=domain.domain_markers,
+        V=domain.V,
+    )
 
     euler = equations.euler(ce_c_, ce_c_1, dtc)
     lhs, rhs1, rhs2 = equations.ce(j, ce_c_1, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = (lhs * euler - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) + neumann
 
     for k, t in enumerate(time):
-        utilities.assign_functions([comsol_ce(t - dt), comsol_cse(t - dt), comsol_phis(t - dt), comsol_phie(t - dt)],
-                                   [ce_c_1, cse_c_1, phis_c, phie_c], domain.V, ...)
+        utilities.assign_functions(
+            [comsol_ce(t - dt), comsol_cse(t - dt), comsol_phis(t - dt), comsol_phie(t - dt)],
+            [ce_c_1, cse_c_1, phis_c, phie_c],
+            domain.V,
+            ...,
+        )
         utilities.assign_functions([comsol_j(t - dt)], [j_c_1], domain.V, ...)
         ce_c_.assign(ce_c_1)
         bc = fem.DirichletBC(domain.V, comsol_ce(t)[0], domain.boundary_markers, 1)
@@ -55,10 +71,10 @@ def run(time, dt, return_comsol=False):
         solver = fem.NonlinearVariationalSolver(problem)
 
         prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-8
-        prm['newton_solver']['relative_tolerance'] = 1e-7
-        prm['newton_solver']['maximum_iterations'] = 5000
-        prm['newton_solver']['relaxation_parameter'] = 0.18
+        prm["newton_solver"]["absolute_tolerance"] = 1e-8
+        prm["newton_solver"]["relative_tolerance"] = 1e-7
+        prm["newton_solver"]["maximum_iterations"] = 5000
+        prm["newton_solver"]["relaxation_parameter"] = 0.18
         solver.solve()
 
         # solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
@@ -87,8 +103,8 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
     if not get_test_stats:
-        utilities.report(comsol.mesh, time, ce_sol(plot_time), comsol_ce(plot_time), '$\c_e$')
-        utilities.save_plot(__file__, 'plots/compare_ce.png')
+        utilities.report(comsol.mesh, time, ce_sol(plot_time), comsol_ce(plot_time), "$\c_e$")
+        utilities.save_plot(__file__, "plots/compare_ce.png")
         plt.show()
     else:
         data = utilities.generate_test_stats(time, comsol, ce_sol, comsol_ce)
@@ -96,5 +112,5 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
         return data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

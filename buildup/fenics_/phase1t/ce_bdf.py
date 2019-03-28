@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import integrate
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -29,10 +29,12 @@ def run(start_time, dt, stop_time, return_comsol=False):
     else:
         ce0 = comsol_ce(start_time)
 
-    neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_fem('-')), n('-')) * v('-') * dS(2) + \
-              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_fem('+')), n('+')) * v('+') * dS(2) + \
-              de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_fem('-')), n('-')) * v('-') * dS(3) + \
-              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_fem('+')), n('+')) * v('+') * dS(3)
+    neumann = (
+        de_eff("-") / Lc("-") * fem.inner(fem.grad(ce_fem("-")), n("-")) * v("-") * dS(2)
+        + de_eff("+") / Lc("+") * fem.inner(fem.grad(ce_fem("+")), n("+")) * v("+") * dS(2)
+        + de_eff("-") / Lc("-") * fem.inner(fem.grad(ce_fem("-")), n("-")) * v("-") * dS(3)
+        + de_eff("+") / Lc("+") * fem.inner(fem.grad(ce_fem("+")), n("+")) * v("+") * dS(3)
+    )
 
     lhs, rhs1, rhs2 = equations.ce(jbar, ce_fem, v, **cmn.fenics_params, **cmn.fenics_consts)
     F = (lhs * ce_u - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) + neumann
@@ -55,9 +57,12 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
     # integrate._ivp.bdf.NEWTON_MAXITER = 50
     i = 1
-    while ce_bdf.status == 'running':
-        print('comsol_time step: {:.4e}, comsol_time: {:.4f}, order: {}, step: {}'.format(ce_bdf.h_abs, ce_bdf.t,
-                                                                                          ce_bdf.order, i))
+    while ce_bdf.status == "running":
+        print(
+            "comsol_time step: {:.4e}, comsol_time: {:.4f}, order: {}, step: {}".format(
+                ce_bdf.h_abs, ce_bdf.t, ce_bdf.order, i
+            )
+        )
         ce_bdf.step()
         time_vec.append(ce_bdf.t)
         ce_sol.append(ce_bdf.dense_output()(ce_bdf.t))
@@ -83,10 +88,10 @@ def main():
     ce_sol, comsol = run(sim_start_time, sim_dt, sim_stop_time, return_comsol=True)
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
-    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times), comsol_ce(plot_times), '$c_e$')
-    utilities.save_plot(__file__, 'plots/compare_ce_bdf.png')
+    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times), comsol_ce(plot_times), "$c_e$")
+    utilities.save_plot(__file__, "plots/compare_ce_bdf.png")
     plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -31,8 +31,7 @@ def run(time, dt, return_comsol=False):
 
     for k, t in enumerate(time):
         utilities.assign_functions([comsol_phis(t - dt)], [phis_c_], domain.V, ...)
-        utilities.assign_functions([comsol_phie(t), comsol_ce(t), comsol_cse(t)],
-                                   [phie_c, ce_c, cse_c], domain.V, ...)
+        utilities.assign_functions([comsol_phie(t), comsol_ce(t), comsol_cse(t)], [phie_c, ce_c, cse_c], domain.V, ...)
         Iapp.assign(float(cmn.Iapp(t)))
         bc[1] = fem.DirichletBC(domain.V, comsol_phis(t)[comsol.pos_ind][0], domain.boundary_markers, 3)
 
@@ -41,10 +40,10 @@ def run(time, dt, return_comsol=False):
         solver = fem.NonlinearVariationalSolver(problem)
 
         prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-8
-        prm['newton_solver']['relative_tolerance'] = 1e-7
-        prm['newton_solver']['maximum_iterations'] = 25
-        prm['newton_solver']['relaxation_parameter'] = 1.0
+        prm["newton_solver"]["absolute_tolerance"] = 1e-8
+        prm["newton_solver"]["relative_tolerance"] = 1e-7
+        prm["newton_solver"]["maximum_iterations"] = 25
+        prm["newton_solver"]["relaxation_parameter"] = 1.0
         solver.solve()
 
         # solver(a == L, phis, phis_c_, bc)
@@ -72,13 +71,23 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
 
     if not get_test_stats:
-        utilities.report(comsol.neg, time, phis_sol(plot_time)[:, comsol.neg_ind],
-                         comsol_phis(plot_time)[:, comsol.neg_ind], '$\Phi_s^{neg}$')
-        utilities.save_plot(__file__, 'plots/compare_phis_neg_newton.png')
+        utilities.report(
+            comsol.neg,
+            time,
+            phis_sol(plot_time)[:, comsol.neg_ind],
+            comsol_phis(plot_time)[:, comsol.neg_ind],
+            "$\Phi_s^{neg}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_phis_neg_newton.png")
         plt.show()
-        utilities.report(comsol.pos, time, phis_sol(plot_time)[:, comsol.pos_ind],
-                         comsol_phis(plot_time)[:, comsol.pos_ind], '$\Phi_s^{pos}$')
-        utilities.save_plot(__file__, 'plots/compare_phis_pos_newton.png')
+        utilities.report(
+            comsol.pos,
+            time,
+            phis_sol(plot_time)[:, comsol.pos_ind],
+            comsol_phis(plot_time)[:, comsol.pos_ind],
+            "$\Phi_s^{pos}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_phis_pos_newton.png")
         plt.show()
     else:
         data = utilities.generate_test_stats(time, comsol, phis_sol, comsol_phis)
@@ -90,5 +99,5 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
         return data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
