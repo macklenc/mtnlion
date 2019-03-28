@@ -40,13 +40,8 @@ def make_cell() -> Union[comsol.domain.ReferenceCell, Callable]:
     :return: reference cell
     """
     # TODO: test pseudo mesh
-    def cell(
-        mesh: np.ndarray = None,
-        pseudo_mesh: np.ndarray = None,
-        time_mesh: np.ndarray = None,
-        bound: List[float] = None,
-        **kwargs: np.ndarray
-    ) -> comsol.domain.ReferenceCell:
+    def cell(mesh: np.ndarray = None, pseudo_mesh: np.ndarray = None, time_mesh: np.ndarray = None,
+             bound: List[float] = None, **kwargs: np.ndarray) -> comsol.domain.ReferenceCell:
         """
         Create a reference cell with default values.
 
@@ -108,30 +103,28 @@ def test_format_data() -> None:
     time_mesh = np.array([0, 1])
     bound = [1, 2]
 
-    data_dict["d1"] = np.array([mesh1, np.arange(0, len(mesh1))]).T
-    data_dict["d2"] = np.array([mesh2, np.arange(0, len(mesh2))]).T
-    data_dict["d3"] = np.array([mesh3, np.arange(0, len(mesh3))]).T
-    data_dict["bad"] = np.array([1])
-    data_dict["bad2"] = np.vstack((np.insert(mesh1, 4, 1), np.arange(0, len(mesh1) + 1))).T
-    data_dict["mesh"] = mesh1
-    data_dict["time_mesh"] = time_mesh
+    data_dict['d1'] = np.array([mesh1, np.arange(0, len(mesh1))]).T
+    data_dict['d2'] = np.array([mesh2, np.arange(0, len(mesh2))]).T
+    data_dict['d3'] = np.array([mesh3, np.arange(0, len(mesh3))]).T
+    data_dict['bad'] = np.array([1])
+    data_dict['bad2'] = np.vstack((np.insert(mesh1, 4, 1), np.arange(0, len(mesh1) + 1))).T
+    data_dict['mesh'] = mesh1
+    data_dict['time_mesh'] = time_mesh
 
     result = comsol.format_2d_data(data_dict, bound)
 
-    expected = {
-        "d1": np.array([[0, 1, 2, 3, 4, 5, 6, 7, 8]]),
-        "d2": np.array([[0, 1, 2, 2, 3, 4, 5, 6, 7]]),
-        "d3": np.array([[0, 1, 2, 2, 3, 4, 4, 5, 6]]),
-    }
+    expected = {'d1': np.array([[0, 1, 2, 3, 4, 5, 6, 7, 8]]),
+                'd2': np.array([[0, 1, 2, 2, 3, 4, 5, 6, 7]]),
+                'd3': np.array([[0, 1, 2, 2, 3, 4, 4, 5, 6]])}
 
-    assert bound == result.pop("boundaries")
-    assert np.array_equal(mesh1, result.pop("mesh"))
-    assert np.array_equal(time_mesh, result.pop("time_mesh"))
-    assert np.array_equal(expected["d1"], result["d1"])
-    assert np.array_equal(expected["d2"], result["d2"])
-    assert np.array_equal(expected["d3"], result["d3"])
+    assert bound == result.pop('boundaries')
+    assert np.array_equal(mesh1, result.pop('mesh'))
+    assert np.array_equal(time_mesh, result.pop('time_mesh'))
+    assert np.array_equal(expected['d1'], result['d1'])
+    assert np.array_equal(expected['d2'], result['d2'])
+    assert np.array_equal(expected['d3'], result['d3'])
 
-    data_dict.pop("mesh")
+    data_dict.pop('mesh')
     with pytest.raises(Exception):
         comsol.format_2d_data(data_dict, bound)
 
@@ -174,5 +167,5 @@ def test_format_data() -> None:
 #     assert cell.data
 
 
-if __name__ == "__main__":
-    pytest.main(args=["-s", os.path.abspath(__file__)])
+if __name__ == '__main__':
+    pytest.main(args=['-s', os.path.abspath(__file__)])
