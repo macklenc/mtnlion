@@ -62,7 +62,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
 def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stats=False):
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
     if start_time is None:
@@ -72,7 +72,7 @@ def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stat
     if dt is None:
         dt = 0.1
     if plot_time is None:
-        plot_time = np.arange(start_time, stop_time, dt)
+        plot_time = np.arange(start_time, stop_time, (stop_time-start_time)/5)
 
     ce_sol, comsol = run(start_time, dt, stop_time, return_comsol=True)
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)

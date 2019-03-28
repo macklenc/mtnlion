@@ -8,6 +8,7 @@ import sympy as sym
 from buildup import common, utilities
 from mtnlion.newman import equations
 
+# NOTE: Deprecated
 
 def picard_solver(a, lin, estimated, previous, bc):
     eps = 1.0
