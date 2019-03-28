@@ -1,5 +1,26 @@
 [flake8]
 ignore = E203, E266, E501, W503, F403, F401
+# Ignore some flake8-docstrings errors
+#ignore = D203, W503, E203
 max-line-length = 120
-max-complexity = 18
 select = B,C,E,F,W,T4,B9
+per-file-ignores =
+	mtnlion/newman/equations.py:N803,N806,N802
+
+exclude =
+    .tox,
+    .git,
+    __pycache__,
+    docs/source/conf.py,
+    build,
+    dist,
+    tests/fixtures/*,
+    *.pyc,
+    *.egg-info,
+    .cache,
+    .eggs
+max-complexity = 10
+import-order-style = google
+application-import-names = flake8
+format = ${cyan}%(path)s${reset}:${yellow_bold}%(row)d${reset}:${green_bold}%(col)d${reset}: ${red_bold}%(code)s${reset} %(text)s
+

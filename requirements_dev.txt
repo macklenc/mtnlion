@@ -2,7 +2,6 @@ pip==19.0.3
 bump2version==0.5.10
 wheel==0.33.1
 watchdog==0.9.0
-flake8==3.7.7
 tox==3.7.0
 coverage==4.5.3
 Sphinx==1.8.5
@@ -11,7 +10,13 @@ sphinx_rtd_theme==0.4.2
 pytest==4.3.1
 pytest-runner==4.2
 
+flake8==3.7.7
+flake8-docstrings
+flake8-import-order
+pep8-naming
+flake8-colors
 black
 cpplint
 pylint
 pre-commit
+mypy

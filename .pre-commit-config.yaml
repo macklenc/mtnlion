@@ -1,10 +1,19 @@
 repos:
--   repo: https://github.com/ambv/black
-    rev: stable
+-   repo: local
     hooks:
     - id: black
-      language_version: python3.6
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v1.2.3
-    hooks:
+      name: black
+      language: system
+      entry: black
+      types: [python]
     - id: flake8
+      name: flake8
+      language: system
+      entry: flake8
+      types: [python]
+    - id: mypy
+      name: mypy
+      language: system
+      entry: mypy
+      types: [python]
+      exclude: ^docs/conf.py
