@@ -1,7 +1,7 @@
 import dolfin as fem
 import matplotlib.pyplot as plt
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -23,14 +23,19 @@ def run(time, return_comsol=False):
     n = domain.n
     dS = domain.dS
 
-    newmann_a = (kappa_eff('-') / Lc('-') * fem.inner(fem.grad(phie_u('-')), n('-')) * v('-') +
-                 kappa_eff('+') / Lc('+') * fem.inner(fem.grad(phie_u('+')), n('+')) * v('+')) * (dS(2) + dS(3))
+    newmann_a = (
+        kappa_eff("-") / Lc("-") * fem.inner(fem.grad(phie_u("-")), n("-")) * v("-")
+        + kappa_eff("+") / Lc("+") * fem.inner(fem.grad(phie_u("+")), n("+")) * v("+")
+    ) * (dS(2) + dS(3))
 
-    newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
-                  kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
+    newmann_L = -(
+        kappa_Deff("-") / Lc("-") * fem.inner(fem.grad(fem.ln(ce_c("-"))), n("-")) * v("-")
+        + kappa_Deff("+") / Lc("+") * fem.inner(fem.grad(fem.ln(ce_c("+"))), n("+")) * v("+")
+    ) * (dS(2) + dS(3))
 
-    lhs, rhs1, rhs2 = equations.phie(jbar_c, ce_c, phie_u, v, kappa_eff, kappa_Deff,
-                                     **cmn.fenics_params, **cmn.fenics_consts)
+    lhs, rhs1, rhs2 = equations.phie(
+        jbar_c, ce_c, phie_u, v, kappa_eff, kappa_Deff, **cmn.fenics_params, **cmn.fenics_consts
+    )
     F = (lhs - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) + newmann_a - newmann_L
 
     a = fem.lhs(F)
@@ -63,14 +68,13 @@ def main(time=None, plot_time=None, get_test_stats=False):
     comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
 
     if not get_test_stats:
-        utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
-        utilities.save_plot(__file__, 'plots/compare_phie.png')
+        utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), "$\Phi_e$")
+        utilities.save_plot(__file__, "plots/compare_phie.png")
         plt.show()
     else:
         data = utilities.generate_test_stats(time, comsol, phie_sol, comsol_phie)
         return data
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
