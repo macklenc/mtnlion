@@ -7,7 +7,7 @@ import utilities
 
 
 # NOTE: DOES NOT WORK
-# TODO: update for new API
+# NOTE: Deprecated
 
 class Phis():
     def __init__(self, domain, Acell, sigma_eff, L, a_s, F, dirichlet, neumann):

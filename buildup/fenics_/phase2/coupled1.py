@@ -8,6 +8,7 @@ import numpy as np
 from buildup import (common, utilities)
 from mtnlion.newman import equations
 
+# NOTE: Deprecated
 
 def main():
     # Times at which to run solver
