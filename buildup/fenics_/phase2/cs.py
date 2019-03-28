@@ -1,7 +1,7 @@
 import dolfin as fem
 import matplotlib.pyplot as plt
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -11,18 +11,22 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos, func_ce
     # NOTE: .cpp_object() will not be required later as per
     # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
     # TODO: Use python wrappers
-    xbar = fem.CompiledExpression(fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
-                                  markers=dest_markers,
-                                  neg=dest_x_neg.cpp_object(),
-                                  sep=dest_x_sep.cpp_object(),
-                                  pos=dest_x_pos.cpp_object(),
-                                  degree=1)
-    return fem.CompiledExpression(fem.compile_cpp_code(utilities.expressions.composition).Composition(),
-                                  inner=xbar.cpp_object(),
-                                  outer=func.cpp_object(),
-                                  inner_cell=dest_cell,
-                                  outer_cell=func_cell,
-                                  degree=1)
+    xbar = fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
+        markers=dest_markers,
+        neg=dest_x_neg.cpp_object(),
+        sep=dest_x_sep.cpp_object(),
+        pos=dest_x_pos.cpp_object(),
+        degree=1,
+    )
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.composition).Composition(),
+        inner=xbar.cpp_object(),
+        outer=func.cpp_object(),
+        inner_cell=dest_cell,
+        outer_cell=func_cell,
+        degree=1,
+    )
 
 
 def run(time, dt, return_comsol=False):
@@ -40,8 +44,7 @@ def run(time, dt, return_comsol=False):
     electrode_domain = cmn.electrode_domain
 
     cs_sol = utilities.create_solution_matrices(len(time), len(pseudo_domain.mesh.coordinates()), 1)[0]
-    pseudo_cse_sol = \
-        utilities.create_solution_matrices(len(time), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
+    pseudo_cse_sol = utilities.create_solution_matrices(len(time), len(cse_domain.mesh.coordinates()[:, 0]), 1)[0]
     cse_sol = utilities.create_solution_matrices(len(time), len(domain.mesh.coordinates()), 1)[0]
 
     d_cs = fem.TrialFunction(pseudo_domain.V)
@@ -54,21 +57,37 @@ def run(time, dt, return_comsol=False):
 
     cse.set_allow_extrapolation(True)
 
-    cse_f = cross_domain(cs_f, electrode_domain.domain_markers,
-                         fem.Expression(('x[0]', '1.0'), degree=1),
-                         fem.Expression(('0.5*(x[0]+1)', '1.0'), degree=1),
-                         fem.Expression(('x[0] - 0.5', '1.0'), degree=1))
+    cse_f = cross_domain(
+        cs_f,
+        electrode_domain.domain_markers,
+        fem.Expression(("x[0]", "1.0"), degree=1),
+        fem.Expression(("0.5*(x[0]+1)", "1.0"), degree=1),
+        fem.Expression(("x[0] - 0.5", "1.0"), degree=1),
+    )
 
     # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
-    Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
-                                 cse_f, cmn.fenics_params.csmax, utilities)
-    j = equations.j(ce_c, cse_f, phie_c, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
-                    dm=domain.domain_markers, V=domain.V)
+    Uocp = equations.Uocp_interp(
+        cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_f, cmn.fenics_params.csmax, utilities
+    )
+    j = equations.j(
+        ce_c,
+        cse_f,
+        phie_c,
+        phis_c,
+        Uocp,
+        **cmn.fenics_params,
+        **cmn.fenics_consts,
+        dm=domain.domain_markers,
+        V=domain.V
+    )
 
-    jhat = cross_domain(j, pseudo_domain.domain_markers,
-                        fem.Expression('x[0]', degree=1),
-                        fem.Expression('2*x[0]-1', degree=1),
-                        fem.Expression('x[0] + 0.5', degree=1))
+    jhat = cross_domain(
+        j,
+        pseudo_domain.domain_markers,
+        fem.Expression("x[0]", degree=1),
+        fem.Expression("2*x[0]-1", degree=1),
+        fem.Expression("x[0] + 0.5", degree=1),
+    )
 
     ds = pseudo_domain.ds
     dx = pseudo_domain.dx
@@ -83,17 +102,18 @@ def run(time, dt, return_comsol=False):
     solver = fem.NonlinearVariationalSolver(problem)
 
     prm = solver.parameters
-    prm['newton_solver']['absolute_tolerance'] = 1e-10
-    prm['newton_solver']['relative_tolerance'] = 1e-9
-    prm['newton_solver']['maximum_iterations'] = 5000
-    prm['newton_solver']['relaxation_parameter'] = 1.0
+    prm["newton_solver"]["absolute_tolerance"] = 1e-10
+    prm["newton_solver"]["relative_tolerance"] = 1e-9
+    prm["newton_solver"]["maximum_iterations"] = 5000
+    prm["newton_solver"]["relaxation_parameter"] = 1.0
 
     # cse_1.vector()[:] = np.append(comsol.data.cse[0, comsol.neg_ind], comsol.data.cse[0, comsol.pos_ind])
 
     for k, t in enumerate(time):
-        utilities.assign_functions([comsol_ce(t), comsol_phis(t), comsol_phie(t)],
-                                   [ce_c, phis_c, phie_c], domain.V, ...)
-        cs_1.vector()[:] = comsol_cs(t - dt).astype('double')
+        utilities.assign_functions(
+            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, ...
+        )
+        cs_1.vector()[:] = comsol_cs(t - dt).astype("double")
 
         cs_f.assign(cs_1)
         solver.solve()
@@ -107,11 +127,18 @@ def run(time, dt, return_comsol=False):
         cs_sol[k, :] = cs_f.vector().get_local()  # used to prove that cs computed correctly
 
     if return_comsol:
-        return utilities.interp_time(time, cs_sol), utilities.interp_time(time, pseudo_cse_sol), utilities.interp_time(
-            time, cse_sol), comsol
+        return (
+            utilities.interp_time(time, cs_sol),
+            utilities.interp_time(time, pseudo_cse_sol),
+            utilities.interp_time(time, cse_sol),
+            comsol,
+        )
     else:
-        return utilities.interp_time(time, cs_sol), utilities.interp_time(time, pseudo_cse_sol), utilities.interp_time(
-            time, cse_sol)
+        return (
+            utilities.interp_time(time, cs_sol),
+            utilities.interp_time(time, pseudo_cse_sol),
+            utilities.interp_time(time, cse_sol),
+        )
 
 
 def main(time=None, dt=None, plot_time=None, get_test_stats=False):
@@ -132,25 +159,45 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     comsol_cs = utilities.interp_time(comsol.time_mesh, comsol.data.cs)
 
     if not get_test_stats:
-        print('cs total normalized RMSE%: {}'.format(utilities.norm_rmse(cs_sol(plot_time), comsol_cs(plot_time))))
+        print("cs total normalized RMSE%: {}".format(utilities.norm_rmse(cs_sol(plot_time), comsol_cs(plot_time))))
 
         xcoor, cse, neg_ind, pos_ind = utilities.find_cse_from_cs(comsol)
         comsol_pseudo_cse = utilities.interp_time(comsol.time_mesh, cse)
 
-        utilities.report(xcoor[neg_ind], plot_time, pseudo_cse_sol(plot_time)[:, neg_ind],
-                         comsol_pseudo_cse(plot_time)[:, neg_ind], 'pseudo $c_{s,e}^{neg}$')
-        utilities.save_plot(__file__, 'plots/compare_pseudo_cse_neg.png')
-        utilities.report(xcoor[pos_ind], plot_time, pseudo_cse_sol(plot_time)[:, pos_ind],
-                         comsol_pseudo_cse(plot_time)[:, pos_ind], 'pseudo $c_{s,e}^{pos}$')
-        utilities.save_plot(__file__, 'plots/compare_pseudo_cse_pos.png')
+        utilities.report(
+            xcoor[neg_ind],
+            plot_time,
+            pseudo_cse_sol(plot_time)[:, neg_ind],
+            comsol_pseudo_cse(plot_time)[:, neg_ind],
+            "pseudo $c_{s,e}^{neg}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_pseudo_cse_neg.png")
+        utilities.report(
+            xcoor[pos_ind],
+            plot_time,
+            pseudo_cse_sol(plot_time)[:, pos_ind],
+            comsol_pseudo_cse(plot_time)[:, pos_ind],
+            "pseudo $c_{s,e}^{pos}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_pseudo_cse_pos.png")
 
-        utilities.report(comsol.mesh[comsol.neg_ind], plot_time, cse_sol(plot_time)[:, comsol.neg_ind],
-                         comsol_cse(plot_time)[:, comsol.neg_ind], '$c_{s,e}$')
-        utilities.save_plot(__file__, 'plots/compare_cse_neg.png')
+        utilities.report(
+            comsol.mesh[comsol.neg_ind],
+            plot_time,
+            cse_sol(plot_time)[:, comsol.neg_ind],
+            comsol_cse(plot_time)[:, comsol.neg_ind],
+            "$c_{s,e}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_cse_neg.png")
         plt.show()
-        utilities.report(comsol.mesh[comsol.pos_ind], plot_time, cse_sol(plot_time)[:, comsol.pos_ind],
-                         comsol_cse(plot_time)[:, comsol.pos_ind], '$c_{s,e}$')
-        utilities.save_plot(__file__, 'plots/compare_cse_pos.png')
+        utilities.report(
+            comsol.mesh[comsol.pos_ind],
+            plot_time,
+            cse_sol(plot_time)[:, comsol.pos_ind],
+            comsol_cse(plot_time)[:, comsol.pos_ind],
+            "$c_{s,e}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_cse_pos.png")
 
         plt.show()
     else:
@@ -163,5 +210,5 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
         return data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
