@@ -49,7 +49,7 @@ def run(time, dt, solver, return_comsol=False):
 
 
 def main():
-    fem.set_log_level(fem.INFO)
+    fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
     time = [0, 5, 10, 15, 20]

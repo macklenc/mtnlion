@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from buildup import (common, utilities)
 from mtnlion.newman import equations
 
+#TODO: CHECK ERROR AFTER FENICS 2018 UPDATE
 
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
@@ -91,7 +92,7 @@ def run(time, dt, return_comsol=False):
 
 def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
     if time is None:
