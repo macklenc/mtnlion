@@ -1,6 +1,6 @@
 import numbers
 
-import fenics as fem
+import dolfin as fem
 import munch
 import numpy as np
 import sympy as sym

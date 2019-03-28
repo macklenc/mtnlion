@@ -1,5 +1,5 @@
 """Provides isothermal Newman cell model."""
-import fenics as fem
+import dolfin as fem
 import sympy as sym
 
 

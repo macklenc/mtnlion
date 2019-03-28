@@ -1,7 +1,7 @@
 import sys
 from functools import partial
 
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sym
