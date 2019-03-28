@@ -47,7 +47,7 @@ def run(time, dt, return_comsol=False):
         **cmn.fenics_params,
         **cmn.fenics_consts,
         dm=domain.domain_markers,
-        V=domain.V
+        V=domain.V,
     )
 
     lhs, rhs1, rhs2 = equations.phie(
