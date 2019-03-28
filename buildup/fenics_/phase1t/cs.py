@@ -13,17 +13,20 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
     # NOTE: .cpp_object() will not be required later as per
     # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
     # TODO: Use python wrappers
-    xbar = fem.CompiledExpression(fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
-                                  markers=dest_markers,
-                                  neg=dest_x_neg.cpp_object(),
-                                  sep=dest_x_sep.cpp_object(),
-                                  pos=dest_x_pos.cpp_object(),
-                                  degree=1,
+    xbar = fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
+        markers=dest_markers,
+        neg=dest_x_neg.cpp_object(),
+        sep=dest_x_sep.cpp_object(),
+        pos=dest_x_pos.cpp_object(),
+        degree=1,
     )
-    return fem.CompiledExpression(fem.compile_cpp_code(utilities.expressions.composition).Composition(),
-                                  inner=xbar.cpp_object(),
-                                  outer=func.cpp_object(),
-                                  degree=1)
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.composition).Composition(),
+        inner=xbar.cpp_object(),
+        outer=func.cpp_object(),
+        degree=1,
+    )
 
 
 def run(start_time, dt, stop_time, return_comsol=False):
@@ -137,7 +140,7 @@ def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stat
     if dt is None:
         dt = 0.1
     if plot_time is None:
-        plot_time = np.arange(start_time, stop_time, (stop_time-start_time)/5)
+        plot_time = np.arange(start_time, stop_time, (stop_time - start_time) / 5)
 
     cs_sol, pseudo_cse_sol, cse_sol, comsol = run(start_time, dt, stop_time, return_comsol=True)
 
