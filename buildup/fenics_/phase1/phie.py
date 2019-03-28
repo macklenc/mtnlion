@@ -49,17 +49,27 @@ def run(time, return_comsol=False):
         return utilities.interp_time(time, phie_sol)
 
 
-def main():
+def main(time=None, plot_time=None, get_test_stats=False):
+    # Quiet
+    fem.set_log_level(fem.ERROR)
+
     # Times at which to run solver
-    time = [0, 5, 10, 15, 20]
-    plot_time = time
+    if time is None:
+        time = [0, 5, 10, 15, 20]
+    if plot_time is None:
+        plot_time = time
 
     phie_sol, comsol = run(time, return_comsol=True)
     comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
 
-    utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
-    utilities.save_plot(__file__, 'plots/compare_phie.png')
-    plt.show()
+    if not get_test_stats:
+        utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
+        utilities.save_plot(__file__, 'plots/compare_phie.png')
+        plt.show()
+    else:
+        data = utilities.generate_test_stats(time, comsol, phie_sol, comsol_phie)
+        return data
+
 
 
 if __name__ == '__main__':

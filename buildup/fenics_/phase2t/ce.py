@@ -77,20 +77,32 @@ def run(start_time, dt, stop_time, return_comsol=False):
         return utilities.interp_time(time, ce_sol)
 
 
-def main():
+def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stats=False):
+    # Quiet
     fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    [sim_start_time, sim_dt, sim_stop_time] = [0, 0.1, 50]
-    plot_times = np.arange(0, 50, 5)
+    if start_time is None:
+        start_time = 0
+    if stop_time is None:
+        stop_time = 50
+    if dt is None:
+        dt = 0.1
+    if plot_time is None:
+        plot_time = np.arange(start_time, stop_time, dt)
 
-    ce_sol, comsol = run(sim_start_time, sim_dt, sim_stop_time, return_comsol=True)
+    ce_sol, comsol = run(start_time, dt, stop_time, return_comsol=True)
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
-    utilities.report(comsol.mesh, plot_times, ce_sol(plot_times), comsol_ce(plot_times), '$c_e$')
-    utilities.save_plot(__file__, 'plots/compare_ce_euler.png')
+    if not get_test_stats:
+        utilities.report(comsol.mesh, plot_time, ce_sol(plot_time), comsol_ce(plot_time), '$c_e$')
+        utilities.save_plot(__file__, 'plots/compare_ce_euler.png')
 
-    plt.show()
+        plt.show()
+    else:
+        data = utilities.generate_test_stats(plot_time, comsol, ce_sol, comsol_ce)
+
+        return data
 
 
 if __name__ == '__main__':
