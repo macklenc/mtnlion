@@ -66,7 +66,7 @@ class ReferenceCell(engine.Mountain):
         pseudo_mesh: np.ndarray,
         time_mesh: np.ndarray,
         boundaries: Union[np.ndarray, List[float]],
-        **kwargs: np.ndarray,
+        **kwargs: np.ndarray
     ) -> None:
         """
         Store the solutions to each cell parameter.

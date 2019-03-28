@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from buildup import common, utilities
 from mtnlion.newman import equations
 
-#TODO: CHECK ERROR AFTER FENICS 2018 UPDATE
+# TODO: CHECK ERROR AFTER FENICS 2018 UPDATE
 
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
@@ -12,17 +12,20 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
     # NOTE: .cpp_object() will not be required later as per
     # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
     # TODO: Use python wrappers
-    xbar = fem.CompiledExpression(fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
-                                  markers=dest_markers,
-                                  neg=dest_x_neg.cpp_object(),
-                                  sep=dest_x_sep.cpp_object(),
-                                  pos=dest_x_pos.cpp_object(),
-                                  degree=1,
+    xbar = fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
+        markers=dest_markers,
+        neg=dest_x_neg.cpp_object(),
+        sep=dest_x_sep.cpp_object(),
+        pos=dest_x_pos.cpp_object(),
+        degree=1,
     )
-    return fem.CompiledExpression(fem.compile_cpp_code(utilities.expressions.composition).Composition(),
-                                  inner=xbar.cpp_object(),
-                                  outer=func.cpp_object(),
-                                  degree=1)
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.composition).Composition(),
+        inner=xbar.cpp_object(),
+        outer=func.cpp_object(),
+        degree=1,
+    )
 
 
 def run(time, dt, return_comsol=False):

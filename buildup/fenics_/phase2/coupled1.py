@@ -10,6 +10,7 @@ from mtnlion.newman import equations
 
 # NOTE: Deprecated
 
+
 def main():
     # Times at which to run solver
     time_in = [0.1, 5, 9.9, 10, 10.1, 15, 20]
