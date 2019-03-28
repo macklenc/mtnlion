@@ -37,11 +37,11 @@ function eval {
 
 function format {
 	echo "*** EXECUTING Python Evaluator ***"
-	declare -a PYFILES=($(find ${SCRIPTPATH} -path .tox -prune -o \( -iname \*.py \) -print))
-	black --py36 "${PYFILES[@]}"
+	declare -a PYFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -iname \*.py \) -print))
+	black --target-version py36 "${PYFILES[@]}"
 
 	echo "*** EXECUTING C++ Evaluator ***"
-	declare -a CPPFILES=($(find ${SCRIPTPATH} -path .tox -prune -o \( -name \*.h -o -name \*.cpp \) -print))
+	declare -a CPPFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -name \*.h -o -name \*.cpp \) -print))
 	for CPPFILE in "${CPPFILES[@]}"
 	do
 	  clang-format -style=Google -i "$CPPFILE" 
