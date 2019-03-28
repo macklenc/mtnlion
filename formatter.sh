@@ -19,7 +19,7 @@ function help {
 function eval {
 	echo "*** EXECUTING Python Evaluator ***"
 	declare -a PYFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -iname \*.py \) -print))
-	black --check --target-version py36 "${PYFILES[@]}"
+	black --check --target-version py35 "${PYFILES[@]}"
 
 	echo "*** EXECUTING C++ Evaluator ***"
 	declare -a CPPFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -name \*.h -o -name \*.cpp \) -print))
@@ -38,7 +38,7 @@ function eval {
 function format {
 	echo "*** EXECUTING Python Evaluator ***"
 	declare -a PYFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -iname \*.py \) -print))
-	black --target-version py36 "${PYFILES[@]}"
+	black --target-version py35 "${PYFILES[@]}"
 
 	echo "*** EXECUTING C++ Evaluator ***"
 	declare -a CPPFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -name \*.h -o -name \*.cpp \) -print))
