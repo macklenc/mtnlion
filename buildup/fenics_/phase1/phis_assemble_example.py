@@ -7,7 +7,7 @@ import utilities
 
 
 # NOTE: DOES NOT WORK
-# TODO: update for new API
+# NOTE: Deprecated
 
 
 class Phis:
