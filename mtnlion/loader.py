@@ -16,7 +16,7 @@ def save_npz_file(filename: str, data_dict: Dict[str, np.ndarray], **kwargs) -> 
     :param filename: name of the npz file
     :param kwargs: additional numpy.savez arguments
     """
-    logger.info("Saving data to npz: {}".format(filename))
+    logger.info('Saving data to npz: {}'.format(filename))
     np.savez(filename, **data_dict, **kwargs)
 
 
@@ -28,14 +28,13 @@ def load_numpy_file(filename: str, **kwargs) -> Dict[str, np.ndarray]:
     :param kwargs: additional numpy.load arguments
     :return: data dictionary
     """
-    logger.info("Loading data from npz: {}".format(filename))
+    logger.info('Loading data from npz: {}'.format(filename))
     with np.load(filename, **kwargs) as data:
         return {k: v for k, v in data.items()}
 
 
-def load_csv_file(
-    filename: str, comments: str = "%", delimiter: str = ",", d_type: type = np.float64, **kwargs
-) -> np.ndarray:
+def load_csv_file(filename: str, comments: str = '%', delimiter: str = ',', d_type: type = np.float64, **kwargs) \
+        -> np.ndarray:
     """
     Load data from a csv file. See numpy.load for additional argument options.
 
@@ -46,7 +45,7 @@ def load_csv_file(
     :param kwargs: additional numpy.loadtxt arguments
     :return: file data
     """
-    logger.info("Loading CSV file: {}".format(filename))
+    logger.info('Loading CSV file: {}'.format(filename))
     return np.loadtxt(filename, comments=comments, delimiter=delimiter, dtype=d_type, **kwargs)
 
 
@@ -58,13 +57,12 @@ def format_name(name: str) -> str:
     :return: variable name
     """
     key = os.path.splitext(os.path.basename(name))[0]
-    logger.info("Using key name: {}".format(key))
+    logger.info('Using key name: {}'.format(key))
     return key
 
 
-def collect_files(
-    file_list: List[str], format_key: Callable = format_name, loader: Callable = load_numpy_file, **kwargs
-) -> Dict[str, np.ndarray]:
+def collect_files(file_list: List[str], format_key: Callable = format_name, loader: Callable = load_numpy_file,
+                  **kwargs) -> Dict[str, np.ndarray]:
     """
     Collect files using the provided loader.
 
@@ -76,7 +74,7 @@ def collect_files(
     :param kwargs: extra arguments to the loader
     :return: data dictionary
     """
-    logger.info("Collecting files: {}".format(file_list))
+    logger.info('Collecting files: {}'.format(file_list))
 
     data_dict = dict()
     for f in file_list:
