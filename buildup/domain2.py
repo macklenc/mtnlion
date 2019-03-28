@@ -1,4 +1,4 @@
-import fenics as fem
+import dolfin as fem
 import numpy as np
 
 
