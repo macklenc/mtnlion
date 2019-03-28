@@ -56,25 +56,38 @@ def run(time, dt, return_comsol=False):
         return utilities.interp_time(time, phis_sol)
 
 
-def main():
-    fem.set_log_level(fem.INFO)
+def main(time=None, dt=None, plot_time=None, get_test_stats=False):
+    # Quiet
+    fem.set_log_level(fem.ERROR)
 
     # Times at which to run solver
-    time = [0, 5, 10, 15, 20]
-    sim_dt = 0.1
-    plot_time = time
+    if time is None:
+        time = [0, 5, 10, 15, 20]
+    if dt is None:
+        dt = 0.1
+    if plot_time is None:
+        plot_time = time
 
-    phis_sol, comsol = run(time, sim_dt, return_comsol=True)
+    phis_sol, comsol = run(time, dt, return_comsol=True)
     comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
 
-    utilities.report(comsol.neg, time, phis_sol(plot_time)[:, comsol.neg_ind],
-                     comsol_phis(plot_time)[:, comsol.neg_ind], '$\Phi_s^{neg}$')
-    utilities.save_plot(__file__, 'plots/compare_phis_neg_newton.png')
-    plt.show()
-    utilities.report(comsol.pos, time, phis_sol(plot_time)[:, comsol.pos_ind],
-                     comsol_phis(plot_time)[:, comsol.pos_ind], '$\Phi_s^{pos}$')
-    utilities.save_plot(__file__, 'plots/compare_phis_pos_newton.png')
-    plt.show()
+    if not get_test_stats:
+        utilities.report(comsol.neg, time, phis_sol(plot_time)[:, comsol.neg_ind],
+                         comsol_phis(plot_time)[:, comsol.neg_ind], '$\Phi_s^{neg}$')
+        utilities.save_plot(__file__, 'plots/compare_phis_neg_newton.png')
+        plt.show()
+        utilities.report(comsol.pos, time, phis_sol(plot_time)[:, comsol.pos_ind],
+                         comsol_phis(plot_time)[:, comsol.pos_ind], '$\Phi_s^{pos}$')
+        utilities.save_plot(__file__, 'plots/compare_phis_pos_newton.png')
+        plt.show()
+    else:
+        data = utilities.generate_test_stats(time, comsol, phis_sol, comsol_phis)
+
+        # Separator info is garbage:
+        for d in data:
+            d[1, ...] = 0
+
+        return data
 
 
 if __name__ == '__main__':

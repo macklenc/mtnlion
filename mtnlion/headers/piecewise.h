@@ -3,7 +3,7 @@ class Piecewise : public Expression
     public:
         Piecewise() : Expression() {}
 
-        void eval(Array<double>& values, const Array<double>& x, const ufc::cell& cell) const
+        void eval(Eigen::Ref<Eigen::VectorXd>& values, Eigen::Ref<const Eigen::VectorXd>& x, const ufc::cell& cell) const
         {
             switch((*markers)[cell.index]){
             case 0:

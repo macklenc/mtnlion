@@ -224,3 +224,27 @@ def newton_solver(F, u_, bc, J, V, a_tol=1e-7, r_tol=1e-10, maxiter=25, relaxati
         u_.vector()[:] += relaxation * u_inc.vector()
 
         print('fnorm: {}'.format(fnorm))
+
+
+def generate_test_stats(time, indices, estimated, true):
+    estimated = estimated(time)
+    true = true(time)
+    rmse = np.array([
+        norm_rmse(estimated[:, indices.neg_ind], true[:, indices.neg_ind]),
+        norm_rmse(estimated[:, indices.sep_ind], true[:, indices.sep_ind]),
+        norm_rmse(estimated[:, indices.pos_ind], true[:, indices.pos_ind])
+    ])
+
+    mean = np.array([
+        np.mean(estimated[:, indices.neg_ind]),
+        np.mean(estimated[:, indices.sep_ind]),
+        np.mean(estimated[:, indices.pos_ind])
+    ])
+
+    std = np.array([
+        np.std(estimated[:, indices.neg_ind]),
+        np.std(estimated[:, indices.sep_ind]),
+        np.std(estimated[:, indices.pos_ind])
+    ])
+    return rmse, mean, std
+

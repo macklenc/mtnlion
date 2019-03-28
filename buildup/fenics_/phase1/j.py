@@ -47,23 +47,37 @@ def run(time, return_comsol=False, form='equation'):
         return utilities.interp_time(time, j_sol)
 
 
-def main():
+def main(time=None, plot_time=None, get_test_stats=False):
+    # Quiet
+    fem.set_log_level(fem.ERROR)
+
     # Times at which to run solver
-    time = [0, 5, 10, 15, 20]
-    plot_times = time
+    if time is None:
+        time = [0, 5, 10, 15, 20]
+    if plot_time is None:
+        plot_time = time
 
     j_sol, comsol = run(time, return_comsol=True, form='interp')
     comsol_j = utilities.interp_time(comsol.time_mesh, comsol.data.j)
 
-    utilities.report(comsol.mesh[comsol.neg_ind], time, j_sol(plot_times)[:, comsol.neg_ind],
-                     comsol_j(plot_times)[:, comsol.neg_ind], '$j_{neg}$')
-    utilities.save_plot(__file__, 'plots/compare_j_neg.png')
-    plt.show()
-    utilities.report(comsol.mesh[comsol.pos_ind], time, j_sol(plot_times)[:, comsol.pos_ind],
-                     comsol_j(plot_times)[:, comsol.pos_ind], '$j_{pos}$')
-    utilities.save_plot(__file__, 'plots/comsol_compare_j_pos.png')
+    if not get_test_stats:
+        utilities.report(comsol.mesh[comsol.neg_ind], time, j_sol(plot_time)[:, comsol.neg_ind],
+                         comsol_j(plot_time)[:, comsol.neg_ind], '$j_{neg}$')
+        utilities.save_plot(__file__, 'plots/compare_j_neg.png')
+        plt.show()
+        utilities.report(comsol.mesh[comsol.pos_ind], time, j_sol(plot_time)[:, comsol.pos_ind],
+                         comsol_j(plot_time)[:, comsol.pos_ind], '$j_{pos}$')
+        utilities.save_plot(__file__, 'plots/comsol_compare_j_pos.png')
 
-    plt.show()
+        plt.show()
+    else:
+        data = utilities.generate_test_stats(time, comsol, j_sol, comsol_j)
+
+        # Separator info is garbage:
+        for d in data:
+            d[1, ...] = 0
+
+        return data
 
     return 0
 
