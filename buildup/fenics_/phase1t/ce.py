@@ -2,7 +2,7 @@ import fenics as fem
 import matplotlib.pyplot as plt
 import numpy as np
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -24,10 +24,12 @@ def run(start_time, dt, stop_time, return_comsol=False):
     Lc = cmn.fenics_params.L
     n = domain.n
     dS = domain.dS
-    neumann = de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_u('-')), n('-')) * v('-') * dS(2) + \
-              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_u('+')), n('+')) * v('+') * dS(2) + \
-              de_eff('-') / Lc('-') * fem.inner(fem.grad(ce_u('-')), n('-')) * v('-') * dS(3) + \
-              de_eff('+') / Lc('+') * fem.inner(fem.grad(ce_u('+')), n('+')) * v('+') * dS(3)
+    neumann = (
+        de_eff("-") / Lc("-") * fem.inner(fem.grad(ce_u("-")), n("-")) * v("-") * dS(2)
+        + de_eff("+") / Lc("+") * fem.inner(fem.grad(ce_u("+")), n("+")) * v("+") * dS(2)
+        + de_eff("-") / Lc("-") * fem.inner(fem.grad(ce_u("-")), n("-")) * v("-") * dS(3)
+        + de_eff("+") / Lc("+") * fem.inner(fem.grad(ce_u("+")), n("+")) * v("+") * dS(3)
+    )
 
     euler = equations.euler(ce_u, ce_c_1, dtc)
     lhs, rhs1, rhs2 = equations.ce(jbar_c, ce_u, v, **cmn.fenics_params, **cmn.fenics_consts)
@@ -48,7 +50,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
         fem.solve(a == L, ce)
         ce_sol[k, :] = utilities.get_1d(ce, domain.V)
-        print('t={time}: error = {error}'.format(time=t, error=np.abs(ce_sol[k, :] - comsol_ce(t)).max()))
+        print("t={time}: error = {error}".format(time=t, error=np.abs(ce_sol[k, :] - comsol_ce(t)).max()))
 
         ce_c_1.assign(ce)
 
@@ -76,8 +78,8 @@ def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stat
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
 
     if not get_test_stats:
-        utilities.report(comsol.mesh, plot_time, ce_sol(plot_time), comsol_ce(plot_time), '$c_e$')
-        utilities.save_plot(__file__, 'plots/compare_ce_euler.png')
+        utilities.report(comsol.mesh, plot_time, ce_sol(plot_time), comsol_ce(plot_time), "$c_e$")
+        utilities.save_plot(__file__, "plots/compare_ce_euler.png")
         plt.show()
     else:
         data = utilities.generate_test_stats(plot_time, comsol, ce_sol, comsol_ce)
@@ -85,5 +87,5 @@ def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stat
         return data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

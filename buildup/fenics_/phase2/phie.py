@@ -1,7 +1,7 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -24,26 +24,40 @@ def run(time, dt, return_comsol=False):
     n = domain.n
     dS = domain.dS
 
-    newmann_a = (kappa_eff('-') / Lc('-') * fem.inner(fem.grad(phie_c_('-')), n('-')) * v('-') +
-                 kappa_eff('+') / Lc('+') * fem.inner(fem.grad(phie_c_('+')), n('+')) * v('+')) * (dS(2) + dS(3))
+    newmann_a = (
+        kappa_eff("-") / Lc("-") * fem.inner(fem.grad(phie_c_("-")), n("-")) * v("-")
+        + kappa_eff("+") / Lc("+") * fem.inner(fem.grad(phie_c_("+")), n("+")) * v("+")
+    ) * (dS(2) + dS(3))
 
-    newmann_L = -(kappa_Deff('-') / Lc('-') * fem.inner(fem.grad(fem.ln(ce_c('-'))), n('-')) * v('-') +
-                  kappa_Deff('+') / Lc('+') * fem.inner(fem.grad(fem.ln(ce_c('+'))), n('+')) * v('+')) * (dS(2) + dS(3))
+    newmann_L = -(
+        kappa_Deff("-") / Lc("-") * fem.inner(fem.grad(fem.ln(ce_c("-"))), n("-")) * v("-")
+        + kappa_Deff("+") / Lc("+") * fem.inner(fem.grad(fem.ln(ce_c("+"))), n("+")) * v("+")
+    ) * (dS(2) + dS(3))
 
     # Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
-    Uocp = equations.Uocp_interp(cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos,
-                                 cse_c, cmn.fenics_params.csmax, utilities)
-    j = equations.j(ce_c, cse_c, phie_c_, phis_c, Uocp, **cmn.fenics_params, **cmn.fenics_consts,
-                        dm=domain.domain_markers, V=domain.V)
+    Uocp = equations.Uocp_interp(
+        cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_c, cmn.fenics_params.csmax, utilities
+    )
+    j = equations.j(
+        ce_c,
+        cse_c,
+        phie_c_,
+        phis_c,
+        Uocp,
+        **cmn.fenics_params,
+        **cmn.fenics_consts,
+        dm=domain.domain_markers,
+        V=domain.V,
+    )
 
-    lhs, rhs1, rhs2 = equations.phie(j, ce_c, phie_c_, v, kappa_eff, kappa_Deff,
-                                     **cmn.fenics_params, **cmn.fenics_consts)
+    lhs, rhs1, rhs2 = equations.phie(
+        j, ce_c, phie_c_, v, kappa_eff, kappa_Deff, **cmn.fenics_params, **cmn.fenics_consts
+    )
     F = (lhs - rhs1) * domain.dx - rhs2 * domain.dx((0, 2)) + newmann_a - newmann_L
 
     for k, t in enumerate(time):
         utilities.assign_functions([comsol_phie(t - dt)], [phie_c_], domain.V, ...)
-        utilities.assign_functions([comsol_phis(t), comsol_ce(t), comsol_cse(t)],
-                                   [phis_c, ce_c, cse_c], domain.V, ...)
+        utilities.assign_functions([comsol_phis(t), comsol_ce(t), comsol_cse(t)], [phis_c, ce_c, cse_c], domain.V, ...)
         bc = fem.DirichletBC(domain.V, comsol_phie(t)[0], domain.boundary_markers, 1)
 
         J = fem.derivative(F, phie_c_, phie_u)
@@ -53,10 +67,10 @@ def run(time, dt, return_comsol=False):
         solver = fem.NonlinearVariationalSolver(problem)
 
         prm = solver.parameters
-        prm['newton_solver']['absolute_tolerance'] = 1e-8
-        prm['newton_solver']['relative_tolerance'] = 1e-7
-        prm['newton_solver']['maximum_iterations'] = 5000
-        prm['newton_solver']['relaxation_parameter'] = 0.17
+        prm["newton_solver"]["absolute_tolerance"] = 1e-8
+        prm["newton_solver"]["relative_tolerance"] = 1e-7
+        prm["newton_solver"]["maximum_iterations"] = 5000
+        prm["newton_solver"]["relaxation_parameter"] = 0.17
         solver.solve()
 
         # solver(fem.lhs(F) == fem.rhs(F), phie, phie_c_, bc)
@@ -85,8 +99,8 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     phie_sol, comsol = run(time, dt, return_comsol=True)
     comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
     if not get_test_stats:
-        utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), '$\Phi_e$')
-        utilities.save_plot(__file__, 'plots/compare_phie.png')
+        utilities.report(comsol.mesh, time, phie_sol(plot_time), comsol_phie(plot_time), "$\Phi_e$")
+        utilities.save_plot(__file__, "plots/compare_phie.png")
         plt.show()
     else:
         data = utilities.generate_test_stats(time, comsol, phie_sol, comsol_phie)
@@ -94,5 +108,5 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
         return data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

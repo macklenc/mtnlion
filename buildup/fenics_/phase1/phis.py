@@ -1,7 +1,7 @@
 import fenics as fem
 import matplotlib.pyplot as plt
 
-from buildup import (common, utilities)
+from buildup import common, utilities
 from mtnlion.newman import equations
 
 
@@ -55,13 +55,23 @@ def main(time=None, plot_time=None, get_test_stats=False):
     comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
 
     if not get_test_stats:
-        utilities.report(comsol.neg, time, phis_sol(plot_time)[:, comsol.neg_ind],
-                         comsol_phis(plot_time)[:, comsol.neg_ind], '$\Phi_s^{neg}$')
-        utilities.save_plot(__file__, 'plots/compare_phis_neg.png')
+        utilities.report(
+            comsol.neg,
+            time,
+            phis_sol(plot_time)[:, comsol.neg_ind],
+            comsol_phis(plot_time)[:, comsol.neg_ind],
+            "$\Phi_s^{neg}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_phis_neg.png")
         plt.show()
-        utilities.report(comsol.pos, time, phis_sol(plot_time)[:, comsol.pos_ind],
-                         comsol_phis(plot_time)[:, comsol.pos_ind], '$\Phi_s^{pos}$')
-        utilities.save_plot(__file__, 'plots/compare_phis_pos.png')
+        utilities.report(
+            comsol.pos,
+            time,
+            phis_sol(plot_time)[:, comsol.pos_ind],
+            comsol_phis(plot_time)[:, comsol.pos_ind],
+            "$\Phi_s^{pos}$",
+        )
+        utilities.save_plot(__file__, "plots/compare_phis_pos.png")
         plt.show()
     else:
         data = utilities.generate_test_stats(time, comsol, phis_sol, comsol_phis)
@@ -73,5 +83,5 @@ def main(time=None, plot_time=None, get_test_stats=False):
         return data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
