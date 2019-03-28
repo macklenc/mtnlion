@@ -32,7 +32,7 @@ def subdomain(comparison: np.ndarray) -> slice:
     if stop < len(comparison):
         stop += 1
 
-    logger.info("Got start index: {start}, and stop index {stop}".format(start=start, stop=stop))
+    logger.info('Got start index: {start}, and stop index {stop}'.format(start=start, stop=stop))
 
     return slice(start, stop)
 
@@ -47,7 +47,7 @@ def subdomains(mesh: np.ndarray, regions: List[Tuple[float, float]]):
     :param regions: two dimensional list containing multiple ranges for subdomains
     :return: tuple of each subdomain indices
     """
-    logger.info("Finding subdomains for regions: {}".format(regions))
+    logger.info('Finding subdomains for regions: {}'.format(regions))
     return (subdomain((r[0] < mesh) & (mesh < r[1])) for r in regions)
 
 
@@ -60,14 +60,8 @@ class ReferenceCell(engine.Mountain):
     between [2, 3]. For convenience the subdomains are added onto engine.Mountain.
     """
 
-    def __init__(
-        self,
-        mesh: np.ndarray,
-        pseudo_mesh: np.ndarray,
-        time_mesh: np.ndarray,
-        boundaries: Union[np.ndarray, List[float]],
-        **kwargs: np.ndarray
-    ) -> None:
+    def __init__(self, mesh: np.ndarray, pseudo_mesh: np.ndarray, time_mesh: np.ndarray,
+                 boundaries: Union[np.ndarray, List[float]], **kwargs: np.ndarray) -> None:
         """
         Store the solutions to each cell parameter.
 
@@ -75,30 +69,29 @@ class ReferenceCell(engine.Mountain):
         :param boundaries: internal boundaries in the mesh
         :param kwargs: arrays for each solution
         """
-        logger.info("Creating ReferenceCell...")
+        logger.info('Creating ReferenceCell...')
         super(ReferenceCell, self).__init__(mesh, pseudo_mesh, time_mesh, boundaries, **kwargs)
 
-        logger.info("Finding subdomains and indices...")
+        logger.info('Finding subdomains and indices...')
         # TODO: add pseudo mesh
         self.neg_ind, self.sep_ind, self.pos_ind = subdomains(mesh[0:], [(0, 1), (1, 2), (2, 3)])
         self.neg, self.sep, self.pos = mesh[self.neg_ind, ...], mesh[self.sep_ind, ...], mesh[self.pos_ind, ...]
 
-    def get_solution_in(self, subspace: str) -> Union[None, "ReferenceCell"]:
+    def get_solution_in(self, subspace: str) -> Union[None, 'ReferenceCell']:
         """
         Return the solution for only the given subspace.
 
         :return: reduced solution set to only contain the given space
         """
-        logging.debug("Retrieving solution in {}".format(subspace))
-        if subspace == "neg":
+        logging.debug('Retrieving solution in {}'.format(subspace))
+        if subspace == 'neg':
             space = self.neg_ind
-        elif subspace == "sep":
+        elif subspace == 'sep':
             space = self.sep_ind
-        elif subspace == "pos":
+        elif subspace == 'pos':
             space = self.pos_ind
         else:
             return None
 
         return engine.Mountain(self.mesh, self.pseudo_mesh, self.time_mesh, self.boundaries, **self.data).filter_space(
-            space
-        )
+            space)

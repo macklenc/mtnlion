@@ -55,8 +55,8 @@ def kappa_D(R, Tref, F, t_plus, dfdc, **kwargs):
 
 
 def kappa_Deff(ce, kappa_ref, eps_e, brug_kappa, kappa_D, **kwargs):
-    x = sym.Symbol("ce")
-    y = sym.Symbol("x")
+    x = sym.Symbol('ce')
+    y = sym.Symbol('x')
     kp = kappa_ref.subs(y, x)
 
     # TODO: separate kappa_ref
@@ -91,16 +91,16 @@ def organize(file_coords, dofs):
         if len(ind1[0]) > 0 and len(ind2[0]) > 0:
             transform.append(np.intersect1d(ind1, ind2)[0])
             if len(np.intersect1d(ind1, ind2)) > 1:
-                raise ValueError("Too many matching indices")
+                raise ValueError('Too many matching indices')
         else:
-            raise ValueError("Missing indices, check tolerances")
+            raise ValueError('Missing indices, check tolerances')
     return transform
 
 
 # TODO: Documentation
 def get_fenics_dofs(mesh_xml):
     mesh = fem.Mesh(mesh_xml)
-    V = fem.FunctionSpace(mesh, "Lagrange", 1)
+    V = fem.FunctionSpace(mesh, 'Lagrange', 1)
     dofs = V.tabulate_dof_coordinates().reshape(-1, 2)
     return dofs
 
@@ -128,68 +128,53 @@ class Common:
         self.params = collect_parameters(self.raw_params)
         self.consts = self.raw_params.const
 
-        tmpx, soc = sym.symbols("x soc")
-        self.params["Uocp_neg"] = self.params.Uocp[0][0].subs(tmpx, soc)
-        self.params["Uocp_pos"] = self.params.Uocp[2][0].subs(tmpx, soc)
-        self.params["De_eff"] = self.consts.De_ref * self.params.eps_e ** self.params.brug_De
-        self.params["sigma_eff"] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
-        self.params["a_s"] = 3 * np.divide(
-            self.params.eps_s, self.params.Rs, out=np.zeros_like(self.params.eps_s), where=self.params.Rs != 0
-        )
-        self.params["cs_0"] = [self.params.csmax[0] * 0.325, 0, self.params.csmax[2] * 0.422]
+        tmpx, soc = sym.symbols('x soc')
+        self.params['Uocp_neg'] = self.params.Uocp[0][0].subs(tmpx, soc)
+        self.params['Uocp_pos'] = self.params.Uocp[2][0].subs(tmpx, soc)
+        self.params['De_eff'] = self.consts.De_ref * self.params.eps_e ** self.params.brug_De
+        self.params['sigma_eff'] = self.params.sigma_ref * self.params.eps_s ** self.params.brug_sigma
+        self.params['a_s'] = 3 * np.divide(self.params.eps_s, self.params.Rs,
+                                           out=np.zeros_like(self.params.eps_s), where=self.params.Rs != 0)
+        self.params['cs_0'] = [self.params.csmax[0] * 0.325, 0, self.params.csmax[2] * 0.422]
 
-        self.consts["F"] = 96487
-        self.consts["R"] = 8.314
-        self.consts["dfdc"] = 0
-        self.consts["kappa_D"] = kappa_D(**self.params, **self.consts)
+        self.consts['F'] = 96487
+        self.consts['R'] = 8.314
+        self.consts['dfdc'] = 0
+        self.consts['kappa_D'] = kappa_D(**self.params, **self.consts)
         self.consts.kappa_ref = self.consts.kappa_ref[0]
 
-        self.domain, self.pseudo_domain, self.pseudo_cse_domain, self.electrode_domain = domain2.generate_domain(
-            self.comsol_solution.mesh, fem.Mesh(pseudo_mesh_file)
-        )
+        self.domain, self.pseudo_domain, self.pseudo_cse_domain, self.electrode_domain = \
+            domain2.generate_domain(self.comsol_solution.mesh, fem.Mesh(pseudo_mesh_file))
 
-        self.V0 = fem.FunctionSpace(self.domain.mesh, "DG", 0)
-        self.V0_electrode = fem.FunctionSpace(self.electrode_domain.mesh, "DG", 0)
+        self.V0 = fem.FunctionSpace(self.domain.mesh, 'DG', 0)
+        self.V0_electrode = fem.FunctionSpace(self.electrode_domain.mesh, 'DG', 0)
 
         def fenics_params_func(v):
             try:
                 if v[1] != 0:
                     return utilities.piecewise(self.domain.mesh, self.domain.domain_markers, self.V0, *v)
                 else:
-                    return utilities.piecewise(
-                        self.electrode_domain.mesh, self.electrode_domain.domain_markers, self.V0_electrode, *v
-                    )
+                    return utilities.piecewise(self.electrode_domain.mesh, self.electrode_domain.domain_markers,
+                                               self.V0_electrode, *v)
             except TypeError:
                 return v
 
         self.fenics_params = collect_fenics_params(self.params, fenics_params_func)
-        x = sym.Symbol("x[0]")
-        self.fenics_params["uocp_str"] = sym.Piecewise(
-            (self.params.Uocp_neg, x <= 1 + fem.DOLFIN_EPS), (self.params.Uocp_pos, x >= 2 - fem.DOLFIN_EPS), (0, True)
-        )
-        self.fenics_params.pop("Uocp")
+        x = sym.Symbol('x[0]')
+        self.fenics_params['uocp_str'] = sym.Piecewise((self.params.Uocp_neg, x <= 1 + fem.DOLFIN_EPS),
+                                                       (self.params.Uocp_pos, x >= 2 - fem.DOLFIN_EPS),
+                                                       (0, True))
+        self.fenics_params.pop('Uocp')
 
         self.fenics_consts = collect_fenics_const(self.consts)
 
         # TODO: refactor
-        Rs = utilities.mkparam(
-            self.pseudo_domain.domain_markers,
-            fem.Constant(self.params.Rs[0]),
-            fem.Constant(self.params.Rs[1]),
-            fem.Constant(self.params.Rs[2]),
-        )
-        Ds = utilities.mkparam(
-            self.pseudo_domain.domain_markers,
-            fem.Constant(self.params.Ds_ref[0]),
-            fem.Constant(self.params.Ds_ref[1]),
-            fem.Constant(self.params.Ds_ref[2]),
-        )
-        cs_0 = utilities.mkparam(
-            self.pseudo_domain.domain_markers,
-            fem.Constant(self.params.cs_0[0]),
-            fem.Constant(self.params.cs_0[1]),
-            fem.Constant(self.params.cs_0[2]),
-        )
+        Rs = utilities.mkparam(self.pseudo_domain.domain_markers, fem.Constant(self.params.Rs[0]),
+                               fem.Constant(self.params.Rs[1]), fem.Constant(self.params.Rs[2]))
+        Ds = utilities.mkparam(self.pseudo_domain.domain_markers, fem.Constant(self.params.Ds_ref[0]),
+                               fem.Constant(self.params.Ds_ref[1]), fem.Constant(self.params.Ds_ref[2]))
+        cs_0 = utilities.mkparam(self.pseudo_domain.domain_markers, fem.Constant(self.params.cs_0[0]),
+                                 fem.Constant(self.params.cs_0[1]), fem.Constant(self.params.cs_0[2]))
         self.fenics_params.Rs = Rs
         self.fenics_params.Ds_ref = Ds
         self.fenics_params.cs_0 = cs_0
@@ -204,7 +189,7 @@ class Common:
 
         # self.I_1C = 20.5
         # self.Iapp = [self.I_1C if 10 <= i < 20 else -self.I_1C if 30 <= i < 40 else 0 for i in time]
-        self.Iapp = intp.interp1d(input_current[:, 0], input_current[:, 1], kind="cubic")
+        self.Iapp = intp.interp1d(input_current[:, 0], input_current[:, 1], kind='cubic')
 
 
 # Notes for later, TODO: clean up
