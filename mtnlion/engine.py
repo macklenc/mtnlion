@@ -23,14 +23,14 @@ def rmse(estimated: np.ndarray, true: np.ndarray) -> Union[np.ndarray, None]:
 
 def fetch_params(filename: str) -> Union[Dict[str, Dict[str, float]], None, munch.DefaultMunch]:
     """TODO: read template from config file."""
-    print('Loading Cell Parameters')
+    print("Loading Cell Parameters")
     params = dict()
     sheet = ldp.read_excel(filename, 0)
     (ncol, pcol) = (2, 3)
-    params['const'] = ldp.load_params(sheet, range(7, 15), ncol, pcol)
-    params['neg'] = ldp.load_params(sheet, range(18, 43), ncol, pcol)
-    params['sep'] = ldp.load_params(sheet, range(47, 52), ncol, pcol)
-    params['pos'] = ldp.load_params(sheet, range(55, 75), ncol, pcol)
+    params["const"] = ldp.load_params(sheet, range(7, 15), ncol, pcol)
+    params["neg"] = ldp.load_params(sheet, range(18, 43), ncol, pcol)
+    params["sep"] = ldp.load_params(sheet, range(47, 52), ncol, pcol)
+    params["pos"] = ldp.load_params(sheet, range(55, 75), ncol, pcol)
 
     return munch.DefaultMunch.fromDict(params)
 
@@ -61,8 +61,14 @@ def find_ind_near(data: np.ndarray, value: Union[List[int], List[float]]) -> np.
 class Mountain:
     """Container for holding n-variable n-dimensional data in space and time."""
 
-    def __init__(self, mesh: np.ndarray, pseudo_dim_mesh: np.ndarray, time_mesh: np.ndarray,
-                 boundaries: Union[np.ndarray, List[float]], **kwargs: np.ndarray) -> None:
+    def __init__(
+        self,
+        mesh: np.ndarray,
+        pseudo_dim_mesh: np.ndarray,
+        time_mesh: np.ndarray,
+        boundaries: Union[np.ndarray, List[float]],
+        **kwargs: np.ndarray
+    ) -> None:
         """
         Store the solutions to each given parameter.
 
@@ -70,7 +76,7 @@ class Mountain:
         :param boundaries: internal boundaries in the mesh
         :param kwargs: arrays for each solution
         """
-        logger.info('Initializing solution data...')
+        logger.info("Initializing solution data...")
         self.data = munch.Munch(kwargs)
         self.mesh = mesh
         self.pseudo_mesh = pseudo_dim_mesh
@@ -83,22 +89,27 @@ class Mountain:
 
         :return: data dictionary
         """
-        d = {'mesh': self.mesh, 'pseudo_mesh': self.pseudo_mesh, 'time_mesh': self.time_mesh,
-             'boundaries': self.boundaries}
+        d = {
+            "mesh": self.mesh,
+            "pseudo_mesh": self.pseudo_mesh,
+            "time_mesh": self.time_mesh,
+            "boundaries": self.boundaries,
+        }
         return dict(d, **self.data)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, np.ndarray]) -> 'Mountain':
+    def from_dict(cls, data: Dict[str, np.ndarray]) -> "Mountain":
         """
         Convert dictionary to SolutionData.
 
         :param data: dictionary of formatted data
         :return: consolidated simulation data
         """
-        return cls(data.pop('mesh'), data.pop('pseudo_mesh'), data.pop('time_mesh'), data.pop('boundaries'), **data)
+        return cls(data.pop("mesh"), data.pop("pseudo_mesh"), data.pop("time_mesh"), data.pop("boundaries"), **data)
 
-    def filter(self, index: Union[List['ellipsis'], List[int], List[slice], slice], func: Callable = lambda x: x) \
-            -> Dict[str, np.ndarray]:
+    def filter(
+        self, index: Union[List["ellipsis"], List[int], List[slice], slice], func: Callable = lambda x: x
+    ) -> Dict[str, np.ndarray]:
         """
         Filter through dictionary to collect sections of the contained ndarrays.
 
@@ -108,7 +119,7 @@ class Mountain:
         """
         return {k: func(v[index]) for k, v in self.data.items() if not np.isscalar(v)}
 
-    def filter_time(self, index: Union[List['ellipsis'], List[int], slice], func: Callable = lambda x: x) -> 'Mountain':
+    def filter_time(self, index: Union[List["ellipsis"], List[int], slice], func: Callable = lambda x: x) -> "Mountain":
         """
         Filter the Mountain for a subset of time indices.
 
@@ -123,11 +134,13 @@ class Mountain:
         :param func: function to call on every variable in data
         :return: time filtered Mountain
         """
-        return type(self)(self.mesh, self.pseudo_mesh, func(self.time_mesh[index]), self.boundaries,
-                          **self.filter(index, func=func))
+        return type(self)(
+            self.mesh, self.pseudo_mesh, func(self.time_mesh[index]), self.boundaries, **self.filter(index, func=func)
+        )
 
-    def filter_space(self, index: Union[List['ellipsis'], List[int], slice],
-                     func: Callable = lambda x: x) -> 'Mountain':
+    def filter_space(
+        self, index: Union[List["ellipsis"], List[int], slice], func: Callable = lambda x: x
+    ) -> "Mountain":
         """
         Filter the Mountain for a subset of space indices.
 
@@ -146,7 +159,12 @@ class Mountain:
 
         # TODO: FIXME, shouldn't know anything about cs
         cs = self.data.cs
-        tmp = type(self)(func(self.mesh[index]), self.pseudo_mesh, self.time_mesh, self.boundaries,
-                         **self.filter([...] + index, func=func))
+        tmp = type(self)(
+            func(self.mesh[index]),
+            self.pseudo_mesh,
+            self.time_mesh,
+            self.boundaries,
+            **self.filter([...] + index, func=func)
+        )
         tmp.data.cs = cs
         return tmp

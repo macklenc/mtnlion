@@ -53,16 +53,12 @@ def read_excel(filename, sheet=None):
         return spreadsheet
 
 
-def loadtxt(filename, dtype='float', comments='#', delimiter=None, skiprows=0,
-            usecols=None, unpack=False):
+def loadtxt(filename, dtype="float", comments="#", delimiter=None, skiprows=0, usecols=None, unpack=False):
     """Load ascii files into a numpy ndarray using numpy.loadtxt."""
-    return np.loadtxt(
-        filename, dtype, comments, delimiter,
-        None, skiprows, usecols, unpack)
+    return np.loadtxt(filename, dtype, comments, delimiter, None, skiprows, usecols, unpack)
 
 
-def load(file, mmap_mode=None, allow_pickle=True, fix_imports=True,
-         encoding='ASCII'):
+def load(file, mmap_mode=None, allow_pickle=True, fix_imports=True, encoding="ASCII"):
     """Load numpy .npy and .npz files to an array or map of arrays respectively using np.load."""
     return np.load(file, mmap_mode, allow_pickle, fix_imports, encoding)
 
@@ -96,7 +92,7 @@ def read_csv(filename, start=1, stop=None, assume=TEXT):
     if stop is None:
         stop = len(values)
 
-    values = values[start - 1:stop]
+    values = values[start - 1 : stop]
     spreadsheet.set_values(values)
     return spreadsheet
 
@@ -157,8 +153,7 @@ def load_section(sheet, row_range=None, col_range=None):
     rval = [[sheet.cell(x - 1, y - 1) for y in col_range] for x in row_range]
 
     if sheet.assume == NUMBER:
-        return np.array(
-            [[rval[x - 1][y - 1].value for y in col_range] for x in row_range], dtype='float')
+        return np.array([[rval[x - 1][y - 1].value for y in col_range] for x in row_range], dtype="float")
 
     return rval
 
@@ -178,7 +173,7 @@ def _multiple_replace(repl, text):
     regex = re.compile("(%s)" % "|".join(map(re.escape, repl.keys())))
 
     # For each match, look-up corresponding value in dictionary
-    return regex.sub(lambda mo: repl[mo.string[mo.start():mo.end()]], text)
+    return regex.sub(lambda mo: repl[mo.string[mo.start() : mo.end()]], text)
 
 
 def _fun_to_lambda(entry):
@@ -194,30 +189,25 @@ def _fun_to_lambda(entry):
     :return: mathmatical function
     :rtype: lambda function
     """
-    repl = {
-        './': '/',
-        '.*': '*',
-        '.^': '**'
-    }
+    repl = {"./": "/", ".*": "*", ".^": "**"}
 
     # pull out function variable definition
-    vari = re.findall(r'\@\(.*?\)', entry)
-    vari = [re.sub(r'\@|\(|\)', '', x) for x in vari]
+    vari = re.findall(r"\@\(.*?\)", entry)
+    vari = [re.sub(r"\@|\(|\)", "", x) for x in vari]
 
     # remove variable definition
-    entry = re.sub(r'\@\(.*?\)', '', entry)
+    entry = re.sub(r"\@\(.*?\)", "", entry)
 
     # replace operators to suit numpy
     entry = _multiple_replace(repl, entry)
 
     # separate equations into different functions
-    entry = re.sub('{|}', '', entry).split(',')
+    entry = re.sub("{|}", "", entry).split(",")
 
     return list(sym.sympify(entry[i]) for i in range(0, len(entry)))
 
 
-def load_params(sheet, rows=None, ncols=None, pcols=None, cols=None,
-                nrows=None, prows=None):
+def load_params(sheet, rows=None, ncols=None, pcols=None, cols=None, nrows=None, prows=None):
     """
     Read designated parameters from the sheet.
 
@@ -257,9 +247,11 @@ def load_params(sheet, rows=None, ncols=None, pcols=None, cols=None,
     # Verify the number of names matches the number of params
     assert len(name_cells) == len(data_cells)
 
-    data = [_fun_to_lambda(x.value) if x.ctype == TEXT else
-            x.value if x.ctype == NUMBER else None
-            for y in data_cells for x in y]
+    data = [
+        _fun_to_lambda(x.value) if x.ctype == TEXT else x.value if x.ctype == NUMBER else None
+        for y in data_cells
+        for x in y
+    ]
 
     return dict(zip([x.value for y in name_cells for x in y], data))
 
@@ -321,8 +313,7 @@ class Spreadsheet(object):
         :rtype: :class:`xlrd.sheet.Cell`
         """
         if self.ctypes:
-            return xlrd.sheet.Cell(
-                self.ctypes[xpos][ypos], self.values[xpos][ypos])
+            return xlrd.sheet.Cell(self.ctypes[xpos][ypos], self.values[xpos][ypos])
         elif self.assume:
             return xlrd.sheet.Cell(self.assume, self.values[xpos][ypos])
         else:
@@ -338,5 +329,5 @@ def main():
     pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
