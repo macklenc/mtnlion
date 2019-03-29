@@ -7,7 +7,7 @@ from mtnlion.newman import equations
 
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
-def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos, space=None):
+def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos, mesh=None):
     # NOTE: .cpp_object() will not be required later as per
     # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
     # TODO: Use python wrappers
@@ -18,7 +18,7 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos, space=N
         neg=dest_x_neg.cpp_object(),
         sep=dest_x_sep.cpp_object(),
         pos=dest_x_pos.cpp_object(),
-        space=space,
+        mesh=mesh,
         degree=1,
     )
     return fem.CompiledExpression(
@@ -63,7 +63,7 @@ def run(time, dt, return_comsol=False):
         fem.Expression(("x[0]", "1.0"), degree=1),
         fem.Expression(("0.5*(x[0]+1)", "1.0"), degree=1),
         fem.Expression(("x[0] - 0.5", "1.0"), degree=1),
-        electrode_domain.V
+        electrode_domain.mesh
     )
 
     # Uocp_code = utilities.build_expression_class("Uocp", "cse/csmax", cse=cse_f, csmax=cmn.fenics_params.csmax)
