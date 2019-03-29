@@ -10,7 +10,6 @@ class {CLASS_NAME} : public dolfin::Expression {{
     {CLASS_NAME}() : dolfin::Expression() {{}}
 
     void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& cell) const {{
-        py::print("{CLASS_NAME}");
         {COMMANDS}
     }}
 
