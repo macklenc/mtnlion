@@ -11,9 +11,7 @@ class Composition : public dolfin::Expression {
 
     void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& c) const {
         Eigen::VectorXd val(3);
-        py::print("Compose 1");
         inner->eval(val, x, c);
-        py::print("Compose 2");
         outer->eval(values, val, c);
     }
 
