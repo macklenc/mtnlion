@@ -4,29 +4,33 @@ namespace py = pybind11;
 
 #include <dolfin/function/Expression.h>
 #include <dolfin/function/GenericFunction.h>
-#include <dolfin/function/FunctionSpace.h>
+#include <dolfin/mesh/Mesh.h>
+#include <dolfin/mesh/Cell.h>
 #include <dolfin/mesh/MeshFunction.h>
 #include <dolfin/geometry/BoundingBoxTree.h>
 
 #include <dolfin/common/Array.h>
 #include <dolfin/log/log.h>
 
+
+// TODO: 1) Cleanup 2) refactor calc_cell to use Eigen
+
 class XBar : public dolfin::Expression {
    public:
     XBar() : dolfin::Expression(), allow_extrapolation(false) {}
 
     ufc::cell calc_cell(dolfin::Array<double>& values, const dolfin::Array<double>& x) const {
-         if (space == nullptr){
-            dolfin::dolfin_error("xbar.h", "evaluate expression without cell reference", "No function space defined. Don't forget to bind space");
+         if (mesh == nullptr){
+            dolfin::dolfin_error("xbar.h", "evaluate expression without cell reference", "No mesh defined. Don't forget to bind a mesh");
         }
 
         // Find the cell that contains x
-        const dolfin::Mesh& mesh = *space->mesh();
+        const dolfin::Mesh& _mesh = *mesh;
         const double* _x = x.data();
 
         // Get index of first cell containing point
-        const dolfin::Point point(mesh.geometry().dim(), _x);
-        unsigned int id = mesh.bounding_box_tree()->compute_first_entity_collision(point);
+        const dolfin::Point point(_mesh.geometry().dim(), _x);
+        unsigned int id = _mesh.bounding_box_tree()->compute_first_entity_collision(point);
 
         // If not found, use the closest cell
   if (id == std::numeric_limits<unsigned int>::max())
@@ -34,7 +38,7 @@ class XBar : public dolfin::Expression {
     // Check if the closest cell is within DOLFIN_EPS. This we can
     // allow without allow_extrapolation
     std::pair<unsigned int, double> close
-      = mesh.bounding_box_tree()->compute_closest_entity(point);
+      = _mesh.bounding_box_tree()->compute_closest_entity(point);
 
     if (allow_extrapolation or close.second < DOLFIN_EPS)
       id = close.first;
@@ -47,7 +51,7 @@ class XBar : public dolfin::Expression {
   }
 
   // Create cell that contains point
-  const dolfin::Cell cell(mesh, id);
+  const dolfin::Cell cell(_mesh, id);
   ufc::cell ufc_cell;
   cell.get_cell_data(ufc_cell);
   return ufc_cell;
@@ -73,7 +77,7 @@ class XBar : public dolfin::Expression {
     void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& cell) const {
         ufc::cell ufc_cell = cell;
 
-        if(space != nullptr) {
+        if(mesh != nullptr) {
             dolfin::Array<double> _values(values.size(), values.data());
             const dolfin::Array<double> _x(x.size(), const_cast<double*>(x.data()));
 
@@ -98,7 +102,7 @@ class XBar : public dolfin::Expression {
     }
 
     std::shared_ptr<dolfin::MeshFunction<std::size_t>> markers;
-    std::shared_ptr<const dolfin::FunctionSpace> space;
+    std::shared_ptr<const dolfin::Mesh> mesh;
     std::shared_ptr<dolfin::GenericFunction> neg;
     std::shared_ptr<dolfin::GenericFunction> sep;
     std::shared_ptr<dolfin::GenericFunction> pos;
@@ -112,6 +116,6 @@ PYBIND11_MODULE(SIGNATURE, m) {
         .def_readwrite("neg", &XBar::neg)
         .def_readwrite("sep", &XBar::sep)
         .def_readwrite("pos", &XBar::pos)
-        .def_readwrite("space", &XBar::space)
+        .def_readwrite("mesh", &XBar::mesh)
         .def_readwrite("allow_extrapolation", &XBar::allow_extrapolation);
 }
