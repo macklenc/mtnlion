@@ -2,6 +2,8 @@
 
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 IGNOREDIRS="-type f -path *jitfailure* -prune -o -path ${SCRIPTPATH}/build -prune -o -path ${SCRIPTPATH}/.eggs -prune -o -path ${SCRIPTPATH}/.tox -prune"
+CLANGVARS=(-style="{BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 120}")
+echo $(echo ${CLANGVARS})
 
 function help {
 	echo "$0 - A tool for checking and applying format rules"
@@ -25,7 +27,7 @@ function eval {
 	declare -a CPPFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -name \*.h -o -name \*.cpp \) -print))
 	for CPPFILE in "${CPPFILES[@]}"
 	do
-	  OUTPUT=$(clang-format -style=Google -output-replacements-xml "$CPPFILE" | grep -c "<replacement " >/dev/null || echo Ok)
+	  OUTPUT=$(clang-format "${CLANGVARS[@]}" -output-replacements-xml "$CPPFILE" | grep -c "<replacement " >/dev/null || echo Ok)
 	  if [ "$OUTPUT" != "Ok" ]
 	  then
 	    echo "$CPPFILE"
@@ -44,7 +46,7 @@ function format {
 	declare -a CPPFILES=($(find ${SCRIPTPATH} ${IGNOREDIRS} -o \( -name \*.h -o -name \*.cpp \) -print))
 	for CPPFILE in "${CPPFILES[@]}"
 	do
-	  clang-format -style=Google -i "$CPPFILE" 
+	  clang-format "${CLANGVARS[@]}" -i "$CPPFILE" 
 	done
 
 	echo Done!
