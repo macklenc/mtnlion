@@ -60,15 +60,12 @@ class XBar : public dolfin::Expression {
     void do_eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x, const ufc::cell& cell) const {
         switch ((*markers)[cell.index]) {
             case 0:
-                py::print("\tXBar 1 neg");
                 neg->eval(values, x);
                 break;
             case 1:
-                py::print("\tXBar 3 sep");
                 sep->eval(values, x);
                 break;
             case 2:
-                py::print("\tXBar 5 pos");
                 pos->eval(values, x);
                 break;
         }
@@ -84,11 +81,8 @@ class XBar : public dolfin::Expression {
             ufc_cell = calc_cell(_values, _x);
         }
 
-        py::print("XBar size: ", markers->size(), " index: ", ufc_cell.index);
-        py::print("\tOld x: ", x[0]);
 //        unsigned index = cell.index < markers->size() ? cell.index : markers->size()-1;
         do_eval(values, x, ufc_cell);
-        py::print("\tNew x: ", values[0]);
     }
 
     void eval(Eigen::Ref<Eigen::VectorXd> values, Eigen::Ref<const Eigen::VectorXd> x) const {
