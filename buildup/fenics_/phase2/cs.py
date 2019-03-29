@@ -23,8 +23,6 @@ def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos, func_ce
         fem.compile_cpp_code(utilities.expressions.composition).Composition(),
         inner=xbar.cpp_object(),
         outer=func.cpp_object(),
-        inner_cell=dest_cell,
-        outer_cell=func_cell,
         degree=1,
     )
 
@@ -65,16 +63,26 @@ def run(time, dt, return_comsol=False):
         fem.Expression(("x[0] - 0.5", "1.0"), degree=1),
     )
 
-    # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
-    Uocp = equations.Uocp_interp(
-        cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_f, cmn.fenics_params.csmax, utilities
-    )
+    # Uocp_code = utilities.build_expression_class("Uocp", "cse/csmax", cse=cse_f, csmax=cmn.fenics_params.csmax)
+    # Uocp = fem.CompiledExpression(
+    #     fem.compile_cpp_code(Uocp_code).Uocp(),
+    #     cse_f.cpp_object(),
+    #     **cmn.fenics_params,
+    #     degree=1
+    # )
+
+    Uocp = equations.Uocp(cse_f, utilities, **cmn.fenics_params)
+
+    # Uocp = equations.Uocp_interp(
+    #     cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_f, cmn.fenics_params.csmax, utilities
+    # )
     j = equations.j(
         ce_c,
         cse_f,
         phie_c,
         phis_c,
         Uocp,
+        utilities,
         **cmn.fenics_params,
         **cmn.fenics_consts,
         dm=domain.domain_markers,
@@ -148,7 +156,7 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
 
     # Times at which to run solver
     if time is None:
-        time = np.arange(0.1, 50, 1)
+        time = [0, 5, 10, 15, 20]
     if dt is None:
         dt = 0.1
     if plot_time is None:

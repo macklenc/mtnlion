@@ -41,11 +41,53 @@ def gather_expressions():
     with open(os.path.join(localdir, "../mtnlion/headers/xbar_simple.h")) as f:
         code["xbar_simple"] = "".join(f.readlines())
 
+    with open(os.path.join(localdir, "../mtnlion/headers/template.h")) as f:
+        code["template"] = "".join(f.readlines())
+
+    with open(os.path.join(localdir, "../mtnlion/newman/j_newman.h")) as f:
+        code["j_newman"] = "".join(f.readlines())
+
     return munch.Munch(code)
 
 
 # TODO: this is ugly
 expressions = gather_expressions()
+
+
+def build_expression_class(class_name, eval_expr, **kwargs):
+    generic_func_preamble = "std::shared_ptr<dolfin::GenericFunction> "
+    eigen_map = "Eigen::Map<Eigen::Matrix<double, 1, 1>>"
+    generic_func_vars = list(kwargs)
+    generic_func_vars_declare = ["double " + v + ";" for v in generic_func_vars]
+    generic_funcs = ["generic_function_" + v for v in generic_func_vars ]
+    generic_func_eval = [ f + "->eval({} (&{}), x, cell);".format(eigen_map, v) for f, v in zip(generic_funcs, generic_func_vars) ]
+    generic_func_expose = [ ".def_readwrite(\"{}\", &{}::{})".format(v, class_name, g) for v, g in zip(generic_func_vars, generic_funcs)]
+
+    # Find the proper indent level... Not really a requirement, I'm just OCD. But man, this is UGLY.
+    template_list = expressions.template.split('\n')
+    keys = ("{COMMANDS}", "{GENERIC_FUNCTIONS}", "{EXPOSE_GENERIC_FUNCTIONS}")
+    indents = {}
+    for t in template_list:
+        for key in keys:
+            if key in t:
+                indents[key] = "\n"
+                for char in t.split(key)[0]:
+                    if char.isspace():
+                        indents[key] += " "
+
+    eval_command = "values[0] = " + eval_expr + ";"
+
+    commands = indents[keys[0]].join(generic_func_vars_declare) + indents[keys[0]] + \
+               indents[keys[0]].join(generic_func_eval) + indents[keys[0]] + \
+               eval_command
+
+    generic_functions = indents[keys[1]].join('{} {};'.format(generic_func_preamble, t) for t in generic_funcs)
+    expose_generic_functions = indents[keys[2]].join(generic_func_expose)
+
+    return expressions.template.format(CLASS_NAME=class_name,
+                                       COMMANDS=commands,
+                                       GENERIC_FUNCTIONS=generic_functions,
+                                       EXPOSE_GENERIC_FUNCTIONS=expose_generic_functions)
 
 
 def create_solution_matrices(nr, nc, r):

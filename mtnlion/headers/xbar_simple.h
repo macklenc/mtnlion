@@ -1,11 +1,10 @@
-class XBarSimple : public Expression
-{
-public:
-	XBarSimple() : Expression() {}
+class XBarSimple : public Expression {
+   public:
+    XBarSimple() : Expression() {}
 
-	void eval(Array<double>& values, const Array<double>& x, const ufc::cell& c) const {
-	    xbar->eval(values, x, c);
-	}
+    void eval(Eigen::Ref<Eigen::VectorXd>& values, Eigen::Ref<const Eigen::VectorXd>& x, const ufc::cell& c) const {
+        xbar->eval(values, x, c);
+    }
 
-	std::shared_ptr<GenericFunction> xbar;
+    std::shared_ptr<GenericFunction> xbar;
 };
