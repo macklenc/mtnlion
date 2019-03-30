@@ -131,13 +131,19 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
         # utilities.assign_functions([comsol_j(t)], [jbar_c], domain.V, ...)
         utilities.assign_functions(
-            [np.append(comsol_j(t)[comsol.neg_ind], comsol_j(t)[comsol.pos_ind])], [jbar_c], electrode_domain.V, ...
+            [np.append(comsol_j(t)[comsol.neg_ind], comsol_j(t)[comsol.pos_ind])],
+            [jbar_c],
+            electrode_domain.V,
+            Ellipsis,
         )
         utilities.assign_functions(
-            [np.append(comsol_cse(t)[comsol.neg_ind], comsol_cse(t)[comsol.pos_ind])], [cse_c], electrode_domain.V, ...
+            [np.append(comsol_cse(t)[comsol.neg_ind], comsol_cse(t)[comsol.pos_ind])],
+            [cse_c],
+            electrode_domain.V,
+            Ellipsis,
         )
         utilities.assign_functions(
-            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, ...
+            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, Ellipsis
         )
 
         solver.solve()
@@ -178,7 +184,7 @@ def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stat
     if dt is None:
         dt = 0.1
     if plot_time is None:
-        plot_time = np.arange(start_time, stop_time, (stop_time - start_time) / 5)
+        plot_time = np.arange(start_time, stop_time, (stop_time - start_time) / 10)
 
     cs_sol, pseudo_cse_sol, cse_sol, comsol = run(start_time, dt, stop_time, return_comsol=True)
 

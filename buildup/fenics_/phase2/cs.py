@@ -37,7 +37,6 @@ def run(time, dt, return_comsol=False):
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
     comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
     comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
-    comsol_cse = utilities.interp_time(comsol.time_mesh, comsol.data.cse)
 
     pseudo_domain = cmn.pseudo_domain
     cse_domain = cmn.pseudo_cse_domain
@@ -63,7 +62,7 @@ def run(time, dt, return_comsol=False):
         fem.Expression(("x[0]", "1.0"), degree=1),
         fem.Expression(("0.5*(x[0]+1)", "1.0"), degree=1),
         fem.Expression(("x[0] - 0.5", "1.0"), degree=1),
-        electrode_domain.mesh
+        electrode_domain.mesh,
     )
 
     # Uocp_code = utilities.build_expression_class("Uocp", "cse/csmax", cse=cse_f, csmax=cmn.fenics_params.csmax)
@@ -74,7 +73,7 @@ def run(time, dt, return_comsol=False):
     #     degree=1
     # )
 
-    Uocp = equations.Uocp(cse_f, utilities, **cmn.fenics_params)
+    Uocp = equations.Uocp(cse_f, **cmn.fenics_params)
 
     # Uocp = equations.Uocp_interp(
     #     cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_f, cmn.fenics_params.csmax, utilities
@@ -85,7 +84,6 @@ def run(time, dt, return_comsol=False):
         phie_c,
         phis_c,
         Uocp,
-        utilities,
         **cmn.fenics_params,
         **cmn.fenics_consts,
         dm=domain.domain_markers,
@@ -122,7 +120,7 @@ def run(time, dt, return_comsol=False):
 
     for k, t in enumerate(time):
         utilities.assign_functions(
-            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, ...
+            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, Ellipsis
         )
         cs_1.vector()[:] = comsol_cs(t - dt).astype("double")
 
@@ -159,7 +157,7 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
 
     # Times at which to run solver
     if time is None:
-        time = [0, 5, 10, 15, 20]
+        time = np.arange(0, 50, 5)
     if dt is None:
         dt = 0.1
     if plot_time is None:

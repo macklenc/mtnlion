@@ -1,5 +1,6 @@
 import dolfin as fem
 import matplotlib.pyplot as plt
+import numpy as np
 
 from buildup import common, utilities
 from mtnlion.newman import equations
@@ -93,7 +94,7 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
 
     # Times at which to run solver
     if time is None:
-        time = [0, 5, 10, 15, 20]
+        time = np.arange(0, 50, 5)
     if dt is None:
         dt = 0.1
     if plot_time is None:

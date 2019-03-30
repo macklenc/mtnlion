@@ -2,6 +2,7 @@ import sys
 
 import dolfin as fem
 import matplotlib.pyplot as plt
+import numpy as np
 
 from buildup import common, utilities
 from mtnlion.newman import equations
@@ -21,9 +22,9 @@ def run(time, return_comsol=False, form="equation"):
     u = fem.TrialFunction(domain.V)
     v = fem.TestFunction(domain.V)
 
-    if form is "equation":
+    if form == "equation":
         Uocp = equations.Uocp(cse_c, **cmn.fenics_params)
-    elif form is "interp":
+    elif form == "interp":
         Uocp = equations.Uocp_interp(
             cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_c, cmn.fenics_params.csmax, utilities
         )
@@ -37,7 +38,10 @@ def run(time, return_comsol=False, form="equation"):
 
     for k, t in enumerate(time):
         utilities.assign_functions(
-            [comsol_phis(t), comsol_phie(t), comsol_cse(t), comsol_ce(t)], [phis_c, phie_c, cse_c, ce_c], domain.V, ...
+            [comsol_phis(t), comsol_phie(t), comsol_cse(t), comsol_ce(t)],
+            [phis_c, phie_c, cse_c, ce_c],
+            domain.V,
+            Ellipsis,
         )
 
         fem.solve(a == L, sol)
@@ -55,7 +59,7 @@ def main(time=None, plot_time=None, get_test_stats=False):
 
     # Times at which to run solver
     if time is None:
-        time = [0, 5, 10, 15, 20]
+        time = np.arange(0, 50, 5)
     if plot_time is None:
         plot_time = time
 
