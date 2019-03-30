@@ -1,5 +1,5 @@
 [flake8]
-ignore = E203, E266, E501, W503, F403, F401
+ignore = W503, F403, W605
 # Ignore some flake8-docstrings errors
 #ignore = D203, W503, E203
 max-line-length = 120

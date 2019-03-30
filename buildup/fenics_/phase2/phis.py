@@ -1,5 +1,6 @@
 import dolfin as fem
 import matplotlib.pyplot as plt
+import numpy as np
 
 from buildup import common, utilities
 from mtnlion.newman import equations
@@ -52,7 +53,7 @@ def main():
     fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
-    time = [0, 5, 10, 15, 20]
+    time = np.arange(0, 50, 5)
     sim_dt = 0.1
     plot_time = time
 
