@@ -1,4 +1,4 @@
-FROM quay.io/fenicsproject/dev-env:2018.1.0 as deploy
+FROM quay.io/fenicsproject/dev-env:2018.1.0.r3 as deploy
 
 # Dependencies
 RUN apt-get update -y &&\
