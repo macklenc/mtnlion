@@ -18,5 +18,5 @@ flake8-colors
 black
 cpplint
 pylint
-pre-commit
+pre-commit==1.14.4
 mypy==0.670
