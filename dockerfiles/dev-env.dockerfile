@@ -6,7 +6,7 @@ WORKDIR /home/fenics
 RUN sudo chmod g+w -R ../fenics
 ENV FENICS_VERSION=2018.1.0
 ENV PATH=$PATH:/home/fenics/bin
-ENV CMAKE_EXTRA_ARGS='-DCMAKE_BUILD_TYPE=Debug'
+ENV FENICS_BUILD_TYPE='Debug'
 RUN sed -i 's/\(^ *make$\)/\1 -j/' bin/fenics-build
 RUN cat bin/fenics-build && cat bin/fenics-update
 RUN /bin/bash -c ". fenics.env.conf; env; fenics-update"

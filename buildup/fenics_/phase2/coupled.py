@@ -1,7 +1,7 @@
 import sys
 from functools import partial
 
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sym
@@ -10,6 +10,7 @@ from buildup import common, utilities
 from mtnlion.newman import equations
 
 
+# NOTE: Deprecated
 def picard_solver(a, lin, estimated, previous, bc, phis, phie):
     eps = 1.0
     eps_1 = 1.0

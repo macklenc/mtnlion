@@ -1,4 +1,4 @@
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -7,7 +7,7 @@ import utilities
 
 
 # NOTE: DOES NOT WORK
-# TODO: update for new API
+# NOTE: Deprecated
 
 
 class Phis:

@@ -1,4 +1,4 @@
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import interpolate
@@ -10,15 +10,23 @@ from mtnlion.newman import equations
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
 def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
-    xbar = fem.Expression(
-        cppcode=utilities.expressions.xbar,
+    # NOTE: .cpp_object() will not be required later as per
+    # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
+    # TODO: Use python wrappers
+    xbar = fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
         markers=dest_markers,
-        neg=dest_x_neg,
-        sep=dest_x_sep,
-        pos=dest_x_pos,
+        neg=dest_x_neg.cpp_object(),
+        sep=dest_x_sep.cpp_object(),
+        pos=dest_x_pos.cpp_object(),
         degree=1,
     )
-    return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.composition).Composition(),
+        inner=xbar.cpp_object(),
+        outer=func.cpp_object(),
+        degree=1,
+    )
 
 
 def run(start_time, dt, stop_time, return_comsol=False):
@@ -123,13 +131,19 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
         # utilities.assign_functions([comsol_j(t)], [jbar_c], domain.V, ...)
         utilities.assign_functions(
-            [np.append(comsol_j(t)[comsol.neg_ind], comsol_j(t)[comsol.pos_ind])], [jbar_c], electrode_domain.V, ...
+            [np.append(comsol_j(t)[comsol.neg_ind], comsol_j(t)[comsol.pos_ind])],
+            [jbar_c],
+            electrode_domain.V,
+            Ellipsis,
         )
         utilities.assign_functions(
-            [np.append(comsol_cse(t)[comsol.neg_ind], comsol_cse(t)[comsol.pos_ind])], [cse_c], electrode_domain.V, ...
+            [np.append(comsol_cse(t)[comsol.neg_ind], comsol_cse(t)[comsol.pos_ind])],
+            [cse_c],
+            electrode_domain.V,
+            Ellipsis,
         )
         utilities.assign_functions(
-            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, ...
+            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, Ellipsis
         )
 
         solver.solve()
@@ -160,7 +174,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
 def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stats=False):
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
     if start_time is None:
@@ -170,7 +184,7 @@ def main(start_time=None, dt=None, stop_time=None, plot_time=None, get_test_stat
     if dt is None:
         dt = 0.1
     if plot_time is None:
-        plot_time = np.arange(start_time, stop_time, dt)
+        plot_time = np.arange(start_time, stop_time, (stop_time - start_time) / 10)
 
     cs_sol, pseudo_cse_sol, cse_sol, comsol = run(start_time, dt, stop_time, return_comsol=True)
 

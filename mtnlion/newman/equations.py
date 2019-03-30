@@ -1,5 +1,5 @@
 """Provides isothermal Newman cell model."""
-import fenics as fem
+import dolfin as fem
 import sympy as sym
 
 
@@ -48,8 +48,54 @@ def cs(cs, v, Rs, Ds_ref, **kwargs):
     return lhs, rhs
 
 
+# TODO: clean up old methods
 def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degree=1, **kwargs):
     """Flux through the boundary of the solid."""
+    # return fem.CompiledExpression(
+    #     fem.compile_cpp_code(utilities.expressions.j_newman).J_Newman(),
+    #     ce=ce.cpp_object(),
+    #     cse=cse.cpp_object(),
+    #     phie=phie.cpp_object(),
+    #     phis=phis.cpp_object(),
+    #     csmax=csmax.cpp_object(),
+    #     ce0=ce0.cpp_object(),
+    #     alpha=alpha.cpp_object(),
+    #     k_norm_ref=k_norm_ref.cpp_object(),
+    #     F=F.cpp_object(),
+    #     R=R.cpp_object(),
+    #     Tref=Tref.cpp_object(),
+    #     Uocp=Uocp.cpp_object(),
+    #     degree=degree
+    # )
+
+    # j_code = utilities.build_expression_class("J_Newman2", sym.printing.ccode(_sym_j()[0]), ce=ce.cpp_object(),
+    #     cse=cse.cpp_object(),
+    #     phie=phie.cpp_object(),
+    #     phis=phis.cpp_object(),
+    #     csmax=csmax.cpp_object(),
+    #     ce0=ce0.cpp_object(),
+    #     alpha=alpha.cpp_object(),
+    #     k_norm_ref=k_norm_ref.cpp_object(),
+    #     F=F.cpp_object(),
+    #     R=R.cpp_object(),
+    #     Tref=Tref.cpp_object(),
+    #     Uocp=Uocp.cpp_object())
+    # return fem.CompiledExpression(
+    #     fem.compile_cpp_code(j_code).J_Newman2(),
+    #     ce=ce.cpp_object(),
+    #     cse=cse.cpp_object(),
+    #     phie=phie.cpp_object(),
+    #     phis=phis.cpp_object(),
+    #     csmax=csmax.cpp_object(),
+    #     ce0=ce0.cpp_object(),
+    #     alpha=alpha.cpp_object(),
+    #     k_norm_ref=k_norm_ref.cpp_object(),
+    #     F=F.cpp_object(),
+    #     R=R.cpp_object(),
+    #     Tref=Tref.cpp_object(),
+    #     Uocp=Uocp.cpp_object(),
+    #     degree=degree
+    # )
     return fem.Expression(
         sym.printing.ccode(_sym_j()[0]),
         ce=ce,
@@ -68,10 +114,26 @@ def j(ce, cse, phie, phis, Uocp, csmax, ce0, alpha, k_norm_ref, F, R, Tref, degr
     )
 
 
+# TODO: cleanup extraneous implementations
 def Uocp(cse, csmax, uocp_str, **kwargs):
-    """Open circuit potential, explicit calculation."""
     soc = fem.Expression("cse/csmax", cse=cse, csmax=csmax, degree=1)
     return fem.Expression(sym.printing.ccode(uocp_str), soc=soc, degree=1)
+
+    # """Open circuit potential, explicit calculation."""
+    # soc_code = utilities.build_expression_class("Uocp_SOC", "cse/csmax", cse=cse, csmax=csmax)
+    # soc = fem.CompiledExpression(
+    #     fem.compile_cpp_code(soc_code).Uocp_SOC(),
+    #     cse=cse.cpp_object(),
+    #     csmax=csmax.cpp_object(),
+    #     degree=1
+    # )
+    #
+    # Uocp_code = utilities.build_expression_class("Uocp_Eq", sym.printing.ccode(uocp_str), soc=soc)
+    # return fem.CompiledExpression(
+    #     fem.compile_cpp_code(Uocp_code).Uocp_Eq(),
+    #     soc=soc.cpp_object(),
+    #     degree=1
+    # )
 
 
 # TODO: refactor

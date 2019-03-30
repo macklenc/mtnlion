@@ -1,4 +1,4 @@
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import integrate
@@ -79,7 +79,7 @@ def run(start_time, dt, stop_time, return_comsol=False):
 
 def main():
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
     [sim_start_time, sim_dt, sim_stop_time] = [0, 0.1, 50]

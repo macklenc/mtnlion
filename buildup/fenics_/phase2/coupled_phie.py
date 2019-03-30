@@ -1,12 +1,14 @@
 import sys
 
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sym
 
 from buildup import common, utilities
 from mtnlion.newman import equations
+
+# NOTE: Deprecated
 
 
 def picard_solver(a, lin, estimated, previous, bc):

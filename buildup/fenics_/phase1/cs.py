@@ -1,22 +1,33 @@
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
+import numpy as np
 
 from buildup import common, utilities
 from mtnlion.newman import equations
+
+# TODO: CHECK ERROR AFTER FENICS 2018 UPDATE
 
 
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
 def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
-    xbar = fem.Expression(
-        cppcode=utilities.expressions.xbar,
+    # NOTE: .cpp_object() will not be required later as per
+    # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
+    # TODO: Use python wrappers
+    xbar = fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
         markers=dest_markers,
-        neg=dest_x_neg,
-        sep=dest_x_sep,
-        pos=dest_x_pos,
+        neg=dest_x_neg.cpp_object(),
+        sep=dest_x_sep.cpp_object(),
+        pos=dest_x_pos.cpp_object(),
         degree=1,
     )
-    return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.composition).Composition(),
+        inner=xbar.cpp_object(),
+        outer=func.cpp_object(),
+        degree=1,
+    )
 
 
 def run(time, dt, return_comsol=False):
@@ -99,11 +110,11 @@ def run(time, dt, return_comsol=False):
 
 def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.LogLevel.ERROR)
 
     # Times at which to run solver
     if time is None:
-        time = [0, 5, 10, 15, 20]
+        time = np.arange(0, 50, 5)
     if dt is None:
         dt = 0.1
     if plot_time is None:
@@ -166,4 +177,16 @@ def main(time=None, dt=None, plot_time=None, get_test_stats=False):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # This is what you would have, but the following is useful:
+
+    # # These are temporary, for debugging, so meh for programming style.
+    # import sys, trace
+    #
+    # # If there are segfaults, it's a good idea to always use stderr as it
+    # # always prints to the screen, so you should get as much output as
+    # # possible.
+    # sys.stdout = sys.stderr
+    #
+    # # Now trace execution:
+    # tracer = trace.Trace(trace=1, count=0, ignoredirs=["/usr", sys.prefix])
+    # tracer.run('main()')
