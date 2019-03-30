@@ -1,4 +1,4 @@
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 
 from buildup import common, utilities
@@ -7,16 +7,26 @@ from mtnlion.newman import equations
 
 # essentially dest_x_*** is a converstion from the destination x to the source x, we'll call the source xbar
 # then this method returns func(xbar)
-def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos):
-    xbar = fem.Expression(
-        cppcode=utilities.expressions.xbar,
+def cross_domain(func, dest_markers, dest_x_neg, dest_x_sep, dest_x_pos, mesh=None):
+    # NOTE: .cpp_object() will not be required later as per
+    # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
+    # TODO: Use python wrappers
+
+    xbar = fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.xbar).XBar(),
         markers=dest_markers,
-        neg=dest_x_neg,
-        sep=dest_x_sep,
-        pos=dest_x_pos,
+        neg=dest_x_neg.cpp_object(),
+        sep=dest_x_sep.cpp_object(),
+        pos=dest_x_pos.cpp_object(),
+        mesh=mesh,
         degree=1,
     )
-    return fem.Expression(cppcode=utilities.expressions.composition, inner=xbar, outer=func, degree=1)
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(utilities.expressions.composition).Composition(),
+        inner=xbar.cpp_object(),
+        outer=func.cpp_object(),
+        degree=1,
+    )
 
 
 def run(time, dt, return_comsol=False):
@@ -27,7 +37,6 @@ def run(time, dt, return_comsol=False):
     comsol_ce = utilities.interp_time(comsol.time_mesh, comsol.data.ce)
     comsol_phis = utilities.interp_time(comsol.time_mesh, comsol.data.phis)
     comsol_phie = utilities.interp_time(comsol.time_mesh, comsol.data.phie)
-    comsol_cse = utilities.interp_time(comsol.time_mesh, comsol.data.cse)
 
     pseudo_domain = cmn.pseudo_domain
     cse_domain = cmn.pseudo_cse_domain
@@ -53,12 +62,22 @@ def run(time, dt, return_comsol=False):
         fem.Expression(("x[0]", "1.0"), degree=1),
         fem.Expression(("0.5*(x[0]+1)", "1.0"), degree=1),
         fem.Expression(("x[0] - 0.5", "1.0"), degree=1),
+        electrode_domain.mesh,
     )
 
-    # Uocp = equations.Uocp(cse_1, **cmn.fenics_params)
-    Uocp = equations.Uocp_interp(
-        cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_f, cmn.fenics_params.csmax, utilities
-    )
+    # Uocp_code = utilities.build_expression_class("Uocp", "cse/csmax", cse=cse_f, csmax=cmn.fenics_params.csmax)
+    # Uocp = fem.CompiledExpression(
+    #     fem.compile_cpp_code(Uocp_code).Uocp(),
+    #     cse_f.cpp_object(),
+    #     **cmn.fenics_params,
+    #     degree=1
+    # )
+
+    Uocp = equations.Uocp(cse_f, **cmn.fenics_params)
+
+    # Uocp = equations.Uocp_interp(
+    #     cmn.Uocp_spline.Uocp_neg, cmn.Uocp_spline.Uocp_pos, cse_f, cmn.fenics_params.csmax, utilities
+    # )
     j = equations.j(
         ce_c,
         cse_f,
@@ -101,7 +120,7 @@ def run(time, dt, return_comsol=False):
 
     for k, t in enumerate(time):
         utilities.assign_functions(
-            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, ...
+            [comsol_ce(t), comsol_phis(t), comsol_phie(t)], [ce_c, phis_c, phie_c], domain.V, Ellipsis
         )
         cs_1.vector()[:] = comsol_cs(t - dt).astype("double")
 
@@ -133,12 +152,12 @@ def run(time, dt, return_comsol=False):
 
 def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     # Quiet
-    fem.set_log_level(fem.INFO)
+    fem.set_log_level(fem.LogLevel.ERROR)
     import numpy as np
 
     # Times at which to run solver
     if time is None:
-        time = np.arange(0.1, 50, 1)
+        time = np.arange(0, 50, 5)
     if dt is None:
         dt = 0.1
     if plot_time is None:

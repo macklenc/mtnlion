@@ -1,7 +1,7 @@
 import os
 import time
 
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import munch
 import numpy as np
@@ -41,11 +41,53 @@ def gather_expressions():
     with open(os.path.join(localdir, "../mtnlion/headers/xbar_simple.h")) as f:
         code["xbar_simple"] = "".join(f.readlines())
 
+    with open(os.path.join(localdir, "../mtnlion/headers/template.h")) as f:
+        code["template"] = "".join(f.readlines())
+
+    with open(os.path.join(localdir, "../mtnlion/newman/j_newman.h")) as f:
+        code["j_newman"] = "".join(f.readlines())
+
     return munch.Munch(code)
 
 
 # TODO: this is ugly
 expressions = gather_expressions()
+
+
+def build_expression_class(class_name, eval_expr, **kwargs):
+    generic_func_preamble = "std::shared_ptr<dolfin::GenericFunction> "
+    eigen_map = "Eigen::Map<Eigen::Matrix<double, 1, 1>>"
+    generic_func_vars = list(kwargs)
+    generic_func_vars_declare = ["double " + v + ";" for v in generic_func_vars]
+    generic_funcs = ["generic_function_" + v for v in generic_func_vars ]
+    generic_func_eval = [ f + "->eval({} (&{}), x, cell);".format(eigen_map, v) for f, v in zip(generic_funcs, generic_func_vars) ]
+    generic_func_expose = [ ".def_readwrite(\"{}\", &{}::{})".format(v, class_name, g) for v, g in zip(generic_func_vars, generic_funcs)]
+
+    # Find the proper indent level... Not really a requirement, I'm just OCD. But man, this is UGLY.
+    template_list = expressions.template.split('\n')
+    keys = ("{COMMANDS}", "{GENERIC_FUNCTIONS}", "{EXPOSE_GENERIC_FUNCTIONS}")
+    indents = {}
+    for t in template_list:
+        for key in keys:
+            if key in t:
+                indents[key] = "\n"
+                for char in t.split(key)[0]:
+                    if char.isspace():
+                        indents[key] += " "
+
+    eval_command = "values[0] = " + eval_expr + ";"
+
+    commands = indents[keys[0]].join(generic_func_vars_declare) + indents[keys[0]] + \
+               indents[keys[0]].join(generic_func_eval) + indents[keys[0]] + \
+               eval_command
+
+    generic_functions = indents[keys[1]].join('{} {};'.format(generic_func_preamble, t) for t in generic_funcs)
+    expose_generic_functions = indents[keys[2]].join(generic_func_expose)
+
+    return expressions.template.format(CLASS_NAME=class_name,
+                                       COMMANDS=commands,
+                                       GENERIC_FUNCTIONS=generic_functions,
+                                       EXPOSE_GENERIC_FUNCTIONS=expose_generic_functions)
 
 
 def create_solution_matrices(nr, nc, r):
@@ -121,8 +163,14 @@ def find_cse_from_cs(comsol):
     return xcoor, cse.T, neg_ind, pos_ind
 
 
+# TODO: add builder method for creating expression wrappers
 def compose(inner, outer, degree=1):
-    return fem.Expression(cppcode=expressions.composition, inner=inner, outer=outer, degree=degree)
+    return fem.CompiledExpression(
+        fem.compile_cpp_code(expressions.composition).Composition(),
+        inner=inner.cpp_object(),
+        outer=outer.cpp_object(),
+        degree=degree,
+    )
 
 
 def piecewise2(V, *values):
@@ -140,9 +188,11 @@ def piecewise2(V, *values):
 
 
 def mkparam(markers, k_1=fem.Constant(0), k_2=fem.Constant(0), k_3=fem.Constant(0), k_4=fem.Constant(0)):
-    var = fem.Expression(cppcode=expressions.piecewise, degree=1)
+    var = fem.CompiledExpression(fem.compile_cpp_code(expressions.piecewise).Piecewise(), degree=1)
     var.markers = markers
-    var.k_1, var.k_2, var.k_3, var.k_4 = k_1, k_2, k_3, k_4
+    # NOTE: .cpp_object() will not be required later as per
+    # https://bitbucket.org/fenics-project/dolfin/issues/1041/compiledexpression-cant-be-initialized
+    var.k_1, var.k_2, var.k_3, var.k_4 = k_1.cpp_object(), k_2.cpp_object(), k_3.cpp_object(), k_4.cpp_object()
     return var
 
 

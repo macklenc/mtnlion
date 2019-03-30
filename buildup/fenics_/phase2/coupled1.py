@@ -1,12 +1,14 @@
 import sys
 from functools import partial
 
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 import numpy as np
 
 from buildup import common, utilities
 from mtnlion.newman import equations
+
+# NOTE: Deprecated
 
 
 def main():

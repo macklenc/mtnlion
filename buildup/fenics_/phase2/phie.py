@@ -1,4 +1,4 @@
-import fenics as fem
+import dolfin as fem
 import matplotlib.pyplot as plt
 
 from buildup import common, utilities
@@ -85,12 +85,12 @@ def run(time, dt, return_comsol=False):
 
 def main(time=None, dt=None, plot_time=None, get_test_stats=False):
     # Quiet
-    fem.set_log_level(fem.ERROR)
+    fem.set_log_level(fem.LogLevel.ERROR)
     import numpy as np
 
     # Times at which to run solver
     if time is None:
-        time = np.arange(0.1, 50, 1)
+        time = np.arange(0, 50, 5)
     if dt is None:
         dt = 0.1
     if plot_time is None:
