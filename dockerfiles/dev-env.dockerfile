@@ -3,20 +3,17 @@ FROM quay.io/fenicsproject/dev-env:2018.1.0 as dev
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 USER fenics
 WORKDIR /home/fenics
-RUN sudo chmod g+w -R ../fenics
-ENV FENICS_VERSION=2018.1.0
+ENV FENICS_VERSION=2018.1.0.post2
 ENV PATH=$PATH:/home/fenics/bin
 ENV FENICS_BUILD_TYPE='Debug'
 RUN sed -i 's/\(^ *make$\)/\1 -j/' bin/fenics-build
 RUN cat bin/fenics-build && cat bin/fenics-update
 RUN /bin/bash -c ". fenics.env.conf; env; fenics-update"
+RUN sudo chmod g+w -R ../fenics
 
-from dev as Deploy
+from dev as deploy
 
 USER root
-#COPY --from=dev /home/fenics/local .
-#COPY --from=dev /home/fenics/fenics.env.conf .
-#ENV FENICS_VERSION=2018.1.0
 
 # Dependencies
 RUN apt-get update -y &&\
@@ -50,6 +47,11 @@ RUN cd mtnlion &&\
 
 FROM test as sde
 
+# Install pre-commit hooks
+RUN cd mtnlion &&\
+    pre-commit install &&\
+    cd ..
+
 USER root
 
 # Fetch pycharm
@@ -68,7 +70,7 @@ RUN wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add 
     apt-get install -y apt-transport-https &&\
     echo "deb https://download.sublimetext.com/ apt/stable/" | tee /etc/apt/sources.list.d/sublime-text.list &&\
     apt-get update &&\
-    apt-get install -y sublime-text
+    apt-get install -y sublime-text sublime-merge
 
 # Install pycharm
 RUN tar xfz pycharm-*.tar.gz -C /opt/ &&\
