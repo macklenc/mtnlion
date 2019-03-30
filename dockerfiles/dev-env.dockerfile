@@ -3,7 +3,7 @@ FROM quay.io/fenicsproject/dev-env:2018.1.0 as dev
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 USER fenics
 WORKDIR /home/fenics
-ENV FENICS_VERSION=2018.1.0.post2
+ENV FENICS_VERSION=2018.1.0
 ENV PATH=$PATH:/home/fenics/bin
 ENV FENICS_BUILD_TYPE='Debug'
 RUN sed -i 's/\(^ *make$\)/\1 -j/' bin/fenics-build
