@@ -16,6 +16,9 @@ Mountian Lion CSS
 .. |pyup| image:: https://pyup.io/repos/github/macklenc/mtnlion/shield.svg
         :target: https://pyup.io/repos/github/macklenc/mtnlion/
                 
+This project has been transitioned over to gitlab (https://gitlab.com/macklenc/mtnlion.git) and this repo is no longer maintained.
+
+
 Mountain Lion Continuum-Scale Lithium-Ion Cell Simulator uses FEniCS to solve partial differential equation models for lithium-ion cells.
 
 * Free software: MIT license
